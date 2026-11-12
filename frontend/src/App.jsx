@@ -12,8 +12,33 @@ import { api } from './apiService';
 
 export default function App() {
   const [users, setUsers] = useState(initialUsers);
-  const [currentUser, setCurrentUser] = useState(null); // Unauthenticated Guest by default
-  const [activeView, setActiveView] = useState('catalog'); // 'catalog' | 'course-detail' | 'student' | 'admin'
+  // Persist authentication across page refresh with instant hydration
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [activeView, setActiveView] = useState(() => {
+    try {
+      const savedView = localStorage.getItem('aaroha_view');
+      const savedUser = localStorage.getItem('aaroha_user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        if (savedView && ['catalog', 'course-detail', 'student', 'admin'].includes(savedView)) {
+          if (savedView === 'admin' && user.role !== 'admin') return 'student';
+          return savedView;
+        }
+        return user.role === 'admin' ? 'admin' : 'student';
+      }
+      return 'catalog';
+    } catch (e) {
+      return 'catalog';
+    }
+  });
   
   const [authModal, setAuthModal] = useState({
     isOpen: false,
@@ -35,6 +60,13 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
+  // Track active view in storage
+  useEffect(() => {
+    if (activeView) {
+      localStorage.setItem('aaroha_view', activeView);
+    }
+  }, [activeView]);
+
   // Initial load: verify token session and fetch live course catalog
   useEffect(() => {
     // 1. Session check via JWT token
@@ -43,9 +75,16 @@ export default function App() {
       api.getMe()
         .then(res => {
           if (res && res.user) {
-            setCurrentUser(res.user);
+            const verifiedUser = {
+              ...res.user,
+              avatar: res.user.avatar || (res.user.role === 'admin'
+                ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+                : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80')
+            };
+            setCurrentUser(verifiedUser);
+            localStorage.setItem('aaroha_user', JSON.stringify(verifiedUser));
             setIsBackendLive(true);
-            if (res.user.role === 'admin') {
+            if (verifiedUser.role === 'admin') {
               api.getPendingSubmissions()
                 .then(subRes => {
                   if (subRes && subRes.submissions && subRes.submissions.length > 0) {
@@ -66,7 +105,14 @@ export default function App() {
         })
         .catch(err => {
           console.warn('Session check fallback:', err.message);
-          localStorage.removeItem('aaroha_token');
+          // Only clear credentials if the server explicitly rejected the token as unauthorized
+          if (err.message && (err.message.includes('401') || err.message.includes('expired') || err.message.includes('Invalid'))) {
+            localStorage.removeItem('aaroha_token');
+            localStorage.removeItem('aaroha_user');
+            localStorage.removeItem('aaroha_view');
+            setCurrentUser(null);
+            setActiveView('catalog');
+          }
         });
     }
 
@@ -115,12 +161,20 @@ export default function App() {
     try {
       const res = await api.login(email, password);
       if (res && res.user) {
-        setCurrentUser(res.user);
+        const loggedUser = {
+          ...res.user,
+          avatar: res.user.avatar || (res.user.role === 'admin'
+            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+            : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80')
+        };
+        setCurrentUser(loggedUser);
+        localStorage.setItem('aaroha_user', JSON.stringify(loggedUser));
         setIsBackendLive(true);
 
-        if (res.user.role === 'admin') {
+        if (loggedUser.role === 'admin') {
           setActiveView('admin');
-          showToast('Signed in as Faculty Director: ' + res.user.full_name);
+          localStorage.setItem('aaroha_view', 'admin');
+          showToast('Signed in as Faculty Director: ' + loggedUser.full_name);
           api.getPendingSubmissions()
             .then(subRes => {
               if (subRes && subRes.submissions) setTaskSubmissions(subRes.submissions);
@@ -128,11 +182,12 @@ export default function App() {
             .catch(() => {});
         } else {
           if (authModal.intendedCourse) {
-            executeEnrollment(res.user.id, authModal.intendedCourse.id);
+            executeEnrollment(loggedUser.id, authModal.intendedCourse.id);
           } else {
             setActiveView('student');
+            localStorage.setItem('aaroha_view', 'student');
           }
-          showToast('Welcome back, ' + res.user.full_name);
+          showToast('Welcome back, ' + loggedUser.full_name);
           api.getMyEnrollments()
             .then(enrRes => {
               if (enrRes && enrRes.enrollments) setEnrollments(enrRes.enrollments);
@@ -149,14 +204,17 @@ export default function App() {
     const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (foundUser && foundUser.password === password) {
       setCurrentUser(foundUser);
+      localStorage.setItem('aaroha_user', JSON.stringify(foundUser));
       if (foundUser.role === 'admin') {
         setActiveView('admin');
+        localStorage.setItem('aaroha_view', 'admin');
         showToast('Signed in as Faculty Director: ' + foundUser.full_name);
       } else {
         if (authModal.intendedCourse) {
           executeEnrollment(foundUser.id, authModal.intendedCourse.id);
         } else {
           setActiveView('student');
+          localStorage.setItem('aaroha_view', 'student');
         }
         showToast('Welcome back, ' + foundUser.full_name);
       }
@@ -175,16 +233,19 @@ export default function App() {
           avatar: res.user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
         };
         setCurrentUser(registeredUser);
+        localStorage.setItem('aaroha_user', JSON.stringify(registeredUser));
         setIsBackendLive(true);
 
         if (registeredUser.role === 'admin') {
           setActiveView('admin');
+          localStorage.setItem('aaroha_view', 'admin');
           showToast('Faculty account activated: ' + registeredUser.full_name);
         } else {
           if (authModal.intendedCourse) {
             executeEnrollment(registeredUser.id, authModal.intendedCourse.id);
           } else {
             setActiveView('student');
+            localStorage.setItem('aaroha_view', 'student');
           }
           showToast('Account registered successfully. Welcome, ' + registeredUser.full_name);
         }
@@ -206,15 +267,18 @@ export default function App() {
 
     setUsers([...users, newUser]);
     setCurrentUser(newUser);
+    localStorage.setItem('aaroha_user', JSON.stringify(newUser));
 
     if (newUser.role === 'admin') {
       setActiveView('admin');
+      localStorage.setItem('aaroha_view', 'admin');
       showToast('Faculty account activated: ' + newUser.full_name);
     } else {
       if (authModal.intendedCourse) {
         executeEnrollment(newUser.id, authModal.intendedCourse.id);
       } else {
         setActiveView('student');
+        localStorage.setItem('aaroha_view', 'student');
       }
       showToast('Account registered successfully. Welcome, ' + newUser.full_name);
     }
@@ -222,6 +286,8 @@ export default function App() {
 
   const handleLogout = () => {
     api.logout();
+    localStorage.removeItem('aaroha_user');
+    localStorage.removeItem('aaroha_view');
     setCurrentUser(null);
     setActiveView('catalog');
     showToast('Signed out of workspace.');

@@ -66,6 +66,8 @@ export const api = {
 
   logout: () => {
     localStorage.removeItem('aaroha_token');
+    localStorage.removeItem('aaroha_user');
+    localStorage.removeItem('aaroha_view');
   },
 
   getMe: () => request('/auth/me'),
