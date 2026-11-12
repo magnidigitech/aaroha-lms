@@ -62,7 +62,7 @@ jobs:
           [[ "$CLEAN_DIR" != */ ]] && CLEAN_DIR="$CLEAN_DIR/"
           echo "dir=$CLEAN_DIR" >> $GITHUB_OUTPUT
 
-      - name: Sync Files to Hostinger via FTPS
+      - name: Sync Files to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ steps.ftp-config.outputs.server }}
@@ -70,5 +70,6 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ steps.ftp-config.outputs.dir }}
           local-dir: ./deploy_payload/
+          protocol: ftp
           dangerous-clean-slate: false
 
