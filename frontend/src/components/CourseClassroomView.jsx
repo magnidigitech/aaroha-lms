@@ -7,7 +7,7 @@ import {
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import { getEmbedVideoUrl, isDirectVideoFile, getVideoThumbnail } from '../videoUtils';
 
-export default function CourseDetailPage({ 
+export default function CourseClassroomView({ 
   course, 
   onBack, 
   onEnroll, 
@@ -49,7 +49,7 @@ export default function CourseDetailPage({
   const [expandedModules, setExpandedModules] = useState(() => {
     const initial = {};
     (course.modules || []).forEach((_, idx) => {
-      initial[idx] = true; // All open by default as in reference
+      initial[idx] = true;
     });
     return initial;
   });
@@ -367,7 +367,7 @@ export default function CourseDetailPage({
                 {hasNextLesson && (
                   <button
                     onClick={handleNextLesson}
-                    className="bg-[#132d4b] hover:bg-[#1a3c63] border border-[#214b77] px-3.5 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="bg-[#132d4b] hover:bg-[#1a3c63] border border-[#214b77] px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Next Lesson"
                   >
                     <span>Next Lesson</span>

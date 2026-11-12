@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import UserCatalogView from './components/UserCatalogView';
-import CourseDetailPage from './components/CourseDetailPage';
+import CourseBrochureView from './components/CourseBrochureView';
+import CourseClassroomView from './components/CourseClassroomView';
 import StudentPortalView from './components/StudentPortalView';
 import AdminPortalView from './components/AdminPortalView';
 import AuthModal from './components/AuthModal';
@@ -28,8 +29,9 @@ export default function App() {
       const savedUser = localStorage.getItem('aaroha_user');
       if (savedUser) {
         const user = JSON.parse(savedUser);
-        if (savedView && ['catalog', 'course-detail', 'student', 'admin'].includes(savedView)) {
+        if (savedView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin'].includes(savedView)) {
           if (savedView === 'admin' && user.role !== 'admin') return 'student';
+          if (savedView === 'course-detail') return 'course-brochure';
           return savedView;
         }
         return user.role === 'admin' ? 'admin' : 'student';
@@ -163,8 +165,19 @@ export default function App() {
       setReturnView(activeView);
     }
     setSelectedCourse(course);
-    setActiveView('course-detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Strictly check if current user is enrolled in this course:
+    const isEnrolledInCourse = currentUser 
+      ? enrollments.some(e => e.course_id === course.id && e.user_id === currentUser.id && e.status === 'active')
+      : false;
+
+    // Only Enrolled Courses unlock Course Interface, otherwise only course brochure!
+    if (isEnrolledInCourse) {
+      setActiveView('course-classroom');
+    } else {
+      setActiveView('course-brochure');
+    }
 
     try {
       const res = await api.getCourseDetails(course.id || course.slug);
@@ -332,12 +345,16 @@ export default function App() {
       setEnrollments(prev => [...prev, newEnrollment]);
     }
     setActiveStudentCourseId(courseId);
-    setActiveView('student');
-    showToast('Enrolled successfully! Program added to your workspace.');
+    const targetCourse = courses.find(c => c.id === courseId);
+    if (targetCourse) setSelectedCourse(targetCourse);
+    // Unlocks Course Interface upon enrollment!
+    setActiveView('course-classroom');
+    showToast('Enrolled successfully! Course interface unlocked.');
   };
 
-  const handleEnroll = (courseId) => {
-    const course = courses.find(c => c.id === courseId);
+  const handleEnroll = (courseOrId) => {
+    const courseId = typeof courseOrId === 'object' ? courseOrId.id : courseOrId;
+    const course = typeof courseOrId === 'object' ? courseOrId : courses.find(c => c.id === courseId);
     if (!currentUser) {
       handleOpenAuth('register', course);
       showToast('Please sign in or create an account to enroll.');
@@ -555,7 +572,7 @@ export default function App() {
       )}
 
       {/* Main Navbar (Hidden only in focused classroom view) */}
-      {activeView !== 'course-detail' && (
+      {activeView !== 'course-classroom' && (
         <Navbar
           currentUser={currentUser}
           activeView={activeView}
@@ -574,7 +591,8 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full ${activeView === 'course-detail' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+      <main className={`flex-1 w-full ${activeView === 'course-classroom' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+        {/* 1. Main Course Catalog */}
         {activeView === 'catalog' && (
           <UserCatalogView
             courses={courses}
@@ -587,20 +605,45 @@ export default function App() {
           />
         )}
 
+        {/* 2. My Learning Dashboard (Enrolled Programs First) */}
         {activeView === 'student' && (
           <StudentPortalView
             courses={courses}
             enrollments={currentUser ? enrollments.filter(e => e.user_id === currentUser.id) : enrollments}
             lessonProgress={lessonProgress}
             taskSubmissions={taskSubmissions}
-            onOpenCourse={handleOpenCourseDetails}
+            onOpenCourse={(course) => {
+              setSelectedCourse(course);
+              setReturnView('student');
+              setActiveView('course-classroom');
+            }}
             onExploreCatalog={() => setActiveView('catalog')}
             currentUser={currentUser}
           />
         )}
 
-        {activeView === 'course-detail' && selectedCourse && (
-          <CourseDetailPage
+        {/* 3. Course Brochure (Shown for un-enrolled courses) */}
+        {activeView === 'course-brochure' && selectedCourse && (
+          <CourseBrochureView
+            course={selectedCourse}
+            onBack={() => setActiveView(returnView || 'catalog')}
+            onEnroll={handleEnroll}
+            isEnrolled={
+              currentUser 
+                ? enrollments.some(e => e.course_id === selectedCourse.id && e.user_id === currentUser.id && e.status === 'active')
+                : false
+            }
+            onOpenClassroom={(course) => {
+              setSelectedCourse(course);
+              setActiveView('course-classroom');
+            }}
+            currentUser={currentUser}
+          />
+        )}
+
+        {/* 4. Course Interface / Classroom (ONLY unlocked for enrolled courses) */}
+        {activeView === 'course-classroom' && selectedCourse && (
+          <CourseClassroomView
             course={selectedCourse}
             onBack={() => setActiveView(returnView || 'catalog')}
             onEnroll={handleEnroll}
@@ -619,6 +662,7 @@ export default function App() {
           />
         )}
 
+        {/* 5. Faculty Admin Console */}
         {activeView === 'admin' && currentUser?.role === 'admin' && (
           <AdminPortalView
             courses={courses}
@@ -643,7 +687,7 @@ export default function App() {
       />
 
       {/* Coursera-Style Multi-Column Footer (Hidden only in focused classroom view) */}
-      {activeView !== 'course-detail' && (
+      {activeView !== 'course-classroom' && (
         <footer className="bg-white border-t border-slate-200 mt-auto pt-14 pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">
