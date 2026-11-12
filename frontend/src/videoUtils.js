@@ -30,3 +30,4 @@ export function isDirectVideoFile(url) {
   if (!url || typeof url !== 'string') return false;
   return /\.(mp4|webm|ogg|m4v)($|\?)/i.test(url.trim());
 }
+

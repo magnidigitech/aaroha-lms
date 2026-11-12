@@ -63,11 +63,13 @@ export default function CourseDetailPage({ course, onBack, onEnroll, isEnrolled,
           <div className="lg:col-span-8 space-y-4">
             {/* Official Partner Badge */}
             <div className="flex items-center gap-3">
-              <img
-                src={aarohaLogo}
-                alt="Aaroha Technologies"
-                className="h-7 sm:h-8 w-auto object-contain"
-              />
+              <div className="inline-flex bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-xs items-center">
+                <img
+                  src={aarohaLogo}
+                  alt="Aaroha Technologies"
+                  className="h-6 sm:h-7 w-auto object-contain"
+                />
+              </div>
               <span className="text-xs font-bold text-slate-300 tracking-wide pl-3 border-l border-slate-700">
                 {course.institution_subtitle || 'Systems Engineering Laboratory'}
               </span>

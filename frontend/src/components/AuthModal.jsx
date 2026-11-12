@@ -67,11 +67,13 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
           </button>
 
           <div className="mb-3 flex justify-center">
-            <img
-              src={aarohaLogo}
-              alt="Aaroha Technologies"
-              className="h-8 w-auto object-contain"
-            />
+            <div className="inline-flex bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs items-center">
+              <img
+                src={aarohaLogo}
+                alt="Aaroha Technologies"
+                className="h-7 w-auto object-contain"
+              />
+            </div>
           </div>
 
           <h2 className="text-xl font-extrabold text-white">

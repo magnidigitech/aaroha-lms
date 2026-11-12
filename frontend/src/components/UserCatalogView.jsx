@@ -73,13 +73,13 @@ export default function UserCatalogView({
 
           {/* Right Hero Badge Card */}
           <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between">
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
               <img
                 src={aarohaLogo}
                 alt="Aaroha Technologies"
                 className="h-7 w-auto object-contain"
               />
-              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest pl-2">
+              <span className="text-[10px] font-bold text-[#0056D2] uppercase tracking-widest pl-2">
                 Accredited
               </span>
             </div>
@@ -221,7 +221,7 @@ export default function UserCatalogView({
                 <div className="space-y-1">
                   {/* Partner / Provider Line with Logo */}
                   <div className="flex items-center gap-1.5">
-                    <div className="w-4.5 h-4.5 rounded border border-slate-200 bg-slate-950 flex items-center justify-center p-0.5 shadow-2xs flex-shrink-0">
+                    <div className="w-5 h-5 rounded border border-slate-200 bg-white flex items-center justify-center p-0.5 shadow-2xs flex-shrink-0">
                       <img
                         src={aarohaLogo}
                         alt="Aaroha"

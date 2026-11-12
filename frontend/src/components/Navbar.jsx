@@ -41,13 +41,13 @@ export default function Navbar({
                 if (onSelectCategory) onSelectCategory('All');
               }}
             >
-              <div className="bg-slate-950 hover:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 flex items-center gap-2.5 shadow-2xs transition-all duration-200 group-hover:border-slate-700">
+              <div className="bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2.5 shadow-xs transition-all duration-200 group-hover:border-slate-300">
                 <img
                   src={aarohaLogo}
                   alt="Aaroha Technologies"
                   className="h-7 sm:h-8 w-auto object-contain"
                 />
-                <span className="text-[10px] font-black tracking-widest text-[#00A3FF] uppercase pl-2 border-l border-slate-800 hidden sm:inline">
+                <span className="text-[10px] font-black tracking-widest text-[#0056D2] uppercase pl-2 border-l border-slate-200 hidden sm:inline">
                   Academy
                 </span>
               </div>
