@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Play, FileText, CheckCircle2, Clock, ListTodo, Send, AlertCircle, ArrowLeft, Award, RefreshCw, Check, ExternalLink, ChevronRight } from 'lucide-react';
+import { getEmbedVideoUrl, isDirectVideoFile } from '../videoUtils';
 
 export default function StudentPortalView({
   courses,
@@ -268,13 +269,36 @@ export default function StudentPortalView({
 
               {/* Video Player */}
               {activeItem.data.content_type === 'video' && activeItem.data.media_url ? (
-                <div className="relative pt-[56.25%] rounded-2xl overflow-hidden bg-black shadow-md">
-                  <iframe
-                    src={activeItem.data.media_url}
-                    title={activeItem.data.title}
-                    className="absolute inset-0 w-full h-full border-0"
-                    allowFullScreen
-                  />
+                <div className="space-y-2">
+                  <div className="flex justify-end">
+                    <a
+                      href={activeItem.data.media_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-[#0056D2] hover:underline font-semibold flex items-center gap-1"
+                    >
+                      <span>Open Video Tab</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                  <div className="relative pt-[56.25%] rounded-2xl overflow-hidden bg-black shadow-md">
+                    {isDirectVideoFile(activeItem.data.media_url) ? (
+                      <video
+                        src={activeItem.data.media_url}
+                        controls
+                        autoPlay
+                        className="absolute inset-0 w-full h-full"
+                      />
+                    ) : (
+                      <iframe
+                        src={getEmbedVideoUrl(activeItem.data.media_url)}
+                        title={activeItem.data.title}
+                        className="absolute inset-0 w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    )}
+                  </div>
                 </div>
               ) : null}
 

@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   ArrowLeft, Play, FileText, CheckCircle2, Lock, ArrowRight, BookOpen, Clock, 
-  ListTodo, Star, Award, Check, Users, Globe, Calendar, ChevronDown, ChevronUp, Share2
+  ListTodo, Star, Award, Check, Users, Globe, Calendar, ChevronDown, ChevronUp, Share2, ExternalLink
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
+import { getEmbedVideoUrl, isDirectVideoFile } from '../videoUtils';
 
 export default function CourseDetailPage({ course, onBack, onEnroll, isEnrolled, onStartLearning }) {
   const [activeTab, setActiveTab] = useState('syllabus'); // 'about' | 'outcomes' | 'syllabus' | 'instructors'
+  const previewPlayerRef = useRef(null);
   const [expandedModules, setExpandedModules] = useState(() => {
     // Expand the first module by default
     return { 0: true };
@@ -268,7 +270,7 @@ export default function CourseDetailPage({ course, onBack, onEnroll, isEnrolled,
 
       {/* Interactive Free Preview Lecture Player */}
       {activePreviewLesson && (
-        <section className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
+        <section ref={previewPlayerRef} className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -284,29 +286,55 @@ export default function CourseDetailPage({ course, onBack, onEnroll, isEnrolled,
               </h3>
             </div>
 
-            <button
-              onClick={() => setActivePreviewLesson(null)}
-              className="text-xs text-slate-500 hover:text-slate-800 font-semibold self-start sm:self-center"
-            >
-              Hide Player
-            </button>
+            <div className="flex items-center gap-3 self-start sm:self-center">
+              {activePreviewLesson.media_url && (
+                <a
+                  href={activePreviewLesson.media_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-[#0056D2] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+                  title="Open video in external player or YouTube tab"
+                >
+                  <span>Open Video Tab</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+              <button
+                onClick={() => setActivePreviewLesson(null)}
+                className="text-xs text-slate-500 hover:text-slate-800 font-semibold px-2 py-1"
+              >
+                Hide Player
+              </button>
+            </div>
           </div>
 
           {activePreviewLesson.content_type === 'video' && activePreviewLesson.media_url ? (
             <div className="relative pt-[56.25%] rounded-2xl overflow-hidden bg-black shadow-md">
-              <iframe
-                src={activePreviewLesson.media_url}
-                title={activePreviewLesson.title}
-                className="absolute inset-0 w-full h-full border-0"
-                allowFullScreen
-              />
+              {isDirectVideoFile(activePreviewLesson.media_url) ? (
+                <video
+                  src={activePreviewLesson.media_url}
+                  controls
+                  autoPlay
+                  className="absolute inset-0 w-full h-full"
+                />
+              ) : (
+                <iframe
+                  src={getEmbedVideoUrl(activePreviewLesson.media_url)}
+                  title={activePreviewLesson.title}
+                  className="absolute inset-0 w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              )}
             </div>
           ) : null}
 
-          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed space-y-2">
-            <h4 className="font-bold text-slate-900 text-sm">Lecture Notes & Foundations:</h4>
-            <p>{activePreviewLesson.content_body}</p>
-          </div>
+          {activePreviewLesson.content_body && (
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed space-y-2">
+              <h4 className="font-bold text-slate-900 text-sm">Lecture Notes & Foundations:</h4>
+              <p>{activePreviewLesson.content_body}</p>
+            </div>
+          )}
         </section>
       )}
 
@@ -373,68 +401,103 @@ export default function CourseDetailPage({ course, onBack, onEnroll, isEnrolled,
                 {isExpanded && (
                   <div className="divide-y divide-slate-100 border-t border-slate-100 bg-slate-50/40">
                     {/* Lessons */}
-                    {mod.lessons?.map(lesson => (
-                      <div
-                        key={lesson.id}
-                        className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white transition-colors"
-                      >
-                        <div className="flex items-center gap-3.5">
-                          {lesson.content_type === 'video' ? (
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0056D2] flex items-center justify-center flex-shrink-0">
-                              <Play className="w-4 h-4 fill-current" />
-                            </div>
-                          ) : (
-                            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                          )}
-                          <div>
-                            <h4 className="text-xs sm:text-sm font-semibold text-slate-900">
-                              {lesson.title}
-                            </h4>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                              <span>{lesson.content_type === 'video' ? 'Video' : 'Reading'}</span>
-                              <span>·</span>
-                              <span>{lesson.duration}</span>
+                    {mod.lessons?.map(lesson => {
+                      const isFree = Boolean(lesson.is_free_preview);
+                      return (
+                        <div
+                          key={lesson.id}
+                          onClick={() => {
+                            if (isFree) {
+                              setActivePreviewLesson(lesson);
+                              previewPlayerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            } else if (isEnrolled) {
+                              onStartLearning(course.id);
+                            } else {
+                              onEnroll(course);
+                            }
+                          }}
+                          className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3.5">
+                            {lesson.content_type === 'video' ? (
+                              <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0056D2] group-hover:bg-[#0056D2] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
+                                <Play className="w-4 h-4 fill-current" />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 group-hover:bg-slate-200 flex items-center justify-center flex-shrink-0">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                            )}
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-[#0056D2] transition-colors">
+                                {lesson.title}
+                              </h4>
+                              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                                <span>{lesson.content_type === 'video' ? 'Video Lecture' : 'Reading'}</span>
+                                <span>·</span>
+                                <span>{lesson.duration}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div>
-                          {lesson.is_free_preview ? (
-                            <button
-                              onClick={() => {
-                                setActivePreviewLesson(lesson);
-                                window.scrollTo({ top: 400, behavior: 'smooth' });
-                              }}
-                              className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold rounded-md transition-colors flex items-center gap-1.5"
-                            >
-                              <Play className="w-3.5 h-3.5 fill-current" />
-                              <span>Free Preview</span>
-                            </button>
-                          ) : (
-                            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                              <Lock className="w-3.5 h-3.5" />
-                              <span>Enrolled Only</span>
-                            </div>
-                          )}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            {isFree ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActivePreviewLesson(lesson);
+                                  previewPlayerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }}
+                                className="px-3.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-300 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-xs"
+                              >
+                                <Play className="w-3.5 h-3.5 fill-current" />
+                                <span>Free Preview</span>
+                              </button>
+                            ) : isEnrolled ? (
+                              <button
+                                type="button"
+                                onClick={() => onStartLearning(course.id)}
+                                className="px-3.5 py-1.5 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
+                              >
+                                <Play className="w-3.5 h-3.5 fill-current" />
+                                <span>Start Lesson</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onEnroll(course)}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-[#0056D2] hover:text-white text-slate-600 hover:border-[#0056D2] border border-slate-200 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-xs"
+                                title="Click to enroll and unlock this lecture"
+                              >
+                                <Lock className="w-3.5 h-3.5" />
+                                <span>Unlock Lesson</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Graded Projects */}
                     {mod.tasks?.map(task => (
                       <div
                         key={task.id}
-                        className="px-6 py-4 bg-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-l-4 border-[#0056D2]"
+                        onClick={() => {
+                          if (isEnrolled) {
+                            onStartLearning(course.id);
+                          } else {
+                            onEnroll(course);
+                          }
+                        }}
+                        className="px-6 py-4 bg-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-l-4 border-[#0056D2] hover:bg-blue-50/60 transition-colors cursor-pointer group"
                       >
                         <div className="flex items-center gap-3.5">
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#0056D2] flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#0056D2] group-hover:bg-[#0056D2] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
                             <ListTodo className="w-4 h-4" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors">
                                 {task.title}
                               </h4>
                               <span className="text-[10px] bg-blue-100 text-[#0056D2] px-2 py-0.5 rounded font-bold uppercase">
@@ -447,8 +510,21 @@ export default function CourseDetailPage({ course, onBack, onEnroll, isEnrolled,
                           </div>
                         </div>
 
-                        <div className="text-right text-xs text-slate-700 font-semibold whitespace-nowrap pl-4">
-                          <span>Threshold: {task.passing_score}/{task.max_score} pts</span>
+                        <div onClick={(e) => e.stopPropagation()} className="text-right text-xs text-slate-700 font-semibold whitespace-nowrap pl-4">
+                          {isEnrolled ? (
+                            <button
+                              type="button"
+                              onClick={() => onStartLearning(course.id)}
+                              className="px-3 py-1.5 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
+                            >
+                              Go to Project
+                            </button>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                              <Lock className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Enrolled Only</span>
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}

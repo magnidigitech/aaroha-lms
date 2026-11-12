@@ -772,12 +772,15 @@ export default function AdminPortalView({
 
               {lessonForm.content_type === 'video' && (
                 <div>
-                  <label className="font-semibold text-slate-700">Video URL (HLS / MP4 Stream):</label>
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-slate-700">Video Stream or YouTube / Vimeo URL:</label>
+                    <span className="text-[10px] text-slate-400">YouTube, Vimeo, MP4 supported</span>
+                  </div>
                   <input
                     type="url"
                     value={lessonForm.media_url}
                     onChange={(e) => setLessonForm({ ...lessonForm, media_url: e.target.value })}
-                    placeholder="https://video.aaroha-inc.com/lectures/stream-id"
+                    placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
                     className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                 </div>

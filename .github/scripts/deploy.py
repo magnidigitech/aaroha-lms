@@ -38,7 +38,20 @@ def main():
 
     base_remote = '/' + raw_dir
 
+    def get_remote_files(remote_dir):
+        files = {}
+        try:
+            ftp.cwd(remote_dir)
+            for name, facts in ftp.mlsd():
+                if facts.get('type') == 'file':
+                    files[name] = int(facts.get('size', -1))
+        except Exception:
+            pass
+        return files
+
     def upload_dir(local_base, remote_base):
+        remote_file_map = get_remote_files(remote_base)
+
         for item in sorted(os.listdir(local_base)):
             local_full = os.path.join(local_base, item)
             remote_full = f'{remote_base}/{item}'
@@ -54,11 +67,18 @@ def main():
                 if item == 'env.php':
                     continue
                 file_size = os.path.getsize(local_full)
-                print(f'  -> Syncing {item} ({file_size} bytes)...')
+
+                # Delta Check: Skip if remote file exists and has identical size
+                if item in remote_file_map and remote_file_map[item] == file_size:
+                    if item != 'index.html':
+                        print(f'  [CACHE HIT] {item} (unchanged, {file_size} bytes)')
+                        continue
+
+                print(f'  -> Uploading {item} ({file_size} bytes)...')
                 with open(local_full, 'rb') as f:
                     ftp.storbinary(f'STOR {remote_full}', f)
 
-    print(f'Synchronizing payload from {local_dir} to {base_remote}...')
+    print(f'Synchronizing payload from {local_dir} to {base_remote} with Delta Caching...')
     upload_dir(local_dir, base_remote)
     print('Deployment completed successfully!')
     ftp.quit()
