@@ -44,12 +44,20 @@ jobs:
           # Remove local env.php so we preserve server production config
           rm -f deploy_payload/api/config/env.php
 
+      - name: Sanitize FTP Configuration
+        id: ftp-config
+        run: |
+          RAW_SERVER="${{ secrets.FTP_SERVER }}"
+          CLEAN_SERVER=$(echo "$RAW_SERVER" | sed -e 's|^ftp://||' -e 's|^ftps://||' -e 's|/$||')
+          echo "server=$CLEAN_SERVER" >> $GITHUB_OUTPUT
+
       - name: Sync Files to Hostinger via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ steps.ftp-config.outputs.server }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR || 'domains/aaroha-inc.com/public_html/lms/' }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR || 'public_html/lms/' }}
           local-dir: ./deploy_payload/
           dangerous-clean-slate: false
+
