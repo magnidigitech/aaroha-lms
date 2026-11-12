@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import UserCatalogView from './components/UserCatalogView';
 import CourseDetailPage from './components/CourseDetailPage';
+import StudentPortalView from './components/StudentPortalView';
 import AdminPortalView from './components/AdminPortalView';
 import AuthModal from './components/AuthModal';
 import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions } from './mockData';
@@ -60,6 +61,7 @@ export default function App() {
     } catch (e) {}
     return initialCourses[0] || null;
   });
+  const [returnView, setReturnView] = useState('catalog');
   const [activeStudentCourseId, setActiveStudentCourseId] = useState(1);
   const [toastMessage, setToastMessage] = useState(null);
   const [isBackendLive, setIsBackendLive] = useState(false);
@@ -157,6 +159,9 @@ export default function App() {
   };
 
   const handleOpenCourseDetails = async (course) => {
+    if (activeView === 'student' || activeView === 'catalog') {
+      setReturnView(activeView);
+    }
     setSelectedCourse(course);
     setActiveView('course-detail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -549,8 +554,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Navbar (Hidden in focused classroom view) */}
-      {activeView !== 'course-detail' && activeView !== 'student' && (
+      {/* Main Navbar (Hidden only in focused classroom view) */}
+      {activeView !== 'course-detail' && (
         <Navbar
           currentUser={currentUser}
           activeView={activeView}
@@ -569,7 +574,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full ${activeView === 'course-detail' || activeView === 'student' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+      <main className={`flex-1 w-full ${activeView === 'course-detail' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
         {activeView === 'catalog' && (
           <UserCatalogView
             courses={courses}
@@ -582,18 +587,26 @@ export default function App() {
           />
         )}
 
-        {(activeView === 'course-detail' || activeView === 'student') && (
+        {activeView === 'student' && (
+          <StudentPortalView
+            courses={courses}
+            enrollments={currentUser ? enrollments.filter(e => e.user_id === currentUser.id) : enrollments}
+            lessonProgress={lessonProgress}
+            taskSubmissions={taskSubmissions}
+            onOpenCourse={handleOpenCourseDetails}
+            onExploreCatalog={() => setActiveView('catalog')}
+            currentUser={currentUser}
+          />
+        )}
+
+        {activeView === 'course-detail' && selectedCourse && (
           <CourseDetailPage
-            course={
-              activeView === 'student'
-                ? (courses.find(c => c.id === activeStudentCourseId) || courses.find(c => enrollments.some(e => e.course_id === c.id && e.user_id === currentUser?.id)) || selectedCourse || courses[0])
-                : (selectedCourse || courses[0])
-            }
-            onBack={() => setActiveView('catalog')}
+            course={selectedCourse}
+            onBack={() => setActiveView(returnView || 'catalog')}
             onEnroll={handleEnroll}
             isEnrolled={
               currentUser 
-                ? enrollments.some(e => e.course_id === (selectedCourse?.id || activeStudentCourseId) && e.user_id === currentUser.id && e.status === 'active')
+                ? enrollments.some(e => e.course_id === selectedCourse.id && e.user_id === currentUser.id && e.status === 'active')
                 : false
             }
             currentUser={currentUser}
@@ -602,10 +615,7 @@ export default function App() {
             onCompleteLesson={handleCompleteLesson}
             onSubmitTask={handleSubmitTask}
             allCourses={courses}
-            onSelectCourse={(c) => {
-              setSelectedCourse(c);
-              setActiveStudentCourseId(c.id);
-            }}
+            onSelectCourse={(c) => setSelectedCourse(c)}
           />
         )}
 
@@ -632,8 +642,8 @@ export default function App() {
         intendedCourseTitle={authModal.intendedCourse?.title}
       />
 
-      {/* Coursera-Style Multi-Column Footer (Hidden in focused classroom view) */}
-      {activeView !== 'course-detail' && activeView !== 'student' && (
+      {/* Coursera-Style Multi-Column Footer (Hidden only in focused classroom view) */}
+      {activeView !== 'course-detail' && (
         <footer className="bg-white border-t border-slate-200 mt-auto pt-14 pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">

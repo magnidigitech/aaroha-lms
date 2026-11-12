@@ -1,476 +1,313 @@
 import React, { useState } from 'react';
-import { Play, FileText, CheckCircle2, Clock, ListTodo, Send, AlertCircle, ArrowLeft, Award, RefreshCw, Check, ExternalLink, ChevronRight } from 'lucide-react';
-import { getEmbedVideoUrl, isDirectVideoFile } from '../videoUtils';
+import { 
+  GraduationCap, BookOpen, CheckCircle2, Play, Clock, Award, 
+  ArrowRight, Search, ChevronRight, TrendingUp, Layers, Sparkles
+} from 'lucide-react';
 
 export default function StudentPortalView({
-  courses,
-  enrollments,
-  lessonProgress,
-  taskSubmissions,
-  onCompleteLesson,
-  onSubmitTask,
-  activeCourseId,
-  setActiveCourseId
+  courses = [],
+  enrollments = [],
+  lessonProgress = [],
+  taskSubmissions = [],
+  onOpenCourse,
+  onExploreCatalog,
+  currentUser
 }) {
-  const enrolledCourses = courses.filter(c => 
-    enrollments.some(e => e.course_id === c.id && e.status === 'active')
+  const [filter, setFilter] = useState('all'); // 'all' | 'in_progress' | 'completed'
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 1. Filter courses where the user has an active enrollment
+  const enrolledCourses = courses.filter(course => 
+    enrollments.some(e => e.course_id === course.id && e.status === 'active')
   );
 
-  const selectedCourse = courses.find(c => c.id === activeCourseId) || enrolledCourses[0] || null;
+  // 2. Helper to compute progress and find next lecture for a course
+  const getCourseAnalytics = (course) => {
+    const allLessons = (course.modules || []).flatMap(m => m.lessons || []);
+    const totalLessons = allLessons.length;
+    const completedLessonIds = new Set(
+      lessonProgress.filter(p => p.is_completed).map(p => p.lesson_id)
+    );
+    const completedLessons = allLessons.filter(l => completedLessonIds.has(l.id));
+    const completedCount = completedLessons.length;
+    const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+    
+    // Find next uncompleted lesson
+    const nextLesson = allLessons.find(l => !completedLessonIds.has(l.id)) || allLessons[0] || null;
 
-  const [activeItem, setActiveItem] = useState(() => {
-    if (selectedCourse?.modules?.[0]?.lessons?.[0]) {
-      return { type: 'lesson', data: selectedCourse.modules[0].lessons[0] };
+    return {
+      totalLessons,
+      completedCount,
+      progressPct,
+      isCompleted: totalLessons > 0 && completedCount === totalLessons,
+      nextLesson
+    };
+  };
+
+  // 3. Filtered list based on tab and search
+  const filteredCourses = enrolledCourses.filter(course => {
+    const analytics = getCourseAnalytics(course);
+    
+    // Tab filter
+    if (filter === 'in_progress' && analytics.isCompleted) return false;
+    if (filter === 'completed' && !analytics.isCompleted) return false;
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = (course.title || '').toLowerCase().includes(q);
+      const matchCat = (course.category || '').toLowerCase().includes(q);
+      const matchInst = (course.institution || '').toLowerCase().includes(q);
+      return matchTitle || matchCat || matchInst;
     }
-    return null;
+
+    return true;
   });
 
-  const [submissionText, setSubmissionText] = useState('');
-  const [attachmentUrl, setAttachmentUrl] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  if (enrolledCourses.length === 0) {
-    return (
-      <div className="text-center py-24 bg-white rounded-3xl border border-slate-200 shadow-xs p-8 max-w-xl mx-auto space-y-4">
-        <Award className="w-16 h-16 text-[#0056D2] mx-auto opacity-70" />
-        <h3 className="text-xl font-bold text-slate-900">No Active Enrollments</h3>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Browse the Course Catalog to enroll in an executive program and begin your coursework.
-        </p>
-      </div>
-    );
-  }
-
-  const calculateCourseProgress = (course) => {
-    if (!course || !course.modules) return 0;
-    const allLessonIds = course.modules.flatMap(m => m.lessons?.map(l => l.id) || []);
-    if (allLessonIds.length === 0) return 0;
-    const completedCount = allLessonIds.filter(id => 
-      lessonProgress.some(p => p.lesson_id === id && p.is_completed)
-    ).length;
-    return Math.round((completedCount / allLessonIds.length) * 100);
-  };
-
-  const handleTaskSubmit = (e) => {
-    e.preventDefault();
-    if (!submissionText.trim() && !attachmentUrl.trim()) return;
-
-    setIsSubmitting(true);
-    onSubmitTask({
-      taskId: activeItem.data.id,
-      submissionText: submissionText,
-      attachmentUrl: attachmentUrl
-    });
-
-    setSubmissionText('');
-    setAttachmentUrl('');
-    setIsSubmitting(false);
-  };
-
-  const getTaskSubmission = (taskId) => {
-    return taskSubmissions.find(s => s.task_id === taskId);
-  };
-
-  const isLessonCompleted = (lessonId) => {
-    return lessonProgress.some(p => p.lesson_id === lessonId && p.is_completed);
-  };
-
-  const progressPct = calculateCourseProgress(selectedCourse);
+  // Calculate overall learner stats
+  const totalEnrolled = enrolledCourses.length;
+  const completedProgramsCount = enrolledCourses.filter(c => getCourseAnalytics(c).isCompleted).length;
+  const inProgressProgramsCount = totalEnrolled - completedProgramsCount;
+  const totalCompletedLessons = enrolledCourses.reduce((acc, c) => acc + getCourseAnalytics(c).completedCount, 0);
 
   return (
-    <div className="space-y-6 pb-24">
-      {/* Coursera Classroom Top Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
-            <span className="text-[#0056D2] font-bold">My Learning</span>
-            <span>/</span>
-            <span className="text-slate-800">{selectedCourse?.category}</span>
+    <div className="space-y-8 pb-16">
+      
+      {/* Dashboard Welcome & Header */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 bg-blue-50 text-[#0056D2] px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Learner Workspace</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              My Learning
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+              Track your enrolled curricula, monitor completion progress, and resume coursework where you left off.
+            </p>
           </div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900">
-            {selectedCourse?.title}
-          </h1>
-          <p className="text-xs text-slate-500">
-            {selectedCourse?.institution || 'Aaroha Institute of Technology'} · {selectedCourse?.instructor?.name}
-          </p>
+
+          <button
+            onClick={onExploreCatalog}
+            className="self-start md:self-auto bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-300 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+          >
+            <BookOpen className="w-4 h-4 text-[#0056D2]" />
+            <span>Browse Full Catalog</span>
+          </button>
         </div>
 
-        {/* Course Switcher & Coursera Progress Bar */}
-        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full md:w-auto">
-          {enrolledCourses.length > 1 && (
-            <select
-              value={selectedCourse?.id || ''}
-              onChange={(e) => {
-                const cId = parseInt(e.target.value);
-                setActiveCourseId(cId);
-                const found = courses.find(c => c.id === cId);
-                if (found?.modules?.[0]?.lessons?.[0]) {
-                  setActiveItem({ type: 'lesson', data: found.modules[0].lessons[0] });
-                }
-              }}
-              className="px-3.5 py-2 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#0056D2]"
-            >
-              {enrolledCourses.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          )}
+        {/* Learner Performance KPI Metric Tiles */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-100">
+          <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Enrolled Programs</span>
+            <div className="text-2xl font-black text-slate-900">{totalEnrolled}</div>
+            <span className="text-[11px] text-slate-500">Active Specializations</span>
+          </div>
 
-          <div className="text-right whitespace-nowrap w-full sm:w-auto">
-            <div className="text-xs font-bold text-slate-800 flex items-center justify-between sm:justify-end gap-2">
-              <span>Course Progress</span>
-              <span className="text-[#0056D2]">{progressPct}%</span>
-            </div>
-            <div className="w-full sm:w-36 bg-slate-100 rounded-full h-2 mt-1.5 overflow-hidden">
+          <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Progress</span>
+            <div className="text-2xl font-black text-[#0056D2]">{inProgressProgramsCount}</div>
+            <span className="text-[11px] text-slate-500">Actively Studying</span>
+          </div>
+
+          <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Completed Lectures</span>
+            <div className="text-2xl font-black text-emerald-600">{totalCompletedLessons}</div>
+            <span className="text-[11px] text-slate-500">Verified Units Done</span>
+          </div>
+
+          <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Accreditations</span>
+            <div className="text-2xl font-black text-amber-600">{completedProgramsCount}</div>
+            <span className="text-[11px] text-slate-500">Certificates Issued</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs & Search Controls */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        {/* Tabs */}
+        <div className="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold self-start">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+              filter === 'all'
+                ? 'bg-white text-[#0056D2] shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            All Programs ({totalEnrolled})
+          </button>
+          <button
+            onClick={() => setFilter('in_progress')}
+            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+              filter === 'in_progress'
+                ? 'bg-white text-[#0056D2] shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            In Progress ({inProgressProgramsCount})
+          </button>
+          <button
+            onClick={() => setFilter('completed')}
+            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
+              filter === 'completed'
+                ? 'bg-white text-[#0056D2] shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Completed ({completedProgramsCount})
+          </button>
+        </div>
+
+        {/* Search Filter */}
+        {totalEnrolled > 0 && (
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search your courses..."
+              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#0056D2] shadow-2xs"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Course Cards Grid */}
+      {filteredCourses.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCourses.map(course => {
+            const analytics = getCourseAnalytics(course);
+
+            return (
               <div
-                className="bg-[#0056D2] h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Learning Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Coursera Syllabus Sidebar */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-          <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Course Content</span>
-              <h3 className="text-xs font-bold text-slate-100 line-clamp-1">{selectedCourse?.title}</h3>
-            </div>
-            <span className="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
-              {selectedCourse?.modules?.length || 0} Modules
-            </span>
-          </div>
-
-          <div className="divide-y divide-slate-100 max-h-[720px] overflow-y-auto">
-            {selectedCourse?.modules?.map((mod, modIdx) => (
-              <div key={mod.id} className="p-3 bg-slate-50/40">
-                <div className="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-md bg-[#0056D2] text-white text-[10px] flex items-center justify-center font-bold">
-                    {modIdx + 1}
-                  </span>
-                  <span className="line-clamp-1">{mod.title.replace(/^Module \d+:\s*/, '')}</span>
-                </div>
-
-                <div className="space-y-1">
-                  {/* Lectures */}
-                  {mod.lessons?.map(lesson => {
-                    const completed = isLessonCompleted(lesson.id);
-                    const isSelected = activeItem?.type === 'lesson' && activeItem.data.id === lesson.id;
-
-                    return (
-                      <button
-                        key={lesson.id}
-                        onClick={() => setActiveItem({ type: 'lesson', data: lesson })}
-                        className={'w-full p-2.5 rounded-lg text-left text-xs transition-all flex items-center justify-between ' +
-                          (isSelected
-                            ? 'bg-blue-50 text-[#0056D2] font-bold border border-blue-200 shadow-2xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-100')}
-                      >
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          {lesson.content_type === 'video' ? (
-                            <Play className={'w-3.5 h-3.5 flex-shrink-0 ' + (isSelected ? 'text-[#0056D2]' : 'text-slate-400')} />
-                          ) : (
-                            <FileText className={'w-3.5 h-3.5 flex-shrink-0 ' + (isSelected ? 'text-[#0056D2]' : 'text-slate-400')} />
-                          )}
-                          <span className="truncate">{lesson.title}</span>
-                        </div>
-
-                        {completed && (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 ml-1.5" />
-                        )}
-                      </button>
-                    );
-                  })}
-
-                  {/* Tasks */}
-                  {mod.tasks?.map(task => {
-                    const submission = getTaskSubmission(task.id);
-                    const isSelected = activeItem?.type === 'task' && activeItem.data.id === task.id;
-
-                    let badgeColor = 'bg-slate-100 text-slate-700';
-                    let statusLabel = 'Pending';
-
-                    if (submission) {
-                      if (submission.status === 'passed') {
-                        badgeColor = 'bg-emerald-100 text-emerald-800';
-                        statusLabel = `Passed (${submission.score} pts)`;
-                      } else if (submission.status === 'under_review') {
-                        badgeColor = 'bg-amber-100 text-amber-800';
-                        statusLabel = 'Under Review';
-                      } else if (submission.status === 'resubmit_required') {
-                        badgeColor = 'bg-rose-100 text-rose-800';
-                        statusLabel = 'Revision Required';
-                      }
-                    }
-
-                    return (
-                      <button
-                        key={task.id}
-                        onClick={() => setActiveItem({ type: 'task', data: task })}
-                        className={'w-full p-2.5 rounded-lg text-left text-xs transition-all flex items-center justify-between border ' +
-                          (isSelected
-                            ? 'bg-[#0056D2] text-white font-bold border-[#0056D2] shadow-xs'
-                            : 'bg-blue-50/50 hover:bg-blue-50 text-blue-950 border-blue-200/80')}
-                      >
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <ListTodo className={'w-3.5 h-3.5 flex-shrink-0 ' + (isSelected ? 'text-white' : 'text-[#0056D2]')} />
-                          <span className="truncate">{task.title}</span>
-                        </div>
-
-                        <span className={'text-[10px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap ml-1.5 ' + 
-                          (isSelected ? 'bg-blue-800 text-white' : badgeColor)}>
-                          {statusLabel}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Active Panel (Coursera Classroom Main View) */}
-        <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 sm:p-8 space-y-6">
-          {activeItem?.type === 'lesson' ? (
-            /* Lecture View */
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div>
-                  <span className="text-xs font-bold text-[#0056D2] uppercase tracking-wider">
-                    {activeItem.data.content_type === 'video' ? 'Video Lecture' : 'Reading Material'} · {activeItem.data.duration}
-                  </span>
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
-                    {activeItem.data.title}
-                  </h2>
-                </div>
-
-                {isLessonCompleted(activeItem.data.id) ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-md border border-emerald-200 self-start sm:self-auto">
-                    <Check className="w-4 h-4 text-emerald-600" />
-                    Completed
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => onCompleteLesson(activeItem.data.id)}
-                    className="px-4 py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 self-start sm:self-auto"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Mark as Completed
-                  </button>
-                )}
-              </div>
-
-              {/* Video Player */}
-              {activeItem.data.content_type === 'video' && activeItem.data.media_url ? (
-                <div className="space-y-2">
-                  <div className="flex justify-end">
-                    <a
-                      href={activeItem.data.media_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-[#0056D2] hover:underline font-semibold flex items-center gap-1"
-                    >
-                      <span>Open Video Tab</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                  <div className="relative pt-[56.25%] rounded-2xl overflow-hidden bg-black shadow-md">
-                    {isDirectVideoFile(activeItem.data.media_url) ? (
-                      <video
-                        src={activeItem.data.media_url}
-                        controls
-                        autoPlay
-                        className="absolute inset-0 w-full h-full"
-                      />
-                    ) : (
-                      <iframe
-                        src={getEmbedVideoUrl(activeItem.data.media_url)}
-                        title={activeItem.data.title}
-                        className="absolute inset-0 w-full h-full border-0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Lecture Notes & Study Guide */}
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-3">
-                <h4 className="text-sm font-bold text-slate-900">Lecture Summary & Technical Notes</h4>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                  {activeItem.data.content_body}
-                </p>
-              </div>
-            </div>
-          ) : activeItem?.type === 'task' ? (
-            /* Evaluated Task Workspace */
-            <div className="space-y-6">
-              <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 bg-blue-50 text-[#0056D2] text-[10px] font-bold rounded uppercase">
-                      Graded Assignment
-                    </span>
-                    <span className="text-xs text-slate-500 font-semibold">
-                      Threshold: {activeItem.data.passing_score}/{activeItem.data.max_score} pts
+                key={course.id}
+                onClick={() => onOpenCourse(course)}
+                className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-lg hover:border-slate-300 transition-all duration-200 flex flex-col overflow-hidden group cursor-pointer"
+              >
+                {/* Course Thumbnail with Category Badge */}
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 flex-shrink-0">
+                  <img
+                    src={course.thumbnail_url}
+                    alt={course.title}
+                    className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                  />
+                  <div className="absolute top-3 left-3">
+                    <span className="bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-md border border-slate-700/60 shadow-xs">
+                      {course.category || 'Systems Engineering'}
                     </span>
                   </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 mt-1">
-                    {activeItem.data.title}
-                  </h2>
+                  {analytics.isCompleted && (
+                    <div className="absolute top-3 right-3">
+                      <span className="bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 shadow-md">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Completed</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {(() => {
-                  const sub = getTaskSubmission(activeItem.data.id);
-                  if (!sub) return null;
-                  if (sub.status === 'passed') {
-                    return (
-                      <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md border border-emerald-200 flex items-center gap-1.5 self-start sm:self-auto">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        Passed with {sub.score} / {activeItem.data.max_score} pts
-                      </span>
-                    );
-                  }
-                  if (sub.status === 'under_review') {
-                    return (
-                      <span className="px-3 py-1.5 bg-amber-50 text-amber-800 text-xs font-bold rounded-md border border-amber-200 flex items-center gap-1.5 self-start sm:self-auto">
-                        <RefreshCw className="w-4 h-4 text-amber-600 animate-spin" />
-                        Under Faculty Review
-                      </span>
-                    );
-                  }
-                  if (sub.status === 'resubmit_required') {
-                    return (
-                      <span className="px-3 py-1.5 bg-rose-50 text-rose-800 text-xs font-bold rounded-md border border-rose-200 flex items-center gap-1.5 self-start sm:self-auto">
-                        <AlertCircle className="w-4 h-4 text-rose-600" />
-                        Revision Required ({sub.score} pts)
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
+                {/* Course Details & Progress */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-semibold text-slate-500">
+                      {course.institution || 'Aaroha Institute of Technology'}
+                    </div>
 
-              {/* Rubric */}
-              <div className="p-4 bg-blue-50/50 border border-blue-200/80 rounded-2xl space-y-2">
-                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <ListTodo className="w-4 h-4 text-[#0056D2]" />
-                  Deliverable Instructions & Evaluation Rubric
-                </h4>
-                <p className="text-xs text-slate-700 leading-relaxed">
-                  {activeItem.data.instructions}
-                </p>
-              </div>
+                    <h3 className="text-base font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors leading-snug line-clamp-2">
+                      {course.title}
+                    </h3>
 
-              {/* Recorded Submission */}
-              {(() => {
-                const sub = getTaskSubmission(activeItem.data.id);
-                if (!sub) return null;
-
-                return (
-                  <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-2xs">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Your Submitted Deliverable
-                    </h4>
-                    <p className="text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 whitespace-pre-wrap leading-relaxed">
-                      {sub.submission_text || 'No written response provided.'}
+                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      {course.description}
                     </p>
-                    {sub.attachment_url && (
-                      <div className="text-xs flex items-center gap-1.5 text-[#0056D2] font-semibold">
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <a href={sub.attachment_url} target="_blank" rel="noreferrer" className="underline">
-                          View Technical Artifact / Repository Link
-                        </a>
-                      </div>
-                    )}
-
-                    {sub.feedback && (
-                      <div className="p-4 bg-slate-900 text-white rounded-xl space-y-1 mt-2">
-                        <span className="text-[10px] font-bold text-blue-300 uppercase tracking-wider">
-                          Faculty Evaluation Remarks:
-                        </span>
-                        <p className="text-xs text-slate-200 italic">
-                          "{sub.feedback}"
-                        </p>
-                      </div>
-                    )}
                   </div>
-                );
-              })()}
 
-              {/* Submission Form */}
-              {(() => {
-                const sub = getTaskSubmission(activeItem.data.id);
-                const canSubmit = !sub || sub.status === 'resubmit_required';
-
-                if (!canSubmit) {
-                  return (
-                    <div className="text-xs text-slate-500 italic p-4 bg-slate-50 rounded-xl border border-slate-200 text-center">
-                      Submission is locked pending faculty review or has achieved a passing grade.
-                    </div>
-                  );
-                }
-
-                return (
-                  <form onSubmit={handleTaskSubmit} className="space-y-4 pt-2">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Submit Your Work for Faculty Grading
-                    </h4>
-
+                  {/* Progress Bar & Next Lesson */}
+                  <div className="space-y-3 pt-3 border-t border-slate-100">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">
-                        Technical Response / Architectural RFC:
-                      </label>
-                      <textarea
-                        rows={6}
-                        required
-                        value={submissionText}
-                        onChange={(e) => setSubmissionText(e.target.value)}
-                        placeholder="Detail your engineering decisions, system configurations, and benchmark analysis..."
-                        className="w-full p-3.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white"
-                      />
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-600">Progress</span>
+                        <span className="font-bold text-[#0056D2]">
+                          {analytics.progressPct}% ({analytics.completedCount}/{analytics.totalLessons})
+                        </span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
+                        <div
+                          className="bg-[#0056D2] h-full rounded-full transition-all duration-500"
+                          style={{ width: `${analytics.progressPct}%` }}
+                        />
+                      </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">
-                        Artifact / Repository Link (Optional):
-                      </label>
-                      <input
-                        type="url"
-                        value={attachmentUrl}
-                        onChange={(e) => setAttachmentUrl(e.target.value)}
-                        placeholder="https://github.com/org/repo or https://aaroha-inc.com/artifacts/rfc.pdf"
-                        className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white"
-                      />
-                    </div>
+                    {/* Next Lesson Box */}
+                    {analytics.nextLesson && !analytics.isCompleted && (
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5 text-xs text-slate-700">
+                        <div className="w-6 h-6 rounded-lg bg-blue-100 text-[#0056D2] flex items-center justify-center flex-shrink-0">
+                          <Play className="w-3 h-3 fill-current" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Next Lesson</div>
+                          <div className="font-semibold text-slate-900 truncate text-[11px]">
+                            {analytics.nextLesson.title}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
+                    {/* Action Button */}
                     <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full py-3 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-lg shadow-xs transition-colors flex items-center justify-center gap-2"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenCourse(course);
+                      }}
+                      className="w-full bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
                     >
-                      <Send className="w-4 h-4" />
-                      <span>{sub ? 'Resubmit Revised Deliverable' : 'Submit for Faculty Grading'}</span>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>{analytics.progressPct > 0 ? 'Resume Course' : 'Start Course'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
-                  </form>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="text-center py-24 text-slate-400 text-xs">
-              Select a lecture or deliverable from the syllabus on the left to begin.
-            </div>
-          )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
+      ) : (
+        /* Empty State */
+        <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 p-8 max-w-xl mx-auto space-y-4 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#0056D2] flex items-center justify-center mx-auto">
+            <GraduationCap className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-slate-900">
+              {totalEnrolled === 0 
+                ? 'No Enrolled Programs Yet' 
+                : 'No Programs Match Your Filter'}
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+              {totalEnrolled === 0
+                ? 'Browse the official Aaroha Academy catalog to enroll in rigorous distributed systems programs and start learning.'
+                : 'Try adjusting your search query or switching to another filter tab above.'}
+            </p>
+          </div>
+
+          <button
+            onClick={onExploreCatalog}
+            className="inline-flex items-center gap-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Explore Course Catalog</span>
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
