@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Plus, BookOpen, Layers, ListTodo, CheckCircle2, Clock, Eye, AlertCircle, Edit3, ArrowRight } from 'lucide-react';
+import { Shield, Plus, BookOpen, Layers, ListTodo, CheckCircle2, Clock, Eye, AlertCircle, Edit3, ArrowRight, RotateCcw, X } from 'lucide-react';
 
 export default function AdminPortalView({
   courses,
@@ -219,7 +219,11 @@ export default function AdminPortalView({
               <p className="text-xs text-slate-500">Configure modules, lectures, and project rubrics</p>
             </div>
             <button
-              onClick={() => setIsNewCourseOpen(true)}
+              onClick={() => {
+                setIsCustomDomain(false);
+                setIsCustomDuration(false);
+                setIsNewCourseOpen(true);
+              }}
               className="px-4 py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
@@ -428,8 +432,23 @@ export default function AdminPortalView({
       {isNewCourseOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Create New Executive Program</h3>
-            <form onSubmit={handleCreateCourse} className="space-y-3 text-xs">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">Create New Executive Program</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNewCourseOpen(false);
+                  setIsCustomDomain(false);
+                  setIsCustomDuration(false);
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCourse} className="space-y-3.5 text-xs">
               <div>
                 <label className="font-semibold text-slate-700">Program Title:</label>
                 <input
@@ -443,31 +462,44 @@ export default function AdminPortalView({
               </div>
 
               <div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-1.5">
                   <label className="font-semibold text-slate-700">Domain / Category:</label>
-                  {!isCustomDomain ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomDomain(true);
-                        setCourseForm({ ...courseForm, category: '' });
-                      }}
-                      className="text-[11px] font-bold text-[#0056D2] hover:underline"
-                    >
-                      + Add New Domain
-                    </button>
-                  ) : (
+                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[11px]">
                     <button
                       type="button"
                       onClick={() => {
                         setIsCustomDomain(false);
-                        setCourseForm({ ...courseForm, category: availableDomains[0] || 'Cloud Architecture' });
+                        setCourseForm(prev => ({
+                          ...prev,
+                          category: availableDomains.includes(prev.category) && prev.category ? prev.category : (availableDomains[0] || 'Cloud Architecture')
+                        }));
                       }}
-                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        !isCustomDomain
+                          ? 'bg-white text-[#0056D2] shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
                     >
-                      Choose Existing
+                      Existing List
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDomain(true);
+                        setCourseForm(prev => ({
+                          ...prev,
+                          category: availableDomains.includes(prev.category) ? '' : prev.category
+                        }));
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        isCustomDomain
+                          ? 'bg-white text-[#0056D2] shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      + Add New
+                    </button>
+                  </div>
                 </div>
 
                 {!isCustomDomain ? (
@@ -481,7 +513,7 @@ export default function AdminPortalView({
                         setCourseForm({ ...courseForm, category: e.target.value });
                       }
                     }}
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
                   >
                     {availableDomains.map(domain => (
                       <option key={domain} value={domain}>{domain}</option>
@@ -489,7 +521,7 @@ export default function AdminPortalView({
                     <option value="__add_new__">+ Add New Domain / Category...</option>
                   </select>
                 ) : (
-                  <div className="mt-1 flex gap-2">
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       required
@@ -497,8 +529,20 @@ export default function AdminPortalView({
                       placeholder="Enter new domain (e.g. Data Engineering, DevOps, Blockchain...)"
                       value={courseForm.category}
                       onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
-                      className="flex-1 p-2.5 bg-white border border-[#0056D2] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
+                      className="flex-1 p-2.5 bg-white border border-[#0056D2] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0056D2] text-xs"
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDomain(false);
+                        setCourseForm({ ...courseForm, category: availableDomains[0] || 'Cloud Architecture' });
+                      }}
+                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs"
+                      title="Switch back to dropdown list"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+                      Select Existing
+                    </button>
                   </div>
                 )}
               </div>
@@ -511,7 +555,7 @@ export default function AdminPortalView({
                   value={courseForm.description}
                   onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
                   placeholder="Enter program description, syllabus outcomes, and prerequisites..."
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white"
+                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
                 />
               </div>
 
@@ -521,7 +565,7 @@ export default function AdminPortalView({
                   <select
                     value={courseForm.level}
                     onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white"
+                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
                   >
                     <option value="Beginner Level">Beginner Level</option>
                     <option value="Intermediate Level">Intermediate Level</option>
@@ -532,20 +576,41 @@ export default function AdminPortalView({
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-1.5">
                     <label className="font-semibold text-slate-700">Duration:</label>
-                    {isCustomDuration && (
+                    <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[10px]">
                       <button
                         type="button"
                         onClick={() => {
                           setIsCustomDuration(false);
-                          setCourseForm({ ...courseForm, duration: '8 Weeks' });
+                          setCourseForm(prev => ({
+                            ...prev,
+                            duration: ['4 Weeks', '6 Weeks', '8 Weeks', '10 Weeks', '12 Weeks', '16 Weeks', 'Self-Paced (1–3 Months)', 'Self-Paced (3–6 Months)'].includes(prev.duration) && prev.duration ? prev.duration : '8 Weeks'
+                          }));
                         }}
-                        className="text-[10px] text-slate-500 hover:text-slate-800"
+                        className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                          !isCustomDuration
+                            ? 'bg-white text-[#0056D2] shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
                       >
-                        Reset
+                        List
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomDuration(true);
+                          setCourseForm(prev => ({ ...prev, duration: '' }));
+                        }}
+                        className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
+                          isCustomDuration
+                            ? 'bg-white text-[#0056D2] shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        + Custom
+                      </button>
+                    </div>
                   </div>
 
                   {!isCustomDuration ? (
@@ -559,7 +624,7 @@ export default function AdminPortalView({
                           setCourseForm({ ...courseForm, duration: e.target.value });
                         }
                       }}
-                      className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
                     >
                       <option value="4 Weeks">4 Weeks</option>
                       <option value="6 Weeks">6 Weeks</option>
@@ -572,15 +637,29 @@ export default function AdminPortalView({
                       <option value="__custom__">Custom Duration...</option>
                     </select>
                   ) : (
-                    <input
-                      type="text"
-                      required
-                      autoFocus
-                      placeholder="e.g. 5 Weeks, 6 Months"
-                      value={courseForm.duration}
-                      onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
-                      className="w-full mt-1 p-2.5 bg-white border border-[#0056D2] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0056D2]"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        autoFocus
+                        placeholder="e.g. 5 Weeks, 6 Months"
+                        value={courseForm.duration}
+                        onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
+                        className="flex-1 p-2.5 bg-white border border-[#0056D2] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0056D2] text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomDuration(false);
+                          setCourseForm({ ...courseForm, duration: '8 Weeks' });
+                        }}
+                        className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1 transition-colors whitespace-nowrap shadow-xs"
+                        title="Switch back to dropdown list"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+                        List
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -588,7 +667,11 @@ export default function AdminPortalView({
               <div className="pt-3 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsNewCourseOpen(false)}
+                  onClick={() => {
+                    setIsNewCourseOpen(false);
+                    setIsCustomDomain(false);
+                    setIsCustomDuration(false);
+                  }}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
                 >
                   Cancel
