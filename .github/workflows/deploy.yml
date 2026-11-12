@@ -51,13 +51,24 @@ jobs:
           CLEAN_SERVER=$(echo "$RAW_SERVER" | sed -e 's|^ftp://||' -e 's|^ftps://||' -e 's|/$||')
           echo "server=$CLEAN_SERVER" >> $GITHUB_OUTPUT
 
+          RAW_DIR="${{ secrets.FTP_SERVER_DIR }}"
+          if [ -z "$RAW_DIR" ]; then
+            CLEAN_DIR="domains/aaroha-inc.com/public_html/lms/"
+          elif [[ "$RAW_DIR" == public_html* ]]; then
+            CLEAN_DIR="domains/aaroha-inc.com/$RAW_DIR"
+          else
+            CLEAN_DIR="$RAW_DIR"
+          fi
+          [[ "$CLEAN_DIR" != */ ]] && CLEAN_DIR="$CLEAN_DIR/"
+          echo "dir=$CLEAN_DIR" >> $GITHUB_OUTPUT
+
       - name: Sync Files to Hostinger via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ steps.ftp-config.outputs.server }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR || 'public_html/lms/' }}
+          server-dir: ${{ steps.ftp-config.outputs.dir }}
           local-dir: ./deploy_payload/
           dangerous-clean-slate: false
 
