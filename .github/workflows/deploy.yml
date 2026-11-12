@@ -44,32 +44,13 @@ jobs:
           # Remove local env.php so we preserve server production config
           rm -f deploy_payload/api/config/env.php
 
-      - name: Sanitize FTP Configuration
-        id: ftp-config
+      - name: Deploy to Hostinger via Native Python FTP
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+          LOCAL_DIR: ./deploy_payload
         run: |
-          RAW_SERVER="${{ secrets.FTP_SERVER }}"
-          CLEAN_SERVER=$(echo "$RAW_SERVER" | sed -e 's|^ftp://||' -e 's|^ftps://||' -e 's|/$||')
-          echo "server=$CLEAN_SERVER" >> $GITHUB_OUTPUT
-
-          RAW_DIR="${{ secrets.FTP_SERVER_DIR }}"
-          if [ -z "$RAW_DIR" ]; then
-            CLEAN_DIR="domains/aaroha-inc.com/public_html/lms/"
-          elif [[ "$RAW_DIR" == public_html* ]]; then
-            CLEAN_DIR="domains/aaroha-inc.com/$RAW_DIR"
-          else
-            CLEAN_DIR="$RAW_DIR"
-          fi
-          [[ "$CLEAN_DIR" != */ ]] && CLEAN_DIR="$CLEAN_DIR/"
-          echo "dir=$CLEAN_DIR" >> $GITHUB_OUTPUT
-
-      - name: Sync Files to Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ steps.ftp-config.outputs.server }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ steps.ftp-config.outputs.dir }}
-          local-dir: ./deploy_payload/
-          protocol: ftp
-          dangerous-clean-slate: false
+          python .github/scripts/deploy.py
 
