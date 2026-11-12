@@ -45,18 +45,22 @@ export default function UserCatalogView({
             </h1>
 
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-              Build production-grade skills with specialized technical curricula, interactive lecture previews, and faculty-evaluated engineering projects from Aaroha Institute of Technology.
+              Build production-grade skills with specialized engineering courses, interactive lecture previews, and faculty-evaluated projects from Aaroha Institute of Technology.
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-4">
               <button
                 onClick={() => {
-                  const first = filteredCourses[0];
-                  if (first) onOpenCourseDetails(first);
+                  const target = document.getElementById('browse-courses-section');
+                  if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    window.scrollTo({ top: 500, behavior: 'smooth' });
+                  }
                 }}
-                className="px-6 py-3 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs sm:text-sm font-bold rounded-md shadow-xs transition-colors flex items-center gap-2"
+                className="px-6 py-3 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs sm:text-sm font-bold rounded-md shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
               >
-                <span>Explore Curricula</span>
+                <span>Explore Courses</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -114,7 +118,7 @@ export default function UserCatalogView({
       </section>
 
       {/* Filter and Search Bar (Coursera Catalog Controls) */}
-      <div className="space-y-4">
+      <div id="browse-courses-section" className="space-y-4 pt-2 scroll-mt-24">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
@@ -149,7 +153,7 @@ export default function UserCatalogView({
                   ? 'bg-[#0056D2] text-white shadow-xs'
                   : 'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
             >
-              {cat === 'All' ? 'All Curricula' : cat}
+              {cat === 'All' ? 'All Courses' : cat}
             </button>
           ))}
         </div>
@@ -266,7 +270,7 @@ export default function UserCatalogView({
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300 p-8 space-y-3">
           <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
           <h4 className="text-sm font-bold text-slate-800">No programs match your search</h4>
-          <p className="text-xs text-slate-500">Try searching for topics like "Raft", "Anycast", "Quantization", or select All Curricula.</p>
+          <p className="text-xs text-slate-500">Try searching for topics like "Raft", "Anycast", "Quantization", or select All Courses.</p>
           <button
             onClick={() => {
               setSearchQuery('');

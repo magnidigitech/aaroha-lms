@@ -17,7 +17,7 @@ export default function Navbar({
   const [isExploreOpen, setIsExploreOpen] = useState(false);
 
   const categories = [
-    'All Curricula',
+    'All Courses',
     ...Array.from(new Set([
       'Cloud Architecture',
       'Applied AI',
@@ -71,7 +71,7 @@ export default function Navbar({
                   onMouseLeave={() => setIsExploreOpen(false)}
                 >
                   <div className="px-4 py-2 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Curriculum Tracks
+                    Course Categories
                   </div>
                   {categories.map((cat) => (
                     <button
@@ -79,7 +79,7 @@ export default function Navbar({
                       onClick={() => {
                         setIsExploreOpen(false);
                         setActiveView('catalog');
-                        if (onSelectCategory) onSelectCategory(cat === 'All Curricula' ? 'All' : cat);
+                        if (onSelectCategory) onSelectCategory(cat === 'All Courses' ? 'All' : cat);
                       }}
                       className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/60 transition-colors flex items-center justify-between"
                     >

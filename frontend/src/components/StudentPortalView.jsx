@@ -34,7 +34,7 @@ export default function StudentPortalView({
         <Award className="w-16 h-16 text-[#0056D2] mx-auto opacity-70" />
         <h3 className="text-xl font-bold text-slate-900">No Active Enrollments</h3>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Browse the Curriculum Directory to enroll in an executive program and begin your coursework.
+          Browse the Course Catalog to enroll in an executive program and begin your coursework.
         </p>
       </div>
     );

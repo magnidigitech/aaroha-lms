@@ -164,9 +164,9 @@ export default function AdminPortalView({
         <div>
           <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider">
             <Shield className="w-4 h-4 text-indigo-400" />
-            <span>Faculty & Curriculum Directorate</span>
+            <span>Faculty Administration</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold mt-1 text-white">Curriculum Management & Evaluation</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold mt-1 text-white">Course Management & Evaluation</h1>
           <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl leading-relaxed">
             Publish executive engineering programs, structure lectures and project deliverables, and review student technical defenses.
           </p>
@@ -192,7 +192,7 @@ export default function AdminPortalView({
             (activeTab === 'courses' ? 'bg-[#0056D2] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100')}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Curriculum Directory</span>
+          <span>Course Catalog</span>
         </button>
 
         <button
