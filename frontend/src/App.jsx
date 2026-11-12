@@ -620,13 +620,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">
             <div className="space-y-3">
-              <div className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 inline-flex items-center gap-2">
+              <div className="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs inline-flex items-center gap-2">
                 <img
                   src={aarohaLogo}
                   alt="Aaroha Technologies"
                   className="h-6 w-auto object-contain"
                 />
-                <span className="text-[9px] font-bold tracking-widest text-[#00A3FF] uppercase pl-2 border-l border-slate-800">
+                <span className="text-[9px] font-bold tracking-widest text-[#0056D2] uppercase pl-2 border-l border-slate-200">
                   Academy
                 </span>
               </div>
