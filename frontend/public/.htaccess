@@ -1,0 +1,19 @@
+# Aaroha LMS - React SPA URL Rewriting for Hostinger LiteSpeed / Apache
+# Target Domain: lms.aaroha-inc.com (public_html/lms/)
+
+Options -Indexes
+RewriteEngine On
+RewriteBase /
+
+# 1. Do not rewrite requests for the backend API (/api/...)
+RewriteCond %{REQUEST_URI} ^/api/ [NC]
+RewriteRule ^ - [L]
+
+# 2. Do not rewrite existing physical files or directories
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# 3. Route all other frontend requests to index.html for React SPA Router
+RewriteRule ^ index.html [L]
+

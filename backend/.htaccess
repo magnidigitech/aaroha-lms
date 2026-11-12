@@ -1,0 +1,15 @@
+# Aaroha LMS - REST API URL Rewriting & Hardening
+# Tailored for Hostinger Apache / LiteSpeed Shared Hosting
+
+Options -Indexes
+RewriteEngine On
+
+# Pass Authorization Header to PHP in FastCGI / LiteSpeed
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Route all requests to index.php unless file/dir physically exists
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+

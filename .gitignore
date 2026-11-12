@@ -1,0 +1,26 @@
+# Dependencies
+frontend/node_modules/
+node_modules/
+
+# Production build artifacts
+frontend/dist/
+hostinger_deploy/
+hostinger_deploy.zip
+
+# Sensitive Production Config (DO NOT COMMIT DATABASE PASSWORDS)
+backend/config/env.php
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.vercel/

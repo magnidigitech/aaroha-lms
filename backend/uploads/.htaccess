@@ -1,0 +1,21 @@
+# Aaroha LMS - Upload Security Hardening
+# Strictly prevents arbitrary PHP code execution from uploaded files
+
+# Disable PHP engine
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Force default text/binary handler for any file type
+SetHandler default-handler
+Options -ExecCGI -Indexes
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .cgi .pl .py .jsp .asp .htm .shtml .sh
+
