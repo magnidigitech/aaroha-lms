@@ -31,3 +31,13 @@ export function isDirectVideoFile(url) {
   return /\.(mp4|webm|ogg|m4v)($|\?)/i.test(url.trim());
 }
 
+export function getVideoThumbnail(url, fallback = '') {
+  if (!url || typeof url !== 'string') return fallback;
+  const trimmed = url.trim();
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`;
+  }
+  return fallback;
+}
+

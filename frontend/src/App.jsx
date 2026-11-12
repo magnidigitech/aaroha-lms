@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import UserCatalogView from './components/UserCatalogView';
 import CourseDetailPage from './components/CourseDetailPage';
-import StudentPortalView from './components/StudentPortalView';
 import AdminPortalView from './components/AdminPortalView';
 import AuthModal from './components/AuthModal';
 import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions } from './mockData';
@@ -51,7 +50,16 @@ export default function App() {
   const [lessonProgress, setLessonProgress] = useState(initialLessonProgress);
   const [taskSubmissions, setTaskSubmissions] = useState(initialTaskSubmissions);
   
-  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(() => {
+    try {
+      const savedCourseId = localStorage.getItem('aaroha_selected_course_id');
+      if (savedCourseId) {
+        const found = initialCourses.find(c => c.id === parseInt(savedCourseId));
+        if (found) return found;
+      }
+    } catch (e) {}
+    return initialCourses[0] || null;
+  });
   const [activeStudentCourseId, setActiveStudentCourseId] = useState(1);
   const [toastMessage, setToastMessage] = useState(null);
   const [isBackendLive, setIsBackendLive] = useState(false);
@@ -60,12 +68,18 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Track active view in storage
+  // Track active view and course in storage
   useEffect(() => {
     if (activeView) {
       localStorage.setItem('aaroha_view', activeView);
     }
   }, [activeView]);
+
+  useEffect(() => {
+    if (selectedCourse?.id) {
+      localStorage.setItem('aaroha_selected_course_id', selectedCourse.id);
+    }
+  }, [selectedCourse]);
 
   // Initial load: verify token session and fetch live course catalog
   useEffect(() => {
@@ -535,25 +549,27 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Navbar */}
-      <Navbar
-        currentUser={currentUser}
-        activeView={activeView}
-        setActiveView={setActiveView}
-        onOpenAuth={(tab) => handleOpenAuth(tab, null)}
-        onLogout={handleLogout}
-        stats={{
-          enrolledCount: enrolledCount,
-          pendingReviews: pendingCount
-        }}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSelectCategory={(cat) => setSelectedCategory(cat)}
-        courses={courses}
-      />
+      {/* Main Navbar (Hidden in focused classroom view) */}
+      {activeView !== 'course-detail' && activeView !== 'student' && (
+        <Navbar
+          currentUser={currentUser}
+          activeView={activeView}
+          setActiveView={setActiveView}
+          onOpenAuth={(tab) => handleOpenAuth(tab, null)}
+          onLogout={handleLogout}
+          stats={{
+            enrolledCount: enrolledCount,
+            pendingReviews: pendingCount
+          }}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSelectCategory={(cat) => setSelectedCategory(cat)}
+          courses={courses}
+        />
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <main className={`flex-1 w-full ${activeView === 'course-detail' || activeView === 'student' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
         {activeView === 'catalog' && (
           <UserCatalogView
             courses={courses}
@@ -566,29 +582,30 @@ export default function App() {
           />
         )}
 
-        {activeView === 'course-detail' && selectedCourse && (
+        {(activeView === 'course-detail' || activeView === 'student') && (
           <CourseDetailPage
-            course={selectedCourse}
+            course={
+              activeView === 'student'
+                ? (courses.find(c => c.id === activeStudentCourseId) || courses.find(c => enrollments.some(e => e.course_id === c.id && e.user_id === currentUser?.id)) || selectedCourse || courses[0])
+                : (selectedCourse || courses[0])
+            }
             onBack={() => setActiveView('catalog')}
             onEnroll={handleEnroll}
-            isEnrolled={currentUser ? enrollments.some(e => e.course_id === selectedCourse.id && e.user_id === currentUser.id) : false}
-            onStartLearning={(cId) => {
-              setActiveStudentCourseId(cId);
-              setActiveView('student');
-            }}
-          />
-        )}
-
-        {activeView === 'student' && currentUser?.role === 'student' && (
-          <StudentPortalView
-            courses={courses}
-            enrollments={enrollments.filter(e => e.user_id === currentUser.id)}
+            isEnrolled={
+              currentUser 
+                ? enrollments.some(e => e.course_id === (selectedCourse?.id || activeStudentCourseId) && e.user_id === currentUser.id && e.status === 'active')
+                : false
+            }
+            currentUser={currentUser}
             lessonProgress={lessonProgress}
             taskSubmissions={taskSubmissions}
             onCompleteLesson={handleCompleteLesson}
             onSubmitTask={handleSubmitTask}
-            activeCourseId={activeStudentCourseId}
-            setActiveCourseId={setActiveStudentCourseId}
+            allCourses={courses}
+            onSelectCourse={(c) => {
+              setSelectedCourse(c);
+              setActiveStudentCourseId(c.id);
+            }}
           />
         )}
 
@@ -615,8 +632,9 @@ export default function App() {
         intendedCourseTitle={authModal.intendedCourse?.title}
       />
 
-      {/* Coursera-Style Multi-Column Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-auto pt-14 pb-10">
+      {/* Coursera-Style Multi-Column Footer (Hidden in focused classroom view) */}
+      {activeView !== 'course-detail' && activeView !== 'student' && (
+        <footer className="bg-white border-t border-slate-200 mt-auto pt-14 pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">
             <div className="space-y-3">
@@ -678,6 +696,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }
