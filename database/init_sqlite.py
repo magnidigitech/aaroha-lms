@@ -43,6 +43,8 @@ def init_db():
         skills TEXT,
         what_you_will_learn TEXT,
         is_published INTEGER NOT NULL DEFAULT 1,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_at DATETIME DEFAULT NULL,
         created_by INTEGER NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -56,6 +58,8 @@ def init_db():
         estimated_time TEXT DEFAULT '5 hours to complete',
         description TEXT,
         sequence_order INTEGER NOT NULL DEFAULT 1,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_at DATETIME DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE
     );
@@ -65,12 +69,15 @@ def init_db():
         module_id INTEGER NOT NULL,
         title TEXT NOT NULL,
         content_type TEXT NOT NULL DEFAULT 'article',
+        video_provider TEXT DEFAULT 'youtube',
         duration TEXT NOT NULL DEFAULT '15 min',
         content_body TEXT,
         media_url TEXT,
         sequence_order INTEGER NOT NULL DEFAULT 1,
         is_free_preview INTEGER NOT NULL DEFAULT 0,
         is_published INTEGER NOT NULL DEFAULT 1,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_at DATETIME DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (module_id) REFERENCES modules (id) ON DELETE CASCADE
     );
@@ -84,6 +91,8 @@ def init_db():
         max_score INTEGER NOT NULL DEFAULT 100,
         passing_score INTEGER NOT NULL DEFAULT 75,
         is_mandatory INTEGER NOT NULL DEFAULT 1,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        deleted_at DATETIME DEFAULT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (module_id) REFERENCES modules (id) ON DELETE CASCADE
     );
@@ -233,3 +242,4 @@ def init_db():
 
 if __name__ == '__main__':
     init_db()
+

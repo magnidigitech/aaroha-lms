@@ -149,7 +149,7 @@ export default function Navbar({
               </button>
             )}
 
-            {currentUser?.role === 'admin' && (
+            {(currentUser?.role === 'admin' || currentUser?.role === 'faculty' || currentUser?.role === 'instructor') && (
               <button
                 onClick={() => setActiveView('admin')}
                 className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
@@ -181,7 +181,7 @@ export default function Navbar({
                       {currentUser.full_name}
                     </div>
                     <div className="text-[10px] text-slate-500 capitalize">
-                      {currentUser.role === 'admin' ? 'Faculty Director' : 'Learner'}
+                      {currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty Director' : 'Learner'}
                     </div>
                   </div>
                 </div>
@@ -280,7 +280,7 @@ export default function Navbar({
                 </button>
               )}
 
-              {currentUser?.role === 'admin' && (
+              {(currentUser?.role === 'admin' || currentUser?.role === 'faculty' || currentUser?.role === 'instructor') && (
                 <button
                   onClick={() => {
                     setActiveView('admin');

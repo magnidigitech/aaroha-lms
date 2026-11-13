@@ -31,6 +31,8 @@ export default function App() {
     }
   });
 
+  const isFacultyRole = (r) => r === 'admin' || r === 'faculty' || r === 'instructor';
+
   const [activeView, setActiveView] = useState(() => {
     try {
       const savedView = localStorage.getItem('aaroha_view');
@@ -38,11 +40,11 @@ export default function App() {
       if (savedUser) {
         const user = JSON.parse(savedUser);
         if (savedView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin'].includes(savedView)) {
-          if (savedView === 'admin' && user.role !== 'admin') return 'student';
+          if (savedView === 'admin' && !isFacultyRole(user.role)) return 'student';
           if (savedView === 'course-detail') return 'course-brochure';
           return savedView;
         }
-        return user.role === 'admin' ? 'admin' : 'student';
+        return isFacultyRole(user.role) ? 'admin' : 'student';
       }
       return 'catalog';
     } catch (e) {
@@ -176,7 +178,7 @@ export default function App() {
             setCurrentUser(verifiedUser);
             localStorage.setItem('aaroha_user', JSON.stringify(verifiedUser));
             setIsBackendLive(true);
-            if (verifiedUser.role === 'admin') {
+            if (isFacultyRole(verifiedUser.role)) {
               api.getPendingSubmissions()
                 .then(subRes => {
                   if (subRes && subRes.submissions && subRes.submissions.length > 0) {
@@ -213,11 +215,15 @@ export default function App() {
         });
     }
 
-    // 2. Load courses from API
+    // 2. Load courses from API with persistent non-destructive merge
     api.getCourses()
       .then(res => {
         if (res && res.courses && res.courses.length > 0) {
-          setCourses(res.courses);
+          setCourses(prev => {
+            const apiIds = new Set(res.courses.map(c => c.id));
+            const locallyAuthored = (prev || []).filter(c => !apiIds.has(c.id));
+            return [...res.courses, ...locallyAuthored];
+          });
           setIsBackendLive(true);
         }
       })
@@ -282,7 +288,7 @@ export default function App() {
         localStorage.setItem('aaroha_user', JSON.stringify(loggedUser));
         setIsBackendLive(true);
 
-        if (loggedUser.role === 'admin') {
+        if (isFacultyRole(loggedUser.role)) {
           setActiveView('admin');
           localStorage.setItem('aaroha_view', 'admin');
           showToast('Signed in as Faculty Director: ' + loggedUser.full_name);
@@ -323,7 +329,7 @@ export default function App() {
     if (foundUser && foundUser.password === password) {
       setCurrentUser(foundUser);
       localStorage.setItem('aaroha_user', JSON.stringify(foundUser));
-      if (foundUser.role === 'admin') {
+      if (isFacultyRole(foundUser.role)) {
         setActiveView('admin');
         localStorage.setItem('aaroha_view', 'admin');
         showToast('Signed in as Faculty Director: ' + foundUser.full_name);
@@ -354,7 +360,7 @@ export default function App() {
         localStorage.setItem('aaroha_user', JSON.stringify(registeredUser));
         setIsBackendLive(true);
 
-        if (registeredUser.role === 'admin') {
+        if (isFacultyRole(registeredUser.role)) {
           setActiveView('admin');
           localStorage.setItem('aaroha_view', 'admin');
           showToast('Faculty account activated: ' + registeredUser.full_name);
@@ -387,7 +393,7 @@ export default function App() {
     setCurrentUser(newUser);
     localStorage.setItem('aaroha_user', JSON.stringify(newUser));
 
-    if (newUser.role === 'admin') {
+    if (isFacultyRole(newUser.role)) {
       setActiveView('admin');
       localStorage.setItem('aaroha_view', 'admin');
       showToast('Faculty account activated: ' + newUser.full_name);
@@ -447,7 +453,7 @@ export default function App() {
       return;
     }
 
-    if (currentUser.role === 'admin') {
+    if (isFacultyRole(currentUser.role)) {
       showToast('Faculty accounts administer programs from the Faculty Console.');
       return;
     }
@@ -920,7 +926,7 @@ export default function App() {
         )}
 
         {/* 5. Faculty Admin Console */}
-        {activeView === 'admin' && currentUser?.role === 'admin' && (
+        {activeView === 'admin' && (currentUser?.role === 'admin' || currentUser?.role === 'faculty' || currentUser?.role === 'instructor') && (
           <AdminPortalView
             courses={courses}
             taskSubmissions={taskSubmissions}

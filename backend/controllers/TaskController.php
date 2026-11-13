@@ -47,7 +47,7 @@ class TaskController {
             // Update existing submission to 'under_review'
             $upd = $pdo->prepare("
                 UPDATE task_submissions 
-                SET submission_text = ?, attachment_url = ?, status = 'under_review', submitted_at = NOW()
+                SET submission_text = ?, attachment_url = ?, status = 'under_review', submitted_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ");
             $upd->execute([$submissionText, $attachmentUrl, $existing['id']]);
@@ -56,7 +56,7 @@ class TaskController {
             // Insert new submission
             $ins = $pdo->prepare("
                 INSERT INTO task_submissions (task_id, enrollment_id, submission_text, attachment_url, status, submitted_at)
-                VALUES (?, ?, ?, ?, 'under_review', NOW())
+                VALUES (?, ?, ?, ?, 'under_review', CURRENT_TIMESTAMP)
             ");
             $ins->execute([$taskId, $enrollmentId, $submissionText, $attachmentUrl]);
             $submissionId = (int)$pdo->lastInsertId();
@@ -133,7 +133,7 @@ class TaskController {
 
         $stmt = $pdo->prepare("
             UPDATE task_submissions
-            SET score = ?, status = ?, feedback = ?, graded_by = ?, graded_at = NOW()
+            SET score = ?, status = ?, feedback = ?, graded_by = ?, graded_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ");
         $stmt->execute([$score, $status, $feedback, $adminId, $submissionId]);

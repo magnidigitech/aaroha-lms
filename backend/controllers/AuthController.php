@@ -25,7 +25,7 @@ class AuthController {
             return ['success' => false, 'error' => 'Password must be at least 8 characters long'];
         }
 
-        if (!in_array($role, ['student', 'admin'])) {
+        if (!in_array($role, ['student', 'admin', 'faculty', 'instructor'])) {
             $role = 'student';
         }
 
@@ -44,7 +44,7 @@ class AuthController {
 
         $insertStmt = $pdo->prepare("
             INSERT INTO users (full_name, email, password_hash, role, created_at)
-            VALUES (?, ?, ?, ?, NOW())
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
         ");
         $insertStmt->execute([$fullName, $email, $passwordHash, $role]);
         $userId = (int)$pdo->lastInsertId();

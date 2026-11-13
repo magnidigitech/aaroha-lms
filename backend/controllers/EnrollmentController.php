@@ -31,7 +31,7 @@ class EnrollmentController {
         // Insert new enrollment
         $ins = $pdo->prepare("
             INSERT INTO enrollments (user_id, course_id, status, enrolled_at)
-            VALUES (?, ?, 'active', NOW())
+            VALUES (?, ?, 'active', CURRENT_TIMESTAMP)
         ");
         $ins->execute([$userId, $courseId]);
 
@@ -118,11 +118,10 @@ class EnrollmentController {
 
         $enrollmentId = (int)$enrollment['enrollment_id'];
 
-        // Upsert lesson progress
+        // Upsert lesson progress (compatible with both MySQL and SQLite)
         $upsert = $pdo->prepare("
-            INSERT INTO lesson_progress (enrollment_id, lesson_id, is_completed, completed_at)
-            VALUES (?, ?, 1, NOW())
-            ON DUPLICATE KEY UPDATE is_completed = 1, completed_at = NOW()
+            REPLACE INTO lesson_progress (enrollment_id, lesson_id, is_completed, completed_at)
+            VALUES (?, ?, 1, CURRENT_TIMESTAMP)
         ");
         $upsert->execute([$enrollmentId, $lessonId]);
 

@@ -45,9 +45,10 @@ class AuthMiddleware {
 
     public static function requireAdmin() {
         $user = self::requireAuth();
-        if ($user['role'] !== 'admin') {
+        $role = strtolower($user['role'] ?? '');
+        if ($role !== 'admin' && $role !== 'faculty' && $role !== 'instructor') {
             http_response_code(403);
-            echo json_encode(['success' => false, 'error' => 'Administrative privileges required']);
+            echo json_encode(['success' => false, 'error' => 'Faculty or administrative privileges required']);
             exit;
         }
         return $user;

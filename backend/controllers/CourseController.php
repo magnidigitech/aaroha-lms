@@ -380,7 +380,7 @@ class CourseController {
         $stmt = $pdo->prepare("
             INSERT INTO courses 
             (title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([
             $title, $slug, $category, $level, $duration, $partnerType, $badgeText, 
@@ -450,7 +450,7 @@ class CourseController {
             UPDATE courses SET
                 title = ?, slug = ?, category = ?, level = ?, duration = ?, partner_type = ?,
                 badge_text = ?, description = ?, thumbnail_url = ?, skills = ?, what_you_will_learn = ?,
-                is_published = ?, updated_at = NOW()
+                is_published = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND is_deleted = 0
         ");
         $stmt->execute([
@@ -491,7 +491,7 @@ class CourseController {
         try {
             // Soft-delete course row only (no cascading deletes); relational joins in PlaybackController,
             // listPublished, and getDetails automatically exclude descendant modules, lessons, and tasks.
-            $stmt = $pdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = NOW() WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$courseId]);
 
             return [
@@ -532,7 +532,7 @@ class CourseController {
 
         $stmt = $pdo->prepare("
             INSERT INTO modules (course_id, title, estimated_time, description, sequence_order, is_deleted, created_at)
-            VALUES (?, ?, ?, ?, ?, 0, NOW())
+            VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([$courseId, $title, $estimatedTime, $description, $nextOrder]);
         $newId = (int)$pdo->lastInsertId();
@@ -603,7 +603,7 @@ class CourseController {
         try {
             // Soft-delete module row only (no cascading deletes); relational joins in PlaybackController
             // and getDetails automatically exclude descendant lessons and tasks without modifying child rows.
-            $stmt = $pdo->prepare("UPDATE modules SET is_deleted = 1, deleted_at = NOW() WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE modules SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$moduleId]);
 
             return [
@@ -656,7 +656,7 @@ class CourseController {
         $stmt = $pdo->prepare("
             INSERT INTO lessons 
             (module_id, title, content_type, video_provider, duration, content_body, media_url, sequence_order, is_free_preview, is_published, is_deleted, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([
             $moduleId, $title, $contentType, $videoProvider, $duration, 
@@ -754,7 +754,7 @@ class CourseController {
 
         // Soft delete lecture: preserves student historical progress and completion records.
         // Underlying Bunny Stream video file is intentionally not deleted.
-        $stmt = $pdo->prepare("UPDATE lessons SET is_deleted = 1, deleted_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE lessons SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
         $stmt->execute([$lessonId]);
 
         return [
@@ -789,7 +789,7 @@ class CourseController {
 
         $stmt = $pdo->prepare("
             INSERT INTO tasks (module_id, title, instructions, task_type, max_score, passing_score, is_mandatory, is_deleted, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 1, 0, NOW())
+            VALUES (?, ?, ?, ?, ?, ?, 1, 0, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([$moduleId, $title, $instructions, $taskType, $maxScore, $passingScore]);
         $newId = (int)$pdo->lastInsertId();
@@ -864,7 +864,7 @@ class CourseController {
         }
 
         // Soft delete task: preserves existing student submissions, evaluation scores, and faculty feedback
-        $stmt = $pdo->prepare("UPDATE tasks SET is_deleted = 1, deleted_at = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE tasks SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
         $stmt->execute([$taskId]);
 
         return [
