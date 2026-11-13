@@ -29,11 +29,26 @@ class Database {
             }
 
             $driver = $envConfig['DB_DRIVER'] ?? getenv('DB_DRIVER') ?: 'mysql';
-            $sqlitePath = $envConfig['DB_SQLITE_PATH'] ?? getenv('DB_SQLITE_PATH') ?: (__DIR__ . '/../../database/lms.sqlite');
+            $sqliteCandidates = [
+                $envConfig['DB_SQLITE_PATH'] ?? null,
+                getenv('DB_SQLITE_PATH') ?: null,
+                __DIR__ . '/lms.sqlite',
+                __DIR__ . '/../lms.sqlite',
+                __DIR__ . '/../../database/lms.sqlite',
+                dirname(__DIR__, 2) . '/database/lms.sqlite',
+            ];
+            $resolvedSqlite = null;
+            foreach ($sqliteCandidates as $cand) {
+                if (!empty($cand) && file_exists($cand)) {
+                    $resolvedSqlite = $cand;
+                    break;
+                }
+            }
+            $sqlitePath = $resolvedSqlite ?: (__DIR__ . '/lms.sqlite');
 
-            if ($driver === 'sqlite' || (!empty($sqlitePath) && file_exists($sqlitePath) && $driver !== 'mysql')) {
+            if ($driver === 'sqlite' || (!empty($resolvedSqlite) && $driver !== 'mysql')) {
                 try {
-                    self::$pdo = new PDO("sqlite:{$sqlitePath}", null, null, [
+                    self::$pdo = new PDO("sqlite:{$resolvedSqlite}", null, null, [
                         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     ]);
@@ -67,10 +82,10 @@ class Database {
                 self::$pdo = new PDO($dsn, $username, $password, $options);
                 self::$pdo->exec("SET NAMES {$charset} COLLATE utf8mb4_unicode_ci");
             } catch (PDOException $e) {
-                // If local sqlite file exists, seamlessly fallback for local dev
-                if (file_exists($sqlitePath)) {
+                // If local sqlite file exists, seamlessly fallback to maintain 100% operational uptime
+                if ($resolvedSqlite && file_exists($resolvedSqlite)) {
                     try {
-                        self::$pdo = new PDO("sqlite:{$sqlitePath}", null, null, [
+                        self::$pdo = new PDO("sqlite:{$resolvedSqlite}", null, null, [
                             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                         ]);

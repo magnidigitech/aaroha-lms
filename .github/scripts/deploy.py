@@ -22,59 +22,38 @@ def main():
     initial_pwd = ftp.pwd()
     print(f'Initial FTP working directory: {initial_pwd}')
 
-    nlst = []
-    try:
-        nlst = ftp.nlst()
-    except Exception as e:
-        print(f'Notice: nlst() error: {e}')
-    print(f'FTP root listing: {nlst}')
+    # Candidate LMS document roots on Hostinger
+    candidate_paths = [
+        'domains/aaroha-inc.com/public_html/lms',
+        'domains/lms.aaroha-inc.com/public_html',
+        'public_html/lms',
+    ]
+    if raw_dir and raw_dir not in candidate_paths:
+        candidate_paths.append(raw_dir)
 
-    # Normalize listing to basenames to eliminate any leading slash or path variations
-    basenames = [x.rstrip('/').split('/')[-1] for x in nlst]
-    print(f'FTP root basenames: {basenames}')
-
-    # Auto-resolve correct document root
-    # Priority 1: User is already chrooted into web root (index.html or assets present)
-    target_dir = ''
-    if 'index.html' in basenames or 'assets' in basenames:
-        target_dir = ''
-        print('-> Target resolved to FTP root (chrooted web root): /')
-    elif 'lms' in basenames:
-        target_dir = 'lms'
-        print('-> Target resolved to subfolder: /lms')
-    elif 'public_html' in basenames:
+    # Auto-discover existing document roots
+    discovered_roots = []
+    for cand in candidate_paths:
         try:
-            p_nlst = ftp.nlst('public_html')
-            p_basenames = [x.rstrip('/').split('/')[-1] for x in p_nlst]
-            target_dir = 'public_html/lms' if any('lms' in x for x in p_basenames) else 'public_html'
+            ftp.cwd('/' + cand.strip('/'))
+            discovered_roots.append('/' + cand.strip('/'))
+            print(f'  [FOUND LMS ROOT] /{cand}')
         except Exception:
-            target_dir = 'public_html/lms'
-        print(f'-> Target resolved inside public_html: /{target_dir}')
-    elif 'domains' in basenames:
-        target_dir = 'domains/aaroha-inc.com/public_html/lms'
-        print(f'-> Target resolved to domains path: /{target_dir}')
-    elif raw_dir:
-        target_dir = raw_dir
-        print(f'-> Target resolved from FTP_SERVER_DIR: /{target_dir}')
-    else:
-        target_dir = ''
-        print('-> Defaulting target to FTP root: /')
+            pass
 
-    # Navigate to target directory if specified
-    if target_dir:
-        parts = target_dir.strip('/').split('/')
-        for part in parts:
-            if not part:
-                continue
-            try:
-                ftp.cwd(part)
-            except ftplib.error_perm:
-                print(f'Creating remote directory: {part}')
-                ftp.mkd(part)
-                ftp.cwd(part)
+    # If none found by direct path, check FTP landing directory
+    if not discovered_roots:
+        try:
+            nlst = ftp.nlst('/')
+            basenames = [x.rstrip('/').split('/')[-1] for x in nlst]
+            if 'index.html' in basenames or 'assets' in basenames:
+                discovered_roots.append('/')
+            elif 'public_html' in basenames:
+                discovered_roots.append('/public_html')
+        except Exception:
+            discovered_roots.append('/')
 
-    base_pwd = ftp.pwd()
-    print(f'Deployment destination directory: {base_pwd}')
+    print(f'Target deployment destinations: {discovered_roots}')
 
     def upload_dir(local_base, remote_rel=''):
         current_dir = ftp.pwd()
@@ -98,7 +77,6 @@ def main():
                     pass
                 ftp.cwd(item)
                 upload_dir(local_full, child_rel)
-                # Return to current directory after recursion
                 ftp.cwd(current_dir)
             else:
                 if item == 'env.php':
@@ -114,11 +92,14 @@ def main():
                 with open(local_full, 'rb') as f:
                     ftp.storbinary(f'STOR {item}', f)
 
-    print(f'Synchronizing payload from {local_dir} into {base_pwd} with Delta Caching...')
-    upload_dir(local_dir)
-    print('Deployment completed successfully!')
+    # Deploy payload to all valid LMS document roots
+    for target in discovered_roots:
+        print(f'\n--- Synchronizing to target: {target} ---')
+        ftp.cwd(target)
+        upload_dir(local_dir)
+
+    print('\nDeployment completed successfully to all target roots!')
     ftp.quit()
 
 if __name__ == '__main__':
     main()
-

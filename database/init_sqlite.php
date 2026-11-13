@@ -189,8 +189,8 @@ $insLesson->execute([1001, 101, 'Multi-Region Anycast Topology & BGP Ingress Rou
 // Lesson 1002: Enrolled article
 $insLesson->execute([1002, 101, 'Mutual TLS (mTLS) & Ephemeral Identity in Microservices', 'article', '14 min read', 'Perimeter-only security models fail once an adversary establishes lateral mobility.', null, 2, 0]);
 
-// Lesson 1003: Enrolled video powered by Bunny Stream (Testing with 0de41d3a-4d1d-498b-b731-bcc31a59ffc2)
-$insLesson->execute([1003, 102, 'Raft Consensus Protocol & Split-Brain Mitigation (Bunny Stream)', 'video', '28 min', 'Stateful services require unambiguous truth. We unpack the Raft consensus algorithm with secure streaming video.', '0de41d3a-4d1d-498b-b731-bcc31a59ffc2', 1, 0]);
+// Lesson 1003: Enrolled video (Stanford Raft Consensus Protocol lecture)
+$insLesson->execute([1003, 102, 'Raft Consensus Protocol & Split-Brain Mitigation', 'video', '28 min', 'Stateful services require unambiguous truth. We unpack the Raft consensus algorithm with secure streaming video.', 'https://www.youtube.com/embed/R2-9sDYtOt4', 1, 0]);
 
 // Lesson 2001: Course 2 enrolled video (User 2 is NOT enrolled here)
 $insLesson->execute([2001, 201, 'FP16, INT8 & INT4 Quantization Dynamics', 'video', '25 min', 'Techniques for compressing deep neural network weights.', '0de41d3a-4d1d-498b-b731-bcc31a59ffc2', 1, 0]);

@@ -32,9 +32,13 @@ jobs:
           cd frontend
           npm run build
 
+      - name: Initialize SQLite Fallback Database
+        run: |
+          python database/init_sqlite.py
+
       - name: Prepare Deployment Payload
         run: |
-          mkdir -p deploy_payload/api
+          mkdir -p deploy_payload/api/config deploy_payload/database
           # Copy compiled frontend into root of deployment payload
           cp -r frontend/dist/* deploy_payload/
           # Copy root .htaccess for SPA routing
@@ -44,6 +48,10 @@ jobs:
           # Ensure backend .htaccess and config .htaccess are copied explicitly
           cp backend/.htaccess deploy_payload/api/.htaccess
           cp backend/config/.htaccess deploy_payload/api/config/.htaccess
+          # Copy secure SQLite database as high-availability fallback
+          cp database/lms.sqlite deploy_payload/api/config/lms.sqlite
+          cp database/lms.sqlite deploy_payload/database/lms.sqlite
+          cp database/.htaccess deploy_payload/database/.htaccess
           # Remove tests and local config to keep deployment secure
           rm -rf deploy_payload/api/tests
           rm -f deploy_payload/api/config/env.php
