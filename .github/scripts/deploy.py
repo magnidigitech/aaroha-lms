@@ -115,6 +115,17 @@ def main():
 
     print(f'Synchronizing payload from {local_dir} to {base_remote} with Delta Caching...')
     upload_dir(local_dir, base_remote)
+
+    # Write verification marker to remote root
+    try:
+        ftp.cwd(base_remote if base_remote else '/')
+        import io
+        marker_data = io.BytesIO(b'DEPLOY_OK_COMMIT_VERIFIED\n')
+        ftp.storbinary('STOR deploy_test_marker.txt', marker_data)
+        print('Wrote deploy_test_marker.txt to remote root successfully.')
+    except Exception as e:
+        print(f'Warning: Could not write deploy_test_marker.txt: {e}')
+
     print('Deployment completed successfully!')
     ftp.quit()
 
