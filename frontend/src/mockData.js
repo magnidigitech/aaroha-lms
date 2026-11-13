@@ -189,7 +189,8 @@ export const initialCourses = [
           }
         ]
       }
-    ]
+    ],
+    is_deleted: true
   },
   {
     id: 2,

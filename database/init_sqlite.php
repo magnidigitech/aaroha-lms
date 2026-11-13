@@ -39,6 +39,8 @@ CREATE TABLE courses (
     skills TEXT,
     what_you_will_learn TEXT,
     is_published INTEGER NOT NULL DEFAULT 1,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    deleted_at DATETIME DEFAULT NULL,
     created_by INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -52,6 +54,8 @@ CREATE TABLE modules (
     estimated_time TEXT DEFAULT '5 hours to complete',
     description TEXT,
     sequence_order INTEGER NOT NULL DEFAULT 1,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    deleted_at DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE
 );
@@ -67,6 +71,8 @@ CREATE TABLE lessons (
     sequence_order INTEGER NOT NULL DEFAULT 1,
     is_free_preview INTEGER NOT NULL DEFAULT 0,
     is_published INTEGER NOT NULL DEFAULT 1,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    deleted_at DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (module_id) REFERENCES modules (id) ON DELETE CASCADE
 );
@@ -80,6 +86,8 @@ CREATE TABLE tasks (
     max_score INTEGER NOT NULL DEFAULT 100,
     passing_score INTEGER NOT NULL DEFAULT 75,
     is_mandatory INTEGER NOT NULL DEFAULT 1,
+    is_deleted INTEGER NOT NULL DEFAULT 0,
+    deleted_at DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (module_id) REFERENCES modules (id) ON DELETE CASCADE
 );

@@ -74,9 +74,9 @@ export default function App() {
       const isDeleted = (id) => deletedSet.has(String(id));
       const saved = localStorage.getItem('aaroha_courses');
       const pool = saved ? JSON.parse(saved) : initialCourses;
-      return pool.filter(c => !isDeleted(c.id));
+      return pool.filter(c => !isDeleted(c.id) && !c.is_deleted);
     } catch (e) {
-      return initialCourses;
+      return initialCourses.filter(c => !c.is_deleted);
     }
   });
 
@@ -111,18 +111,18 @@ export default function App() {
     try {
       const savedCourseId = localStorage.getItem('aaroha_selected_course_id');
       const cachedCourses = localStorage.getItem('aaroha_courses');
-      const pool = cachedCourses ? JSON.parse(cachedCourses) : initialCourses;
+      const pool = cachedCourses ? JSON.parse(cachedCourses) : initialCourses.filter(c => !c.is_deleted);
       if (savedCourseId) {
         const found = pool.find(c => c.id === parseInt(savedCourseId));
         if (found) return found;
       }
-      return pool[0] || null;
+      return pool.find(c => !c.is_deleted) || pool[0] || null;
     } catch (e) {
-      return initialCourses[0] || null;
+      return initialCourses.find(c => !c.is_deleted) || null;
     }
   });
   const [returnView, setReturnView] = useState('catalog');
-  const [activeStudentCourseId, setActiveStudentCourseId] = useState(1);
+  const [activeStudentCourseId, setActiveStudentCourseId] = useState(2);
   const [toastMessage, setToastMessage] = useState(null);
   const [isBackendLive, setIsBackendLive] = useState(false);
 

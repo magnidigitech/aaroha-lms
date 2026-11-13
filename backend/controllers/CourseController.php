@@ -506,30 +506,35 @@ class CourseController {
                 'message' => 'Course successfully archived. Historical enrollments and student records have been preserved.',
                 'course_id' => $courseId
             ];
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             self::setHttpStatus(500);
             return ['success' => false, 'error' => 'Database operation failed: ' . $e->getMessage()];
         }
     }
 
     private static function syncDeleteToSqlite(int $courseId): void {
-        $sqliteCandidates = [
-            __DIR__ . '/../config/lms.sqlite',
-            __DIR__ . '/../../database/lms.sqlite',
-            dirname(__DIR__, 2) . '/database/lms.sqlite',
-            __DIR__ . '/lms.sqlite',
-        ];
-        foreach ($sqliteCandidates as $cand) {
-            if (file_exists($cand)) {
-                try {
-                    $sqlitePdo = new PDO("sqlite:{$cand}", null, null, [
-                        PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
-                    ]);
-                    $stmt = $sqlitePdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $stmt->execute([$courseId]);
-                } catch (Exception $e) {}
+        try {
+            if (!extension_loaded('pdo_sqlite') || !class_exists('PDO') || !in_array('sqlite', PDO::getAvailableDrivers())) {
+                return;
             }
-        }
+            $sqliteCandidates = [
+                __DIR__ . '/../config/lms.sqlite',
+                __DIR__ . '/../../database/lms.sqlite',
+                dirname(__DIR__, 2) . '/database/lms.sqlite',
+                __DIR__ . '/lms.sqlite',
+            ];
+            foreach ($sqliteCandidates as $cand) {
+                if (file_exists($cand) && is_writable($cand)) {
+                    try {
+                        $sqlitePdo = new PDO("sqlite:{$cand}", null, null, [
+                            PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                        ]);
+                        $stmt = $sqlitePdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
+                        $stmt->execute([$courseId]);
+                    } catch (\Throwable $sqle) {}
+                }
+            }
+        } catch (\Throwable $e) {}
     }
 
     // -------------------------------------------------------------
@@ -638,7 +643,7 @@ class CourseController {
                 'message' => 'Module successfully archived.',
                 'module_id' => $moduleId
             ];
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             self::setHttpStatus(500);
             return ['success' => false, 'error' => 'Database operation failed: ' . $e->getMessage()];
         }

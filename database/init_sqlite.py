@@ -147,7 +147,7 @@ def init_db():
         (3, 'Unenrolled Learner', 'learner@enterprise.io', pw_hash, 'student', 'Junior Systems Engineer', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80')
     ])
 
-    cur.executemany("INSERT INTO courses (id, title, slug, category, level, duration, partner_type, rating, reviews_count, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+    cur.executemany("INSERT INTO courses (id, title, slug, category, level, duration, partner_type, rating, reviews_count, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
         (
             1,
             'Distributed Cloud Architecture & High-Throughput Systems',
@@ -163,6 +163,7 @@ def init_db():
             'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
             json.dumps(['Distributed Systems', 'Raft Consensus Protocol']),
             json.dumps(['Architect zero-trust multi-region ingress gateways']),
+            1,
             1,
             1
         ),
@@ -182,6 +183,7 @@ def init_db():
             json.dumps(['GPU Kernel Optimization']),
             json.dumps(['Compress and quantize transformer weights']),
             1,
+            0,
             1
         ),
         (
@@ -200,6 +202,7 @@ def init_db():
             json.dumps(['STRIDE Threat Modeling', 'Zero-Trust']),
             json.dumps(['Execute enterprise-wide threat assessments']),
             1,
+            0,
             1
         )
     ])
