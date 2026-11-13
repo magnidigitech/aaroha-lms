@@ -42,6 +42,13 @@ def init_db():
         thumbnail_url TEXT,
         skills TEXT,
         what_you_will_learn TEXT,
+        prerequisites TEXT,
+        about TEXT,
+        instructor_name TEXT,
+        instructor_title TEXT,
+        instructor_department TEXT,
+        instructor_bio TEXT,
+        instructor_avatar TEXT,
         is_published INTEGER NOT NULL DEFAULT 1,
         is_deleted INTEGER NOT NULL DEFAULT 0,
         deleted_at DATETIME DEFAULT NULL,
@@ -137,6 +144,25 @@ def init_db():
         FOREIGN KEY (enrollment_id) REFERENCES enrollments (id) ON DELETE CASCADE,
         FOREIGN KEY (graded_by) REFERENCES users (id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS certificates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        certificate_code TEXT NOT NULL UNIQUE,
+        course_id INTEGER NOT NULL,
+        user_id INTEGER,
+        recipient_name TEXT NOT NULL,
+        recipient_email TEXT,
+        course_title TEXT NOT NULL,
+        issuer_id INTEGER,
+        issuer_name TEXT NOT NULL,
+        issuer_title TEXT,
+        grade TEXT NOT NULL DEFAULT 'Verified Completion',
+        issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+        FOREIGN KEY (issuer_id) REFERENCES users (id) ON DELETE SET NULL
+    );
     """)
 
     # Seed data
@@ -147,7 +173,14 @@ def init_db():
         (3, 'Unenrolled Learner', 'learner@enterprise.io', pw_hash, 'student', 'Junior Systems Engineer', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80')
     ])
 
-    cur.executemany("INSERT INTO courses (id, title, slug, category, level, duration, partner_type, rating, reviews_count, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+    cur.executemany("""
+    INSERT INTO courses (
+        id, title, slug, category, level, duration, partner_type, rating, reviews_count,
+        badge_text, description, thumbnail_url, skills, what_you_will_learn,
+        prerequisites, about, instructor_name, instructor_title, instructor_department, instructor_bio, instructor_avatar,
+        is_published, is_deleted, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, [
         (
             1,
             'Distributed Cloud Architecture & High-Throughput Systems',
@@ -163,6 +196,13 @@ def init_db():
             'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
             json.dumps(['Distributed Systems', 'Raft Consensus Protocol']),
             json.dumps(['Architect zero-trust multi-region ingress gateways']),
+            'Distributed Systems Foundations & Linux kernel basics',
+            'Design fault-tolerant, multi-region distributed systems capable of sustaining 100k+ QPS with strict P99 latency budgets, Raft consensus, and transactional integrity.',
+            'Dr. Aris Thorne',
+            'Director of Curriculum & Distributed Systems Faculty',
+            'Distributed Systems Group, Aaroha Institute',
+            'Former Infrastructure Architect with 18+ years designing Tier-1 high-throughput hyper-scale services, distributed consensus engines, and kernel networking.',
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
             1,
             1,
             1
@@ -182,6 +222,13 @@ def init_db():
             'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&w=1200&q=80',
             json.dumps(['GPU Kernel Optimization']),
             json.dumps(['Compress and quantize transformer weights']),
+            'Python, PyTorch & Basic Linear Algebra',
+            'Bridge the gap between model weights and production inference. Build low-latency GPU serving pipelines, dynamic batching, AWQ quantization, and drift monitoring.',
+            'Elena Rostova',
+            'Senior Systems Architect & Applied AI Faculty',
+            'Applied Intelligence Laboratory, Aaroha Institute',
+            'Machine learning infrastructure engineer specializing in GPU kernel optimization and high-scale model serving.',
+            'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
             1,
             0,
             1
@@ -201,6 +248,13 @@ def init_db():
             'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1200&q=80',
             json.dumps(['STRIDE Threat Modeling', 'Zero-Trust']),
             json.dumps(['Execute enterprise-wide threat assessments']),
+            'TCP/IP Networking & Linux Security Basics',
+            'Master application security and infrastructure defense: threat modeling, memory-safe migration, cryptographic supply-chain security, and real-time incident triage.',
+            'Marcus Vance',
+            'Chief Information Security Architect & Faculty Chair',
+            'Cyber Defense Center, Aaroha Institute',
+            'Principal security researcher specializing in threat modeling, memory safety, and zero-trust cryptography.',
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
             1,
             0,
             1

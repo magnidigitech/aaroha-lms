@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Shield, Plus, BookOpen, Layers, ListTodo, CheckCircle2, Clock, 
   Eye, AlertCircle, Edit3, Trash2, ArrowRight, RotateCcw, X, 
-  GraduationCap, Award, FileText, Video
+  GraduationCap, Award, FileText, Video, Sparkles
 } from 'lucide-react';
 import CourseModal from './admin/CourseModal';
 import ModuleModal from './admin/ModuleModal';
@@ -30,10 +30,16 @@ export default function AdminPortalView({
   const [activeTab, setActiveTab] = useState('courses'); // 'courses' | 'grading'
 
   // Modal dialog states
-  const [courseModal, setCourseModal] = useState({ isOpen: false, initialData: null });
+  const [courseModal, setCourseModal] = useState({ isOpen: false, initialData: null, initialTab: 'syllabus' });
   const [moduleModal, setModuleModal] = useState({ isOpen: false, courseId: null, initialData: null });
   const [lectureModal, setLectureModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
   const [assignmentModal, setAssignmentModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
+
+  // Per-course card active pillar tab state ('syllabus' | 'outcomes' | 'about' | 'faculty')
+  const [courseCardTabs, setCourseCardTabs] = useState({});
+  const setCourseCardTab = (courseId, tab) => {
+    setCourseCardTabs(prev => ({ ...prev, [courseId]: tab }));
+  };
 
   // Delete confirmation modal state
   const [deleteModal, setDeleteModal] = useState({
@@ -168,7 +174,7 @@ export default function AdminPortalView({
 
         {/* Action Button: Create Program */}
         <button
-          onClick={() => setCourseModal({ isOpen: true, initialData: null })}
+          onClick={() => setCourseModal({ isOpen: true, initialData: null, initialTab: 'syllabus' })}
           className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-97 cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" />
@@ -219,7 +225,7 @@ export default function AdminPortalView({
                 Begin structuring executive education by authoring your first technical program.
               </p>
               <button
-                onClick={() => setCourseModal({ isOpen: true, initialData: null })}
+                onClick={() => setCourseModal({ isOpen: true, initialData: null, initialTab: 'syllabus' })}
                 className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-blue-700"
               >
                 Create Program
@@ -266,7 +272,7 @@ export default function AdminPortalView({
                       </button>
 
                       <button
-                        onClick={() => setCourseModal({ isOpen: true, initialData: course })}
+                        onClick={() => setCourseModal({ isOpen: true, initialData: course, initialTab: courseCardTabs[course.id] || 'syllabus' })}
                         className="px-3 py-1.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                         title="Edit Course specifications"
                         aria-label={`Edit Course: ${course.title}`}
@@ -287,181 +293,439 @@ export default function AdminPortalView({
                     </div>
                   </div>
 
-                  {/* Modules Listing */}
-                  <div className="p-4 sm:p-5 space-y-4">
-                    {!course.modules || course.modules.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">
-                        No modules created yet. Click "Add Module" above to structure this program.
-                      </p>
-                    ) : (
-                      course.modules.map((mod, modIdx) => (
-                        <div key={mod.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
-                          {/* Module Header */}
-                          <div className="px-3.5 sm:px-4 py-2.5 bg-slate-100/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-bold text-slate-800 border-b border-slate-200">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="w-5 h-5 rounded-md bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold shrink-0">
-                                {modIdx + 1}
-                              </span>
-                              <span className="truncate">{mod.title}</span>
-                              {mod.estimated_time && (
-                                <span className="text-[10px] font-normal text-slate-500 shrink-0 hidden sm:inline">
-                                  ({mod.estimated_time})
-                                </span>
-                              )}
-                            </div>
+                  {/* Course Card 4-Pillar Tabs Navigation (Matches Brochure UI) */}
+                  {(() => {
+                    const activeCardTab = courseCardTabs[course.id] || 'syllabus';
+                    const modCount = course.modules?.length || 0;
+                    const outcomes = Array.isArray(course.what_you_will_learn) && course.what_you_will_learn.length > 0
+                      ? course.what_you_will_learn
+                      : [
+                          'Master enterprise infrastructure architectures and distributed system invariants',
+                          'Complete faculty-evaluated deliverable projects and real-time defense benchmarks'
+                        ];
+                    const skills = Array.isArray(course.skills) && course.skills.length > 0
+                      ? course.skills
+                      : ['Cloud Architecture', 'Distributed Systems'];
+                    const aboutText = course.about || course.description || 'Comprehensive curriculum calibrated for principal architects and high-throughput systems engineers.';
+                    const prerequisitesText = course.prerequisites || 'Distributed Systems Foundations & Linux Systems Programming';
+                    const instructor = course.instructor || {
+                      name: course.instructor_name || 'Faculty Member',
+                      title: course.instructor_title || 'Curriculum Director',
+                      department: course.instructor_department || 'Aaroha Institute of Technology',
+                      avatar: course.instructor_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                      bio: course.instructor_bio || 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+                      rating: 4.94,
+                      students: '25,000+'
+                    };
 
-                            {/* Module Controls: Add Lecture, Add Project, Edit Module, Delete Module */}
-                            <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0 flex-wrap">
-                              <button
-                                onClick={() => setLectureModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: null })}
-                                className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
-                              >
-                                <Plus className="w-3 h-3 text-blue-600" />
-                                <span>Add Lecture</span>
-                              </button>
-
-                              <button
-                                onClick={() => setAssignmentModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: null })}
-                                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
-                              >
-                                <Plus className="w-3 h-3 text-indigo-600" />
-                                <span>Add Project</span>
-                              </button>
-
-                              <button
-                                onClick={() => setModuleModal({ isOpen: true, courseId: course.id, initialData: mod })}
-                                className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
-                                title="Edit Module"
-                                aria-label={`Edit Module: ${mod.title}`}
-                              >
-                                <Edit3 className="w-3 h-3 text-slate-600" />
-                                <span className="hidden sm:inline">Edit</span>
-                              </button>
-
-                              <button
-                                onClick={() => triggerDeleteModule(course.id, mod)}
-                                className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
-                                title="Archive Module"
-                                aria-label={`Archive Module: ${mod.title}`}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Lectures & Tasks List */}
-                          <div className="p-3 sm:p-4 space-y-2">
-                            {/* Lectures */}
-                            {(!mod.lessons || mod.lessons.length === 0) && (!mod.tasks || mod.tasks.length === 0) && (
-                              <p className="text-[11px] text-slate-400 italic py-1">
-                                No lectures or assignments added yet.
-                              </p>
-                            )}
-
-                            {mod.lessons?.map((l) => (
-                              <div 
-                                key={l.id} 
-                                className="py-2 px-2.5 rounded-lg hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-700 border-b border-slate-100 last:border-b-0"
-                              >
-                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                  <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                  <span className="font-semibold text-slate-900 truncate">{l.title}</span>
-                                  <span className="text-[10px] text-slate-400 shrink-0">
-                                    ({l.content_type} • {l.duration})
-                                  </span>
-
-                                  {/* Explicit Boolean Condition to prevent rendering stray "0" */}
-                                  {Boolean(l.is_free_preview) ? (
-                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded border border-emerald-200 shrink-0">
-                                      Free Preview
-                                    </span>
-                                  ) : null}
-
-                                  {l.video_provider === 'bunny_stream' && (
-                                    <span 
-                                      className="px-2 py-0.5 bg-amber-50 text-amber-800 text-[10px] font-bold rounded border border-amber-200 shrink-0"
-                                      title="Signed Bunny Stream authenticated delivery"
-                                    >
-                                      Bunny Stream
-                                    </span>
-                                  )}
-
-                                  {!Boolean(l.is_published) ? (
-                                    <span className="px-1.5 py-0.5 bg-slate-200 text-slate-700 text-[9px] font-bold rounded shrink-0">
-                                      Draft
-                                    </span>
-                                  ) : null}
-                                </div>
-
-                                {/* Lecture Controls: Edit Lecture, Delete Lecture */}
-                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                                  <button
-                                    onClick={() => setLectureModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: l })}
-                                    className="px-2 py-1 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
-                                    title="Edit Lecture"
-                                    aria-label={`Edit Lecture: ${l.title}`}
-                                  >
-                                    <Edit3 className="w-3 h-3 text-blue-600" />
-                                    <span>Edit</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => triggerDeleteLecture(course.id, mod.id, l)}
-                                    className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
-                                    title="Archive Lecture"
-                                    aria-label={`Archive Lecture: ${l.title}`}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-
-                            {/* Tasks / Projects */}
-                            {mod.tasks?.map((t) => (
-                              <div 
-                                key={t.id} 
-                                className="p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-950"
-                              >
-                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                  <ListTodo className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                  <span className="font-bold text-slate-900 truncate">{t.title}</span>
-                                  <span className="text-[11px] font-semibold text-indigo-700 shrink-0">
-                                    Pass: {t.passing_score}/{t.max_score} pts
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 capitalize shrink-0">
-                                    ({t.task_type.replace('_', ' ')})
-                                  </span>
-                                </div>
-
-                                {/* Task Controls: Edit Project, Delete Project */}
-                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                                  <button
-                                    onClick={() => setAssignmentModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: t })}
-                                    className="px-2 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
-                                    title="Edit Assignment"
-                                    aria-label={`Edit Assignment: ${t.title}`}
-                                  >
-                                    <Edit3 className="w-3 h-3 text-indigo-600" />
-                                    <span>Edit</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => triggerDeleteTask(course.id, mod.id, t)}
-                                    className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
-                                    title="Archive Assignment"
-                                    aria-label={`Archive Assignment: ${t.title}`}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                    return (
+                      <div>
+                        {/* 4 Tabs Bar */}
+                        <div className="flex border-b border-slate-200 bg-slate-50/70 px-4 sm:px-6 gap-3 sm:gap-6 overflow-x-auto text-xs sm:text-sm font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => setCourseCardTab(course.id, 'syllabus')}
+                            className={`py-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                              activeCardTab === 'syllabus'
+                                ? 'border-[#0056D2] text-[#0056D2]'
+                                : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span>Modules & Syllabus ({modCount})</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCourseCardTab(course.id, 'outcomes')}
+                            className={`py-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                              activeCardTab === 'outcomes'
+                                ? 'border-[#0056D2] text-[#0056D2]'
+                                : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <Award className="w-3.5 h-3.5" />
+                            <span>What You'll Learn</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCourseCardTab(course.id, 'about')}
+                            className={`py-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                              activeCardTab === 'about'
+                                ? 'border-[#0056D2] text-[#0056D2]'
+                                : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>About & Prerequisites</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCourseCardTab(course.id, 'faculty')}
+                            className={`py-3 border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                              activeCardTab === 'faculty'
+                                ? 'border-[#0056D2] text-[#0056D2]'
+                                : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <GraduationCap className="w-3.5 h-3.5" />
+                            <span>Faculty & Instructors</span>
+                          </button>
                         </div>
-                      ))
-                    )}
-                  </div>
+
+                        {/* TAB 1: MODULES & SYLLABUS */}
+                        {activeCardTab === 'syllabus' && (
+                          <div className="p-4 sm:p-5 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-100">
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-800">Curriculum & Syllabus Structure</h4>
+                                <p className="text-[11px] text-slate-500">
+                                  Organize learning progression into modules, video lectures, and project evaluations.
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => setModuleModal({ isOpen: true, courseId: course.id, initialData: null })}
+                                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0"
+                              >
+                                <Plus className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Add Module</span>
+                              </button>
+                            </div>
+
+                            {!course.modules || course.modules.length === 0 ? (
+                              <div className="p-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200 space-y-2">
+                                <BookOpen className="w-8 h-8 text-slate-400 mx-auto" />
+                                <p className="text-xs text-slate-600 font-medium">No modules created yet for this curriculum.</p>
+                                <p className="text-[11px] text-slate-400">Add modules and attach lectures or deliverables to populate the syllabus.</p>
+                                <button
+                                  onClick={() => setModuleModal({ isOpen: true, courseId: course.id, initialData: null })}
+                                  className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Create First Module</span>
+                                </button>
+                              </div>
+                            ) : (
+                              course.modules.map((mod, modIdx) => (
+                                <div key={mod.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                                  {/* Module Header */}
+                                  <div className="px-3.5 sm:px-4 py-2.5 bg-slate-100/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-bold text-slate-800 border-b border-slate-200">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="w-5 h-5 rounded-md bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold shrink-0">
+                                        {modIdx + 1}
+                                      </span>
+                                      <span className="truncate">{mod.title}</span>
+                                      {mod.estimated_time && (
+                                        <span className="text-[10px] font-normal text-slate-500 shrink-0 hidden sm:inline">
+                                          ({mod.estimated_time})
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Module Controls: Add Lecture, Add Project, Edit Module, Delete Module */}
+                                    <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0 flex-wrap">
+                                      <button
+                                        onClick={() => setLectureModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: null })}
+                                        className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <Plus className="w-3 h-3 text-blue-600" />
+                                        <span>Add Lecture</span>
+                                      </button>
+
+                                      <button
+                                        onClick={() => setAssignmentModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: null })}
+                                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <Plus className="w-3 h-3 text-indigo-600" />
+                                        <span>Add Project</span>
+                                      </button>
+
+                                      <button
+                                        onClick={() => setModuleModal({ isOpen: true, courseId: course.id, initialData: mod })}
+                                        className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                        title="Edit Module"
+                                        aria-label={`Edit Module: ${mod.title}`}
+                                      >
+                                        <Edit3 className="w-3 h-3 text-slate-600" />
+                                        <span className="hidden sm:inline">Edit</span>
+                                      </button>
+
+                                      <button
+                                        onClick={() => triggerDeleteModule(course.id, mod)}
+                                        className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                        title="Archive Module"
+                                        aria-label={`Archive Module: ${mod.title}`}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Lectures & Tasks List */}
+                                  <div className="p-3 sm:p-4 space-y-2">
+                                    {/* Lectures */}
+                                    {(!mod.lessons || mod.lessons.length === 0) && (!mod.tasks || mod.tasks.length === 0) && (
+                                      <p className="text-[11px] text-slate-400 italic py-1">
+                                        No lectures or assignments added yet.
+                                      </p>
+                                    )}
+
+                                    {mod.lessons?.map((l) => (
+                                      <div 
+                                        key={l.id} 
+                                        className="py-2 px-2.5 rounded-lg hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-700 border-b border-slate-100 last:border-b-0"
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                          <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                          <span className="font-semibold text-slate-900 truncate">{l.title}</span>
+                                          <span className="text-[10px] text-slate-400 shrink-0">
+                                            ({l.content_type} • {l.duration})
+                                          </span>
+
+                                          {/* Explicit Boolean Condition to prevent rendering stray "0" */}
+                                          {Boolean(l.is_free_preview) ? (
+                                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded border border-emerald-200 shrink-0">
+                                              Free Preview
+                                            </span>
+                                          ) : null}
+
+                                          {l.video_provider === 'bunny_stream' && (
+                                            <span 
+                                              className="px-2 py-0.5 bg-amber-50 text-amber-800 text-[10px] font-bold rounded border border-amber-200 shrink-0"
+                                              title="Signed Bunny Stream authenticated delivery"
+                                            >
+                                              Bunny Stream
+                                            </span>
+                                          )}
+
+                                          {!Boolean(l.is_published) ? (
+                                            <span className="px-1.5 py-0.5 bg-slate-200 text-slate-700 text-[9px] font-bold rounded shrink-0">
+                                              Draft
+                                            </span>
+                                          ) : null}
+                                        </div>
+
+                                        {/* Lecture Controls: Edit Lecture, Delete Lecture */}
+                                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                          <button
+                                            onClick={() => setLectureModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: l })}
+                                            className="px-2 py-1 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                            title="Edit Lecture"
+                                            aria-label={`Edit Lecture: ${l.title}`}
+                                          >
+                                            <Edit3 className="w-3 h-3 text-blue-600" />
+                                            <span>Edit</span>
+                                          </button>
+
+                                          <button
+                                            onClick={() => triggerDeleteLecture(course.id, mod.id, l)}
+                                            className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                            title="Archive Lecture"
+                                            aria-label={`Archive Lecture: ${l.title}`}
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+
+                                    {/* Tasks / Projects */}
+                                    {mod.tasks?.map((t) => (
+                                      <div 
+                                        key={t.id} 
+                                        className="p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-950"
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                          <ListTodo className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                          <span className="font-bold text-slate-900 truncate">{t.title}</span>
+                                          <span className="text-[11px] font-semibold text-indigo-700 shrink-0">
+                                            Pass: {t.passing_score}/{t.max_score} pts
+                                          </span>
+                                          <span className="text-[10px] text-slate-400 capitalize shrink-0">
+                                            ({t.task_type.replace('_', ' ')})
+                                          </span>
+                                        </div>
+
+                                        {/* Task Controls: Edit Project, Delete Project */}
+                                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                          <button
+                                            onClick={() => setAssignmentModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: t })}
+                                            className="px-2 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                            title="Edit Assignment"
+                                            aria-label={`Edit Assignment: ${t.title}`}
+                                          >
+                                            <Edit3 className="w-3 h-3 text-indigo-600" />
+                                            <span>Edit</span>
+                                          </button>
+
+                                          <button
+                                            onClick={() => triggerDeleteTask(course.id, mod.id, t)}
+                                            className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                            title="Archive Assignment"
+                                            aria-label={`Archive Assignment: ${t.title}`}
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+
+                        {/* TAB 2: WHAT YOU'LL LEARN */}
+                        {activeCardTab === 'outcomes' && (
+                          <div className="p-4 sm:p-6 space-y-5 animate-in fade-in duration-150">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-800">What You'll Learn & Acquired Competencies</h4>
+                                <p className="text-[11px] text-slate-500">
+                                  Presented on the public brochure and syllabus to outline executive learning milestones.
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => setCourseModal({ isOpen: true, initialData: course, initialTab: 'outcomes' })}
+                                className="px-3 py-1.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs self-start sm:self-auto shrink-0"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Edit Outcomes & Skills</span>
+                              </button>
+                            </div>
+
+                            <div className="bg-blue-50/50 border border-blue-200/70 rounded-2xl p-4 sm:p-5 space-y-3">
+                              <h5 className="text-xs font-bold text-blue-950 uppercase tracking-wide flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Executive Learning Outcomes ({outcomes.length})</span>
+                              </h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                {outcomes.map((item, idx) => (
+                                  <div key={idx} className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-blue-100 shadow-2xs">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                                    <span className="text-xs text-slate-700 leading-relaxed font-medium">{item}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <h5 className="text-xs font-bold text-slate-800">Skills Gained ({skills.length}):</h5>
+                              <div className="flex flex-wrap gap-2">
+                                {skills.map((skill, idx) => (
+                                  <span 
+                                    key={idx}
+                                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 rounded-lg text-xs font-semibold transition-colors"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* TAB 3: ABOUT & PREREQUISITES */}
+                        {activeCardTab === 'about' && (
+                          <div className="p-4 sm:p-6 space-y-5 animate-in fade-in duration-150">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-800">Program Overview & Entry Prerequisites</h4>
+                                <p className="text-[11px] text-slate-500">
+                                  Comprehensive architectural abstract, target seniority, and prerequisite baseline for applicants.
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => setCourseModal({ isOpen: true, initialData: course, initialTab: 'about' })}
+                                className="px-3 py-1.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs self-start sm:self-auto shrink-0"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Edit About & Prerequisites</span>
+                              </button>
+                            </div>
+
+                            <div className="p-5 bg-slate-50/70 border border-slate-200 rounded-2xl space-y-2">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Program Abstract</span>
+                              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                                {aboutText}
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                              <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Prerequisites</span>
+                                <p className="text-xs font-bold text-slate-900">{prerequisitesText}</p>
+                              </div>
+                              <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Seniority</span>
+                                <p className="text-xs font-bold text-slate-900">{course.level || 'Advanced Level'}</p>
+                              </div>
+                              <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Estimated Duration</span>
+                                <p className="text-xs font-bold text-slate-900">{course.duration || '8 Weeks'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* TAB 4: FACULTY & INSTRUCTORS */}
+                        {activeCardTab === 'faculty' && (
+                          <div className="p-4 sm:p-6 space-y-5 animate-in fade-in duration-150">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-800">Faculty Director & Instructional Team</h4>
+                                <p className="text-[11px] text-slate-500">
+                                  Curriculum leadership and instructor credentials presented to enrolled candidates.
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => setCourseModal({ isOpen: true, initialData: course, initialTab: 'faculty' })}
+                                className="px-3 py-1.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs self-start sm:self-auto shrink-0"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Edit Faculty Details</span>
+                              </button>
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row items-start gap-5">
+                              <img 
+                                src={instructor.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'} 
+                                alt={instructor.name}
+                                className="w-20 h-20 rounded-full object-cover ring-4 ring-blue-50 shrink-0 border border-slate-200 shadow-2xs"
+                                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'; }}
+                              />
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-base font-bold text-slate-900">{instructor.name}</h4>
+                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/60 rounded text-[10px] font-bold">
+                                      Faculty Director
+                                    </span>
+                                  </div>
+                                  <p className="text-xs font-semibold text-[#0056D2]">{instructor.title}</p>
+                                  <p className="text-xs text-slate-500">{instructor.department}</p>
+                                </div>
+
+                                <p className="text-xs text-slate-600 leading-relaxed">
+                                  {instructor.bio}
+                                </p>
+
+                                <div className="pt-2 flex items-center gap-4 text-xs text-slate-500">
+                                  <span className="flex items-center gap-1 font-semibold text-slate-700">
+                                    <span className="text-amber-500">★</span> {instructor.rating || 4.94} Faculty Rating
+                                  </span>
+                                  <span>•</span>
+                                  <span className="font-semibold text-slate-700">
+                                    {instructor.students || '25,000+'} Learners Mentored
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -527,8 +791,9 @@ export default function AdminPortalView({
       {/* MODAL 1: Course Modal (Create & Edit) */}
       <CourseModal
         isOpen={courseModal.isOpen}
-        onClose={() => setCourseModal({ isOpen: false, initialData: null })}
+        onClose={() => setCourseModal({ isOpen: false, initialData: null, initialTab: 'syllabus' })}
         initialData={courseModal.initialData}
+        initialTab={courseModal.initialTab}
         onSave={async (data) => {
           if (courseModal.initialData?.id) {
             if (onUpdateCourse) await onUpdateCourse(courseModal.initialData.id, data);

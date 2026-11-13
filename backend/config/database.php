@@ -108,6 +108,50 @@ class Database {
                                 break;
                             }
                         }
+                    } else {
+                        // Non-destructive column migrations for courses
+                        try {
+                            $cols = self::$pdo->query("SHOW COLUMNS FROM courses")->fetchAll(PDO::FETCH_COLUMN);
+                            $colSet = array_flip($cols);
+                            if (!isset($colSet['prerequisites'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN prerequisites TEXT NULL");
+                            }
+                            if (!isset($colSet['about'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN about TEXT NULL");
+                            }
+                            if (!isset($colSet['instructor_name'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN instructor_name VARCHAR(150) NULL");
+                            }
+                            if (!isset($colSet['instructor_title'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN instructor_title VARCHAR(150) NULL");
+                            }
+                            if (!isset($colSet['instructor_department'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN instructor_department VARCHAR(150) NULL");
+                            }
+                            if (!isset($colSet['instructor_bio'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN instructor_bio TEXT NULL");
+                            }
+                            if (!isset($colSet['instructor_avatar'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN instructor_avatar VARCHAR(500) NULL");
+                            }
+
+                            // Non-destructive table creation for certificates
+                            self::$pdo->exec("CREATE TABLE IF NOT EXISTS certificates (
+                                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                                certificate_code VARCHAR(100) NOT NULL UNIQUE,
+                                course_id INT UNSIGNED NOT NULL,
+                                user_id INT UNSIGNED NULL,
+                                recipient_name VARCHAR(200) NOT NULL,
+                                recipient_email VARCHAR(200) NULL,
+                                course_title VARCHAR(255) NOT NULL,
+                                issuer_id INT UNSIGNED NULL,
+                                issuer_name VARCHAR(200) NOT NULL,
+                                issuer_title VARCHAR(200) NULL,
+                                grade VARCHAR(150) NOT NULL DEFAULT 'Verified Completion',
+                                issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                            )");
+                        } catch (Exception $colErr) {}
                     }
                 } catch (Exception $initErr) {}
             } catch (PDOException $e) {
@@ -119,6 +163,21 @@ class Database {
                             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                         ]);
                         self::$pdo->exec("PRAGMA foreign_keys = ON;");
+                        self::$pdo->exec("CREATE TABLE IF NOT EXISTS certificates (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            certificate_code TEXT NOT NULL UNIQUE,
+                            course_id INTEGER NOT NULL,
+                            user_id INTEGER NULL,
+                            recipient_name TEXT NOT NULL,
+                            recipient_email TEXT NULL,
+                            course_title TEXT NOT NULL,
+                            issuer_id INTEGER NULL,
+                            issuer_name TEXT NOT NULL,
+                            issuer_title TEXT NULL,
+                            grade TEXT NOT NULL DEFAULT 'Verified Completion',
+                            issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        );");
                         return self::$pdo;
                     } catch (PDOException $sqle) {}
                 }

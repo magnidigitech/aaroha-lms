@@ -38,6 +38,13 @@ CREATE TABLE courses (
     thumbnail_url TEXT,
     skills TEXT,
     what_you_will_learn TEXT,
+    prerequisites TEXT,
+    about TEXT,
+    instructor_name TEXT,
+    instructor_title TEXT,
+    instructor_department TEXT,
+    instructor_bio TEXT,
+    instructor_avatar TEXT,
     is_published INTEGER NOT NULL DEFAULT 1,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     deleted_at DATETIME DEFAULT NULL,
@@ -131,6 +138,25 @@ CREATE TABLE task_submissions (
     FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
     FOREIGN KEY (enrollment_id) REFERENCES enrollments (id) ON DELETE CASCADE,
     FOREIGN KEY (graded_by) REFERENCES users (id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS certificates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    certificate_code TEXT NOT NULL UNIQUE,
+    course_id INTEGER NOT NULL,
+    user_id INTEGER,
+    recipient_name TEXT NOT NULL,
+    recipient_email TEXT,
+    course_title TEXT NOT NULL,
+    issuer_id INTEGER,
+    issuer_name TEXT NOT NULL,
+    issuer_title TEXT,
+    grade TEXT NOT NULL DEFAULT 'Verified Completion',
+    issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+    FOREIGN KEY (issuer_id) REFERENCES users (id) ON DELETE SET NULL
 );
 ");
 

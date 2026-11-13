@@ -188,12 +188,10 @@ class CourseController {
 
         $sql = "
             SELECT 
-                c.id, c.title, c.slug, c.category, c.level, c.duration, c.partner_type,
-                c.rating, c.reviews_count, c.badge_text, c.description, c.thumbnail_url,
-                c.skills, c.what_you_will_learn, c.is_published, c.created_at,
-                COALESCE(u.full_name, 'Faculty Member') AS instructor_name,
-                COALESCE(u.title, 'Curriculum Director') AS instructor_title,
-                COALESCE(u.avatar, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80') AS instructor_avatar,
+                c.*,
+                COALESCE(u.full_name, 'Faculty Member') AS default_instructor_name,
+                COALESCE(u.title, 'Curriculum Director') AS default_instructor_title,
+                COALESCE(u.avatar, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80') AS default_instructor_avatar,
                 COUNT(DISTINCT m.id) AS module_count,
                 COUNT(DISTINCT l.id) AS lesson_count,
                 COUNT(DISTINCT t.id) AS task_count
@@ -214,10 +212,16 @@ class CourseController {
         foreach ($courses as &$course) {
             $course['skills'] = json_decode($course['skills'] ?? '[]', true) ?: [];
             $course['what_you_will_learn'] = json_decode($course['what_you_will_learn'] ?? '[]', true) ?: [];
+            $course['about'] = !empty($course['about']) ? $course['about'] : ($course['description'] ?? '');
+            $course['prerequisites'] = !empty($course['prerequisites']) ? $course['prerequisites'] : 'Distributed Systems Foundations & Linux';
             $course['instructor'] = [
-                'name' => $course['instructor_name'],
-                'title' => $course['instructor_title'] ?? 'Faculty Member',
-                'avatar' => $course['instructor_avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+                'name' => !empty($course['instructor_name']) ? $course['instructor_name'] : $course['default_instructor_name'],
+                'title' => !empty($course['instructor_title']) ? $course['instructor_title'] : $course['default_instructor_title'],
+                'department' => !empty($course['instructor_department']) ? $course['instructor_department'] : 'Aaroha Institute of Technology',
+                'avatar' => !empty($course['instructor_avatar']) ? $course['instructor_avatar'] : $course['default_instructor_avatar'],
+                'bio' => !empty($course['instructor_bio']) ? $course['instructor_bio'] : 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+                'rating' => 4.94,
+                'students' => '25,000+'
             ];
 
             $courseId = (int)$course['id'];
@@ -260,9 +264,9 @@ class CourseController {
         $pdo = Database::getConnection();
 
         $stmt = $pdo->prepare("
-            SELECT c.*, u.full_name AS instructor_name, u.title AS instructor_title, u.avatar AS instructor_avatar
+            SELECT c.*, u.full_name AS default_instructor_name, u.title AS default_instructor_title, u.avatar AS default_instructor_avatar
             FROM courses c
-            JOIN users u ON c.created_by = u.id
+            LEFT JOIN users u ON c.created_by = u.id
             WHERE (c.id = ? OR c.slug = ?) AND c.is_deleted = 0
             LIMIT 1
         ");
@@ -277,12 +281,14 @@ class CourseController {
         $courseId = (int)$course['id'];
         $course['skills'] = json_decode($course['skills'] ?? '[]', true) ?: [];
         $course['what_you_will_learn'] = json_decode($course['what_you_will_learn'] ?? '[]', true) ?: [];
+        $course['about'] = !empty($course['about']) ? $course['about'] : ($course['description'] ?? '');
+        $course['prerequisites'] = !empty($course['prerequisites']) ? $course['prerequisites'] : 'Distributed Systems Foundations & Linux';
         $course['instructor'] = [
-            'name' => $course['instructor_name'],
-            'title' => $course['instructor_title'] ?? 'Faculty Member',
-            'department' => 'Aaroha Institute of Technology',
-            'avatar' => $course['instructor_avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-            'bio' => 'Experienced systems educator and architect delivering enterprise-grade engineering programs.',
+            'name' => !empty($course['instructor_name']) ? $course['instructor_name'] : ($course['default_instructor_name'] ?: 'Faculty Member'),
+            'title' => !empty($course['instructor_title']) ? $course['instructor_title'] : ($course['default_instructor_title'] ?: 'Faculty Member'),
+            'department' => !empty($course['instructor_department']) ? $course['instructor_department'] : 'Aaroha Institute of Technology',
+            'avatar' => !empty($course['instructor_avatar']) ? $course['instructor_avatar'] : ($course['default_instructor_avatar'] ?: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'),
+            'bio' => !empty($course['instructor_bio']) ? $course['instructor_bio'] : 'Experienced systems educator and architect delivering enterprise-grade engineering programs.',
             'rating' => 4.94,
             'students' => '25,000+'
         ];
@@ -377,6 +383,13 @@ class CourseController {
         $badgeText = trim($data['badge_text'] ?? 'New');
         $skills = is_array($data['skills'] ?? null) ? json_encode($data['skills']) : json_encode(['Cloud Architecture', 'Distributed Systems']);
         $whatYouWillLearn = is_array($data['what_you_will_learn'] ?? null) ? json_encode($data['what_you_will_learn']) : json_encode(['Master core principles and architectures', 'Complete evaluated deliverable projects']);
+        $prerequisites = trim($data['prerequisites'] ?? 'Distributed Systems Foundations & Linux kernel basics');
+        $about = trim($data['about'] ?? $description);
+        $instructorName = trim($data['instructor_name'] ?? '');
+        $instructorTitle = trim($data['instructor_title'] ?? '');
+        $instructorDepartment = trim($data['instructor_department'] ?? 'Aaroha Institute of Technology');
+        $instructorBio = trim($data['instructor_bio'] ?? 'Experienced faculty member and systems architect delivering industry-calibrated technical education.');
+        $instructorAvatar = trim($data['instructor_avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80');
         $isPublished = isset($data['is_published']) ? (int)(bool)$data['is_published'] : 1;
 
         if (empty($title)) {
@@ -393,12 +406,14 @@ class CourseController {
 
         $stmt = $pdo->prepare("
             INSERT INTO courses 
-            (title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            (title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, prerequisites, about, instructor_name, instructor_title, instructor_department, instructor_bio, instructor_avatar, is_published, is_deleted, created_by, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([
             $title, $slug, $category, $level, $duration, $partnerType, $badgeText, 
-            $description, $thumbnailUrl, $skills, $whatYouWillLearn, $isPublished, $adminId
+            $description, $thumbnailUrl, $skills, $whatYouWillLearn,
+            $prerequisites, $about, $instructorName, $instructorTitle, $instructorDepartment, $instructorBio, $instructorAvatar,
+            $isPublished, $adminId
         ]);
         $newId = (int)$pdo->lastInsertId();
 
@@ -417,6 +432,22 @@ class CourseController {
             'thumbnail_url' => $thumbnailUrl,
             'skills' => json_decode($skills, true) ?: [],
             'what_you_will_learn' => json_decode($whatYouWillLearn, true) ?: [],
+            'prerequisites' => $prerequisites,
+            'about' => $about,
+            'instructor_name' => $instructorName,
+            'instructor_title' => $instructorTitle,
+            'instructor_department' => $instructorDepartment,
+            'instructor_bio' => $instructorBio,
+            'instructor_avatar' => $instructorAvatar,
+            'instructor' => [
+                'name' => $instructorName ?: 'Faculty Member',
+                'title' => $instructorTitle ?: 'Curriculum Director',
+                'department' => $instructorDepartment ?: 'Aaroha Institute of Technology',
+                'avatar' => $instructorAvatar ?: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                'bio' => $instructorBio ?: 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+                'rating' => 4.94,
+                'students' => '25,000+'
+            ],
             'is_published' => $isPublished,
             'created_by' => $adminId,
             'modules' => []
@@ -463,18 +494,27 @@ class CourseController {
         $thumbnailUrl = isset($data['thumbnail_url']) && trim($data['thumbnail_url']) !== '' ? trim($data['thumbnail_url']) : $existing['thumbnail_url'];
         $skills = isset($data['skills']) ? (is_array($data['skills']) ? json_encode($data['skills']) : (is_string($data['skills']) ? $data['skills'] : json_encode([]))) : $existing['skills'];
         $whatYouWillLearn = isset($data['what_you_will_learn']) ? (is_array($data['what_you_will_learn']) ? json_encode($data['what_you_will_learn']) : (is_string($data['what_you_will_learn']) ? $data['what_you_will_learn'] : json_encode([]))) : $existing['what_you_will_learn'];
+        $prerequisites = array_key_exists('prerequisites', $data) ? trim((string)$data['prerequisites']) : ($existing['prerequisites'] ?? '');
+        $about = array_key_exists('about', $data) ? trim((string)$data['about']) : ($existing['about'] ?? $description);
+        $instructorName = array_key_exists('instructor_name', $data) ? trim((string)$data['instructor_name']) : ($existing['instructor_name'] ?? '');
+        $instructorTitle = array_key_exists('instructor_title', $data) ? trim((string)$data['instructor_title']) : ($existing['instructor_title'] ?? '');
+        $instructorDepartment = array_key_exists('instructor_department', $data) ? trim((string)$data['instructor_department']) : ($existing['instructor_department'] ?? '');
+        $instructorBio = array_key_exists('instructor_bio', $data) ? trim((string)$data['instructor_bio']) : ($existing['instructor_bio'] ?? '');
+        $instructorAvatar = array_key_exists('instructor_avatar', $data) ? trim((string)$data['instructor_avatar']) : ($existing['instructor_avatar'] ?? '');
         $isPublished = isset($data['is_published']) ? (int)(bool)$data['is_published'] : (int)$existing['is_published'];
 
         $stmt = $pdo->prepare("
             UPDATE courses SET
                 title = ?, slug = ?, category = ?, level = ?, duration = ?, partner_type = ?,
                 badge_text = ?, description = ?, thumbnail_url = ?, skills = ?, what_you_will_learn = ?,
+                prerequisites = ?, about = ?, instructor_name = ?, instructor_title = ?, instructor_department = ?, instructor_bio = ?, instructor_avatar = ?,
                 is_published = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND is_deleted = 0
         ");
         $stmt->execute([
             $title, $slug, $category, $level, $duration, $partnerType,
             $badgeText, $description, $thumbnailUrl, $skills, $whatYouWillLearn,
+            $prerequisites, $about, $instructorName, $instructorTitle, $instructorDepartment, $instructorBio, $instructorAvatar,
             $isPublished, $courseId
         ]);
 
@@ -494,6 +534,22 @@ class CourseController {
                 'thumbnail_url' => $thumbnailUrl,
                 'skills' => json_decode($skills, true) ?: [],
                 'what_you_will_learn' => json_decode($whatYouWillLearn, true) ?: [],
+                'prerequisites' => $prerequisites,
+                'about' => $about,
+                'instructor_name' => $instructorName,
+                'instructor_title' => $instructorTitle,
+                'instructor_department' => $instructorDepartment,
+                'instructor_bio' => $instructorBio,
+                'instructor_avatar' => $instructorAvatar,
+                'instructor' => [
+                    'name' => $instructorName ?: ($existing['instructor_name'] ?? 'Faculty Member'),
+                    'title' => $instructorTitle ?: ($existing['instructor_title'] ?? 'Faculty Member'),
+                    'department' => $instructorDepartment ?: 'Aaroha Institute of Technology',
+                    'avatar' => $instructorAvatar ?: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+                    'bio' => $instructorBio ?: 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+                    'rating' => 4.94,
+                    'students' => '25,000+'
+                ],
                 'is_published' => $isPublished
             ]
         ];

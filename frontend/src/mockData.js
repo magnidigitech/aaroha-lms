@@ -466,3 +466,20 @@ export const initialTaskSubmissions = [
     graded_at: null
   }
 ];
+
+export const initialCertificates = [
+  {
+    id: 1,
+    certificate_code: 'AAROHA-CERT-2026-9E4F-8812',
+    course_id: 1,
+    course_title: 'Distributed Cloud Architecture & High-Throughput Systems',
+    user_id: 2,
+    recipient_name: 'Elena Rostova',
+    recipient_email: 'elena.rostova@enterprise.io',
+    issuer_id: 1,
+    issuer_name: 'Dr. Aris Thorne',
+    issuer_title: 'Director of Curriculum & Distributed Systems Faculty',
+    grade: 'Executive Distinction (98% Pass · Verified Peer Reviewed)',
+    issued_at: '2026-11-13T12:00:00Z'
+  }
+];

@@ -9,6 +9,7 @@ require_once __DIR__ . '/controllers/CourseController.php';
 require_once __DIR__ . '/controllers/EnrollmentController.php';
 require_once __DIR__ . '/controllers/TaskController.php';
 require_once __DIR__ . '/controllers/PlaybackController.php';
+require_once __DIR__ . '/controllers/CertificateController.php';
 
 // 1. Handle CORS Preflight and Headers
 handleCORS();
@@ -170,6 +171,25 @@ try {
     elseif ($requestMethod === 'POST' && preg_match('#^/admin/submissions/(\d+)/grade$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
         $response = TaskController::gradeSubmission((int)$matches[1], (int)$admin['id'], $inputData);
+    }
+
+    // -------------------------------------------------------------
+    // ACCREDITED CERTIFICATES (FACULTY ISSUANCE & VERIFICATION)
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'POST' && preg_match('#^/courses/(\d+)/certificates$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CertificateController::issueCertificate((int)$matches[1], $inputData, $admin);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/courses/(\d+)/certificates$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CertificateController::getCourseCertificates((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'GET' && $path === '/student/certificates') {
+        $user = AuthMiddleware::requireAuth();
+        $response = CertificateController::getMyCertificates((int)$user['id']);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/certificates/verify/([^/]+)$#', $path, $matches)) {
+        $response = CertificateController::verifyCertificate($matches[1]);
     }
 
     // -------------------------------------------------------------

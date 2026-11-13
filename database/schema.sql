@@ -42,6 +42,13 @@ CREATE TABLE IF NOT EXISTS courses (
     thumbnail_url VARCHAR(500),
     skills TEXT NULL,
     what_you_will_learn TEXT NULL,
+    prerequisites TEXT NULL,
+    about TEXT NULL,
+    instructor_name VARCHAR(150) NULL,
+    instructor_title VARCHAR(150) NULL,
+    instructor_department VARCHAR(150) NULL,
+    instructor_bio TEXT NULL,
+    instructor_avatar VARCHAR(500) NULL,
     is_published TINYINT(1) NOT NULL DEFAULT 1,
     is_deleted TINYINT(1) NOT NULL DEFAULT 0,
     deleted_at DATETIME NULL DEFAULT NULL,
@@ -144,10 +151,32 @@ CREATE TABLE IF NOT EXISTS task_submissions (
     CONSTRAINT fk_sub_grader FOREIGN KEY (graded_by) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 10. Certificates Table (Accredited Digital Credentials)
+CREATE TABLE IF NOT EXISTS certificates (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    certificate_code VARCHAR(100) NOT NULL UNIQUE,
+    course_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NULL,
+    recipient_name VARCHAR(200) NOT NULL,
+    recipient_email VARCHAR(200) NULL,
+    course_title VARCHAR(255) NOT NULL,
+    issuer_id INT UNSIGNED NULL,
+    issuer_name VARCHAR(200) NOT NULL,
+    issuer_title VARCHAR(200) NULL,
+    grade VARCHAR(150) NOT NULL DEFAULT 'Verified Completion',
+    issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_cert_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    CONSTRAINT fk_cert_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT fk_cert_issuer FOREIGN KEY (issuer_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- -------------------------------------------------------------
 -- PERFORMANCE INDEXES
 -- -------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_enrollment_user_course_status ON enrollments (user_id, course_id, status);
+CREATE INDEX IF NOT EXISTS idx_certificates_user_course ON certificates (user_id, course_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_code ON certificates (certificate_code);
 CREATE INDEX IF NOT EXISTS idx_lessons_module_published ON lessons (module_id, is_published, is_deleted);
 CREATE INDEX IF NOT EXISTS idx_modules_course_deleted ON modules (course_id, is_deleted);
 CREATE INDEX IF NOT EXISTS idx_courses_published_deleted ON courses (is_published, is_deleted);

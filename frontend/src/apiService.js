@@ -161,9 +161,21 @@ export const api = {
   // Faculty Evaluation Queue
   getPendingSubmissions: () => request('/admin/submissions/pending'),
 
-  gradeSubmission: (submissionId, data) => request(`/admin/submissions/${submissionId}/grade`, {
+  gradeSubmission: (submissionId, data) => request('/admin/submissions/' + submissionId + '/grade', {
     method: 'POST',
     body: JSON.stringify(data)
-  })
+  }),
+
+  // Accredited Certificates
+  issueCertificate: (courseId, data) => request('/courses/' + courseId + '/certificates', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  getCourseCertificates: (courseId) => request('/courses/' + courseId + '/certificates'),
+
+  getMyCertificates: () => request('/student/certificates'),
+
+  verifyCertificate: (code) => request('/certificates/verify/' + encodeURIComponent(code))
 };
 
