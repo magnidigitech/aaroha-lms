@@ -28,12 +28,15 @@ class EnrollmentController {
             ];
         }
 
-        // Insert new enrollment
+        // Insert new enrollment with 6-month validity period
+        $enrolledAt = date('Y-m-d H:i:s');
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+6 months'));
+
         $ins = $pdo->prepare("
-            INSERT INTO enrollments (user_id, course_id, status, enrolled_at)
-            VALUES (?, ?, 'active', CURRENT_TIMESTAMP)
+            INSERT INTO enrollments (user_id, course_id, status, enrolled_at, expires_at)
+            VALUES (?, ?, 'active', ?, ?)
         ");
-        $ins->execute([$userId, $courseId]);
+        $ins->execute([$userId, $courseId, $enrolledAt, $expiresAt]);
 
         http_response_code(201);
         return [
@@ -44,25 +47,49 @@ class EnrollmentController {
     }
 
     // Student: Get my enrolled courses with computed progress
+    // Rule: Courses remain on the dashboard for 6 months from enrollment even if completed.
+    // The only circumstance in which a course is removed within 6 months is if the faculty deletes/removes the course.
     public static function myEnrollments($userId) {
         $pdo = Database::getConnection();
 
         $sql = "
             SELECT 
-                e.id, e.id AS enrollment_id, e.user_id, e.status, e.status AS enrollment_status, e.enrolled_at, e.completed_at,
-                c.id AS course_id, c.title, c.slug, c.description, c.thumbnail_url,
+                e.id, e.id AS enrollment_id, e.user_id, e.status, e.status AS enrollment_status, e.enrolled_at, e.completed_at, e.expires_at,
+                c.id AS course_id, c.title, c.slug, c.description, c.thumbnail_url, c.is_deleted,
                 u.full_name AS instructor_name
             FROM enrollments e
             JOIN courses c ON e.course_id = c.id
             JOIN users u ON c.created_by = u.id
-            WHERE e.user_id = ? AND e.status IN ('active', 'completed')
+            WHERE e.user_id = ? 
+              AND e.status IN ('active', 'completed')
+              AND (c.is_deleted = 0 OR c.is_deleted IS NULL)
             ORDER BY e.enrolled_at DESC
         ";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$userId]);
-        $enrollments = $stmt->fetchAll();
+        $rawEnrollments = $stmt->fetchAll();
 
-        foreach ($enrollments as &$item) {
+        $validEnrollments = [];
+        $now = time();
+
+        foreach ($rawEnrollments as $item) {
+            // 1. If faculty removed the course, remove from dashboard
+            if (!empty($item['is_deleted'])) {
+                continue;
+            }
+
+            // 2. 6-month validity from the starting period of enrollment
+            $enrolledTime = !empty($item['enrolled_at']) ? strtotime($item['enrolled_at']) : $now;
+            $expiresTime = !empty($item['expires_at']) ? strtotime($item['expires_at']) : strtotime('+6 months', $enrolledTime);
+
+            // Exclude only after 6 months have fully elapsed
+            if ($now > $expiresTime) {
+                continue;
+            }
+
+            $item['expires_at'] = date('Y-m-d H:i:s', $expiresTime);
+            $item['days_remaining'] = max(0, (int)ceil(($expiresTime - $now) / 86400));
+
             $courseId = (int)$item['course_id'];
             $enrollmentId = (int)$item['enrollment_id'];
 
@@ -90,9 +117,11 @@ class EnrollmentController {
             $item['total_lessons'] = $totalLessons;
             $item['completed_lessons'] = $completedLessons;
             $item['progress_percentage'] = $percentage;
+
+            $validEnrollments[] = $item;
         }
 
-        return ['success' => true, 'enrollments' => $enrollments];
+        return ['success' => true, 'enrollments' => $validEnrollments];
     }
 
     // Student: Mark a lesson as completed

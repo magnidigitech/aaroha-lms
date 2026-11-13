@@ -16,16 +16,37 @@ export default function StudentPortalView({
   const [filter, setFilter] = useState('all'); // 'all' | 'in_progress' | 'completed'
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 1. Filter courses where the user has an active enrollment
-  const enrolledCourses = courses.filter(course => 
-    enrollments.some(e => 
+  // Helper to determine if an enrollment is within its 6-month validity period
+  const isEnrollmentWithinSixMonths = (enrollment) => {
+    if (!enrollment) return false;
+    if (enrollment.status === 'dropped') return false;
+
+    const enrolledTime = enrollment.enrolled_at ? new Date(enrollment.enrolled_at).getTime() : Date.now();
+    // 6 calendar months (approx 183 days)
+    const sixMonthsMs = 183 * 24 * 60 * 60 * 1000;
+    const expiresTime = enrollment.expires_at 
+      ? new Date(enrollment.expires_at).getTime() 
+      : enrolledTime + sixMonthsMs;
+
+    return Date.now() <= expiresTime;
+  };
+
+  // 1. Filter courses where the user has an active or completed enrollment within 6 months.
+  // Courses stay on the dashboard for 6 months from enrollment even if completed.
+  // The ONLY condition that removes a course within 6 months is if the faculty deletes/removes the course.
+  const enrolledCourses = courses.filter(course => {
+    // If faculty removed the course, exclude it
+    if (course.is_deleted) return false;
+
+    return enrollments.some(e => 
       e.course_id === course.id && 
       (e.status === 'active' || e.status === 'completed') && 
-      (currentUser ? e.user_id === currentUser.id : true)
-    )
-  );
+      (currentUser ? e.user_id === currentUser.id : true) &&
+      isEnrollmentWithinSixMonths(e)
+    );
+  });
 
-  // 2. Helper to compute progress and find next lecture for a course
+  // 2. Helper to compute progress, access window, and next lecture for a course
   const getCourseAnalytics = (course) => {
     const allLessons = (course.modules || []).flatMap(m => m.lessons || []);
     const totalLessons = allLessons.length;
@@ -39,19 +60,30 @@ export default function StudentPortalView({
     // Find next uncompleted lesson
     const nextLesson = allLessons.find(l => !completedLessonIds.has(l.id)) || allLessons[0] || null;
 
-    const isEnrCompleted = enrollments.some(e => 
+    const userEnrollment = enrollments.find(e => 
       e.course_id === course.id && 
-      e.status === 'completed' && 
       (currentUser ? e.user_id === currentUser.id : true)
     );
+
+    const isEnrCompleted = userEnrollment && userEnrollment.status === 'completed';
     const isCompleted = isEnrCompleted || (totalLessons > 0 && (completedCount >= totalLessons || progressPct >= 100));
+
+    // Calculate remaining days within the 6-month period
+    const enrolledTime = userEnrollment?.enrolled_at ? new Date(userEnrollment.enrolled_at).getTime() : Date.now();
+    const sixMonthsMs = 183 * 24 * 60 * 60 * 1000;
+    const expiresTime = userEnrollment?.expires_at 
+      ? new Date(userEnrollment.expires_at).getTime() 
+      : enrolledTime + sixMonthsMs;
+    const daysRemaining = Math.max(0, Math.ceil((expiresTime - Date.now()) / (24 * 60 * 60 * 1000)));
 
     return {
       totalLessons,
       completedCount: isCompleted && totalLessons > 0 ? totalLessons : completedCount,
       progressPct: isCompleted ? 100 : progressPct,
       isCompleted,
-      nextLesson
+      nextLesson,
+      daysRemaining,
+      enrolledAt: userEnrollment?.enrolled_at
     };
   };
 
@@ -255,6 +287,19 @@ export default function StudentPortalView({
                           style={{ width: `${analytics.progressPct}%` }}
                         />
                       </div>
+                    </div>
+
+                    {/* 6-Month Enrollment Access Status */}
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>6-Month Access</span>
+                      </span>
+                      <span className="font-semibold text-slate-600">
+                        {analytics.daysRemaining > 0 
+                          ? `${analytics.daysRemaining} days remaining` 
+                          : 'Active'}
+                      </span>
                     </div>
 
                     {/* Next Lesson Box */}

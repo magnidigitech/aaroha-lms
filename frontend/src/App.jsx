@@ -126,6 +126,18 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState(null);
   const [isBackendLive, setIsBackendLive] = useState(false);
 
+  // Helper: Course stays valid for 6 months from enrollment start date
+  const isEnrollmentWithinSixMonths = (enrollment) => {
+    if (!enrollment) return false;
+    if (enrollment.status === 'dropped') return false;
+    const enrolledTime = enrollment.enrolled_at ? new Date(enrollment.enrolled_at).getTime() : Date.now();
+    const sixMonthsMs = 183 * 24 * 60 * 60 * 1000;
+    const expiresTime = enrollment.expires_at 
+      ? new Date(enrollment.expires_at).getTime() 
+      : enrolledTime + sixMonthsMs;
+    return Date.now() <= expiresTime;
+  };
+
   // Global search & topic filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -274,9 +286,14 @@ export default function App() {
     setSelectedCourse(course);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Strictly check if current user is enrolled in this course:
+    // Strictly check if current user is enrolled in this course (active or completed within 6-month validity period):
     const isEnrolledInCourse = currentUser 
-      ? enrollments.some(e => e.course_id === course.id && e.user_id === currentUser.id && e.status === 'active')
+      ? enrollments.some(e => 
+          e.course_id === course.id && 
+          e.user_id === currentUser.id && 
+          (e.status === 'active' || e.status === 'completed') &&
+          isEnrollmentWithinSixMonths(e)
+        )
       : false;
 
     // Only Enrolled Courses unlock Course Interface, otherwise only course brochure!
@@ -448,12 +465,17 @@ export default function App() {
 
     const alreadyEnrolled = enrollments.some(e => e.course_id === courseId && (e.user_id === userId || !e.user_id));
     if (!alreadyEnrolled) {
+      const enrolledDate = new Date();
+      const expiresDate = new Date();
+      expiresDate.setMonth(expiresDate.getMonth() + 6);
+
       const newEnrollment = {
         id: Date.now(),
         user_id: userId,
         course_id: courseId,
         status: 'active',
-        enrolled_at: new Date().toISOString(),
+        enrolled_at: enrolledDate.toISOString(),
+        expires_at: expiresDate.toISOString(),
         completed_at: null
       };
       setEnrollments(prev => [...prev, newEnrollment]);
@@ -914,7 +936,11 @@ export default function App() {
 
   const pendingCount = taskSubmissions.filter(s => s.status === 'under_review').length;
   const enrolledCount = currentUser 
-    ? enrollments.filter(e => e.user_id === currentUser.id && e.status === 'active').length 
+    ? enrollments.filter(e => 
+        e.user_id === currentUser.id && 
+        (e.status === 'active' || e.status === 'completed') &&
+        isEnrollmentWithinSixMonths(e)
+      ).length 
     : 0;
 
   return (
@@ -986,7 +1012,12 @@ export default function App() {
             onEnroll={handleEnroll}
             isEnrolled={
               currentUser 
-                ? enrollments.some(e => e.course_id === selectedCourse.id && e.user_id === currentUser.id && e.status === 'active')
+                ? enrollments.some(e => 
+                    e.course_id === selectedCourse.id && 
+                    e.user_id === currentUser.id && 
+                    (e.status === 'active' || e.status === 'completed') &&
+                    isEnrollmentWithinSixMonths(e)
+                  )
                 : false
             }
             onOpenClassroom={(course) => {
@@ -1014,7 +1045,12 @@ export default function App() {
             onEnroll={handleEnroll}
             isEnrolled={
               currentUser 
-                ? enrollments.some(e => e.course_id === selectedCourse.id && e.user_id === currentUser.id && (e.status === 'active' || e.status === 'completed'))
+                ? enrollments.some(e => 
+                    e.course_id === selectedCourse.id && 
+                    e.user_id === currentUser.id && 
+                    (e.status === 'active' || e.status === 'completed') &&
+                    isEnrollmentWithinSixMonths(e)
+                  )
                 : false
             }
             currentUser={currentUser}

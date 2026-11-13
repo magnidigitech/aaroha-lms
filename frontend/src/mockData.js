@@ -414,6 +414,7 @@ export const initialEnrollments = [
     course_id: 1,
     status: 'active',
     enrolled_at: '2026-10-15T10:00:00Z',
+    expires_at: '2027-04-15T10:00:00Z',
     completed_at: null
   }
 ];
