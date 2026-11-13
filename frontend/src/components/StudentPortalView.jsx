@@ -21,12 +21,15 @@ export default function StudentPortalView({
     if (!enrollment) return false;
     if (enrollment.status === 'dropped') return false;
 
-    const enrolledTime = enrollment.enrolled_at ? new Date(enrollment.enrolled_at).getTime() : Date.now();
+    const enrolledStr = String(enrollment.enrolled_at || '').replace(' ', 'T');
+    const parsedEnrolled = enrolledStr ? new Date(enrolledStr).getTime() : NaN;
+    const enrolledTime = !isNaN(parsedEnrolled) ? parsedEnrolled : Date.now();
+
     // 6 calendar months (approx 183 days)
     const sixMonthsMs = 183 * 24 * 60 * 60 * 1000;
-    const expiresTime = enrollment.expires_at 
-      ? new Date(enrollment.expires_at).getTime() 
-      : enrolledTime + sixMonthsMs;
+    const expiresStr = enrollment.expires_at ? String(enrollment.expires_at).replace(' ', 'T') : '';
+    const parsedExpires = expiresStr ? new Date(expiresStr).getTime() : NaN;
+    const expiresTime = !isNaN(parsedExpires) ? parsedExpires : enrolledTime + sixMonthsMs;
 
     return Date.now() <= expiresTime;
   };
@@ -39,9 +42,9 @@ export default function StudentPortalView({
     if (course.is_deleted) return false;
 
     return enrollments.some(e => 
-      e.course_id === course.id && 
+      String(e.course_id) === String(course.id) && 
       (e.status === 'active' || e.status === 'completed') && 
-      (currentUser ? e.user_id === currentUser.id : true) &&
+      (currentUser ? String(e.user_id) === String(currentUser.id) : true) &&
       isEnrollmentWithinSixMonths(e)
     );
   });
@@ -61,19 +64,21 @@ export default function StudentPortalView({
     const nextLesson = allLessons.find(l => !completedLessonIds.has(l.id)) || allLessons[0] || null;
 
     const userEnrollment = enrollments.find(e => 
-      e.course_id === course.id && 
-      (currentUser ? e.user_id === currentUser.id : true)
+      String(e.course_id) === String(course.id) && 
+      (currentUser ? String(e.user_id) === String(currentUser.id) : true)
     );
 
     const isEnrCompleted = userEnrollment && userEnrollment.status === 'completed';
     const isCompleted = isEnrCompleted || (totalLessons > 0 && (completedCount >= totalLessons || progressPct >= 100));
 
     // Calculate remaining days within the 6-month period
-    const enrolledTime = userEnrollment?.enrolled_at ? new Date(userEnrollment.enrolled_at).getTime() : Date.now();
+    const enrolledStr = String(userEnrollment?.enrolled_at || '').replace(' ', 'T');
+    const parsedEnrolled = enrolledStr ? new Date(enrolledStr).getTime() : NaN;
+    const enrolledTime = !isNaN(parsedEnrolled) ? parsedEnrolled : Date.now();
     const sixMonthsMs = 183 * 24 * 60 * 60 * 1000;
-    const expiresTime = userEnrollment?.expires_at 
-      ? new Date(userEnrollment.expires_at).getTime() 
-      : enrolledTime + sixMonthsMs;
+    const expiresStr = userEnrollment?.expires_at ? String(userEnrollment.expires_at).replace(' ', 'T') : '';
+    const parsedExpires = expiresStr ? new Date(expiresStr).getTime() : NaN;
+    const expiresTime = !isNaN(parsedExpires) ? parsedExpires : enrolledTime + sixMonthsMs;
     const daysRemaining = Math.max(0, Math.ceil((expiresTime - Date.now()) / (24 * 60 * 60 * 1000)));
 
     return {

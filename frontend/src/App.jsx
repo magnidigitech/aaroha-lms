@@ -130,11 +130,16 @@ export default function App() {
   const isEnrollmentWithinSixMonths = (enrollment) => {
     if (!enrollment) return false;
     if (enrollment.status === 'dropped') return false;
-    const enrolledTime = enrollment.enrolled_at ? new Date(enrollment.enrolled_at).getTime() : Date.now();
+
+    const enrolledStr = String(enrollment.enrolled_at || '').replace(' ', 'T');
+    const parsedEnrolled = enrolledStr ? new Date(enrolledStr).getTime() : NaN;
+    const enrolledTime = !isNaN(parsedEnrolled) ? parsedEnrolled : Date.now();
+
     const sixMonthsMs = 183 * 24 * 60 * 60 * 1000;
-    const expiresTime = enrollment.expires_at 
-      ? new Date(enrollment.expires_at).getTime() 
-      : enrolledTime + sixMonthsMs;
+    const expiresStr = enrollment.expires_at ? String(enrollment.expires_at).replace(' ', 'T') : '';
+    const parsedExpires = expiresStr ? new Date(expiresStr).getTime() : NaN;
+    const expiresTime = !isNaN(parsedExpires) ? parsedExpires : enrolledTime + sixMonthsMs;
+
     return Date.now() <= expiresTime;
   };
 
@@ -249,10 +254,14 @@ export default function App() {
             const deletedSet = new Set(rawDeleted.map(id => String(id)));
             const isDeleted = (id) => deletedSet.has(String(id));
             const activeServerCourses = res.courses.filter(c => !isDeleted(c.id));
-            const apiIds = new Set(activeServerCourses.map(c => String(c.id)));
-            // Retain un-synced offline local drafts only; never resurrect deleted server courses
-            const localDrafts = (prev || []).filter(c => c.is_local_draft && !apiIds.has(String(c.id)) && !isDeleted(c.id));
-            const merged = [...activeServerCourses, ...localDrafts];
+            const serverIdSet = new Set(activeServerCourses.map(c => String(c.id)));
+
+            // Non-destructive merge: NEVER remove any course from prev unless it was explicitly deleted by faculty!
+            // Retains newly created courses, local additions, and server updates seamlessly.
+            const localCoursesToKeep = (prev || []).filter(c => 
+              !serverIdSet.has(String(c.id)) && !isDeleted(c.id) && !c.is_deleted
+            );
+            const merged = [...activeServerCourses, ...localCoursesToKeep];
             try {
               localStorage.setItem('aaroha_courses', JSON.stringify(merged));
             } catch (e) {}

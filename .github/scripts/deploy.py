@@ -81,6 +81,13 @@ def main():
             else:
                 if item == 'env.php':
                     continue
+                # CRITICAL: Preserve live production SQLite database across all deployments
+                # Never overwrite existing database files with runner seed templates!
+                if item.endswith('.sqlite') or item.endswith('.db'):
+                    if item in remote_file_map and remote_file_map[item] > 0:
+                        print(f'  [DATABASE PRESERVED] {child_rel} (live server database preserved, skipping upload)')
+                        continue
+
                 file_size = os.path.getsize(local_full)
                 force_upload = item in ('index.html', '.htaccess', 'version.json')
 

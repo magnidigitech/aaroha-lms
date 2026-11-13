@@ -179,21 +179,31 @@ class CourseController {
     public static function listPublished() {
         $pdo = Database::getConnection();
 
+        $auth = AuthMiddleware::getOptionalAuth();
+        $isFacultyOrAdmin = $auth && in_array(strtolower($auth['role'] ?? ''), ['admin', 'faculty', 'instructor']);
+
+        // For public students/guests, show published non-deleted courses.
+        // For faculty and administrators, show all non-deleted courses (including drafts/newly created).
+        $publishCondition = $isFacultyOrAdmin ? "" : "AND (c.is_published = 1 OR c.is_published IS NULL)";
+
         $sql = "
             SELECT 
                 c.id, c.title, c.slug, c.category, c.level, c.duration, c.partner_type,
                 c.rating, c.reviews_count, c.badge_text, c.description, c.thumbnail_url,
                 c.skills, c.what_you_will_learn, c.is_published, c.created_at,
-                u.full_name AS instructor_name, u.title AS instructor_title, u.avatar AS instructor_avatar,
+                COALESCE(u.full_name, 'Faculty Member') AS instructor_name,
+                COALESCE(u.title, 'Curriculum Director') AS instructor_title,
+                COALESCE(u.avatar, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80') AS instructor_avatar,
                 COUNT(DISTINCT m.id) AS module_count,
                 COUNT(DISTINCT l.id) AS lesson_count,
                 COUNT(DISTINCT t.id) AS task_count
             FROM courses c
-            JOIN users u ON c.created_by = u.id
-            LEFT JOIN modules m ON (c.id = m.course_id AND m.is_deleted = 0)
-            LEFT JOIN lessons l ON (m.id = l.module_id AND l.is_deleted = 0)
-            LEFT JOIN tasks t ON (m.id = t.module_id AND t.is_deleted = 0)
-            WHERE c.is_published = 1 AND c.is_deleted = 0
+            LEFT JOIN users u ON c.created_by = u.id
+            LEFT JOIN modules m ON (c.id = m.course_id AND (m.is_deleted = 0 OR m.is_deleted IS NULL))
+            LEFT JOIN lessons l ON (m.id = l.module_id AND (l.is_deleted = 0 OR l.is_deleted IS NULL))
+            LEFT JOIN tasks t ON (m.id = t.module_id AND (t.is_deleted = 0 OR t.is_deleted IS NULL))
+            WHERE (c.is_deleted = 0 OR c.is_deleted IS NULL)
+            {$publishCondition}
             GROUP BY c.id
             ORDER BY c.created_at DESC
         ";
@@ -392,30 +402,35 @@ class CourseController {
         ]);
         $newId = (int)$pdo->lastInsertId();
 
+        $courseData = [
+            'id' => $newId,
+            'title' => $title,
+            'slug' => $slug,
+            'category' => $category,
+            'level' => $level,
+            'duration' => $duration,
+            'partner_type' => $partnerType,
+            'rating' => 4.90,
+            'reviews_count' => 'New',
+            'badge_text' => $badgeText,
+            'description' => $description,
+            'thumbnail_url' => $thumbnailUrl,
+            'skills' => json_decode($skills, true) ?: [],
+            'what_you_will_learn' => json_decode($whatYouWillLearn, true) ?: [],
+            'is_published' => $isPublished,
+            'created_by' => $adminId,
+            'modules' => []
+        ];
+
+        // Synchronize newly created course to fallback SQLite database if present
+        self::syncCreateToSqlite($courseData);
+
         self::setHttpStatus(201);
         return [
             'success' => true,
             'message' => 'Course created successfully',
             'course_id' => $newId,
-            'course' => [
-                'id' => $newId,
-                'title' => $title,
-                'slug' => $slug,
-                'category' => $category,
-                'level' => $level,
-                'duration' => $duration,
-                'partner_type' => $partnerType,
-                'rating' => 4.90,
-                'reviews_count' => 'New',
-                'badge_text' => $badgeText,
-                'description' => $description,
-                'thumbnail_url' => $thumbnailUrl,
-                'skills' => json_decode($skills, true) ?: [],
-                'what_you_will_learn' => json_decode($whatYouWillLearn, true) ?: [],
-                'is_published' => $isPublished,
-                'created_by' => $adminId,
-                'modules' => []
-            ]
+            'course' => $courseData
         ];
     }
 
@@ -531,6 +546,43 @@ class CourseController {
                         ]);
                         $stmt = $sqlitePdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
                         $stmt->execute([$courseId]);
+                    } catch (\Throwable $sqle) {}
+                }
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    private static function syncCreateToSqlite(array $courseRow): void {
+        try {
+            if (!extension_loaded('pdo_sqlite') || !class_exists('PDO') || !in_array('sqlite', PDO::getAvailableDrivers())) {
+                return;
+            }
+            $sqliteCandidates = [
+                __DIR__ . '/../config/lms.sqlite',
+                __DIR__ . '/../../database/lms.sqlite',
+                dirname(__DIR__, 2) . '/database/lms.sqlite',
+                __DIR__ . '/lms.sqlite',
+            ];
+            foreach ($sqliteCandidates as $cand) {
+                if (file_exists($cand) && is_writable($cand)) {
+                    try {
+                        $sqlitePdo = new PDO("sqlite:{$cand}", null, null, [
+                            PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                        ]);
+                        $skillsStr = is_array($courseRow['skills']) ? json_encode($courseRow['skills']) : ($courseRow['skills'] ?? '[]');
+                        $learnStr = is_array($courseRow['what_you_will_learn']) ? json_encode($courseRow['what_you_will_learn']) : ($courseRow['what_you_will_learn'] ?? '[]');
+                        $stmt = $sqlitePdo->prepare("
+                            INSERT OR REPLACE INTO courses 
+                            (id, title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        ");
+                        $stmt->execute([
+                            $courseRow['id'], $courseRow['title'], $courseRow['slug'], $courseRow['category'],
+                            $courseRow['level'], $courseRow['duration'], $courseRow['partner_type'],
+                            $courseRow['badge_text'], $courseRow['description'], $courseRow['thumbnail_url'],
+                            $skillsStr, $learnStr,
+                            !empty($courseRow['is_published']) ? 1 : 0, (int)($courseRow['created_by'] ?? 1)
+                        ]);
                     } catch (\Throwable $sqle) {}
                 }
             }
