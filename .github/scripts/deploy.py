@@ -22,56 +22,58 @@ def main():
     initial_pwd = ftp.pwd()
     print(f'Initial FTP working directory: {initial_pwd}')
 
-    # Inspect the items in the current landing directory
-    root_items = []
+    nlst = []
     try:
-        root_items = [name for name, facts in ftp.mlsd()]
-    except Exception:
-        pass
-    print(f'FTP root directory contents: {root_items}')
+        nlst = ftp.nlst()
+    except Exception as e:
+        print(f'Notice: nlst() error: {e}')
+    print(f'FTP root listing: {nlst}')
 
-    # Automatic root detection:
-    # If the FTP account was created for the subdomain, index.html or assets is already in current directory,
-    # or the user configured '.' or empty string for FTP_SERVER_DIR.
-    # In that case, we MUST upload directly to the landing directory without prepending paths.
-    if 'index.html' in root_items or 'assets' in root_items or raw_dir in ('', '.', '/', './'):
-        base_remote = '/'
-        print('Target directory resolved to FTP user root: /')
+    # Auto-resolve correct document root
+    # Priority 1: User is already chrooted into web root (index.html or assets present)
+    target_dir = ''
+    if 'index.html' in nlst or 'assets' in nlst:
+        target_dir = ''
+        print('-> Target resolved to FTP root (chrooted web root): /')
+    elif 'lms' in nlst:
+        target_dir = 'lms'
+        print('-> Target resolved to subfolder: /lms')
+    elif 'public_html' in nlst:
+        try:
+            p_nlst = ftp.nlst('public_html')
+            target_dir = 'public_html/lms' if any('lms' in x for x in p_nlst) else 'public_html'
+        except Exception:
+            target_dir = 'public_html/lms'
+        print(f'-> Target resolved inside public_html: /{target_dir}')
+    elif 'domains' in nlst:
+        target_dir = 'domains/aaroha-inc.com/public_html/lms'
+        print(f'-> Target resolved to domains path: /{target_dir}')
+    elif raw_dir:
+        target_dir = raw_dir
+        print(f'-> Target resolved from FTP_SERVER_DIR: /{target_dir}')
     else:
-        # Standard unchrooted account, navigate to designated server dir
-        if not raw_dir:
-            raw_dir = 'domains/aaroha-inc.com/public_html/lms'
-        elif raw_dir.startswith('public_html'):
-            raw_dir = 'domains/aaroha-inc.com/' + raw_dir
+        target_dir = ''
+        print('-> Defaulting target to FTP root: /')
 
-        parts = raw_dir.split('/')
-        current = ''
+    # Navigate to target directory if specified
+    if target_dir:
+        parts = target_dir.strip('/').split('/')
         for part in parts:
             if not part:
                 continue
-            current += '/' + part
             try:
-                ftp.cwd(current)
+                ftp.cwd(part)
             except ftplib.error_perm:
-                print(f'Creating remote directory: {current}')
-                ftp.mkd(current)
-                ftp.cwd(current)
-        base_remote = '/' + raw_dir.strip('/')
-        print(f'Target directory resolved to: {base_remote}')
+                print(f'Creating remote directory: {part}')
+                ftp.mkd(part)
+                ftp.cwd(part)
 
-    def upload_dir(local_base, remote_dir):
-        # Always navigate to absolute remote_dir
-        target_dir = '/' + remote_dir.strip('/') if remote_dir != '/' else '/'
-        try:
-            ftp.cwd(target_dir)
-        except Exception:
-            try:
-                ftp.mkd(target_dir)
-            except ftplib.error_perm:
-                pass
-            ftp.cwd(target_dir)
+    base_pwd = ftp.pwd()
+    print(f'Deployment destination directory: {base_pwd}')
 
-        # Get remote file sizes in current directory
+    def upload_dir(local_base, remote_rel=''):
+        current_dir = ftp.pwd()
+
         remote_file_map = {}
         try:
             for name, facts in ftp.mlsd():
@@ -82,50 +84,33 @@ def main():
 
         for item in sorted(os.listdir(local_base)):
             local_full = os.path.join(local_base, item)
-            child_remote = ('/' + target_dir.strip('/') + '/' + item).replace('//', '/')
+            child_rel = f"{remote_rel}/{item}".strip('/') if remote_rel else item
 
             if os.path.isdir(local_full):
                 try:
-                    ftp.mkd(child_remote)
+                    ftp.mkd(item)
                 except ftplib.error_perm:
                     pass
-                upload_dir(local_full, child_remote)
-                # Restore parent cwd after child returns
-                try:
-                    ftp.cwd(target_dir)
-                except Exception:
-                    pass
+                ftp.cwd(item)
+                upload_dir(local_full, child_rel)
+                # Return to current directory after recursion
+                ftp.cwd(current_dir)
             else:
-                # Skip sensitive local config if any
                 if item == 'env.php':
                     continue
                 file_size = os.path.getsize(local_full)
-
-                # Always force upload for core entry files to ensure immediate updates
                 force_upload = item in ('index.html', '.htaccess')
 
-                # Delta Check: Skip if remote file exists and has identical size
                 if not force_upload and item in remote_file_map and remote_file_map[item] == file_size:
-                    print(f'  [CACHE HIT] {child_remote} (unchanged, {file_size} bytes)')
+                    print(f'  [CACHE HIT] {child_rel} (unchanged, {file_size} bytes)')
                     continue
 
-                print(f'  -> Uploading {child_remote} ({file_size} bytes)...')
+                print(f'  -> Uploading {child_rel} ({file_size} bytes)...')
                 with open(local_full, 'rb') as f:
                     ftp.storbinary(f'STOR {item}', f)
 
-    print(f'Synchronizing payload from {local_dir} to {base_remote} with Delta Caching...')
-    upload_dir(local_dir, base_remote)
-
-    # Write verification marker to remote root
-    try:
-        ftp.cwd(base_remote if base_remote else '/')
-        import io
-        marker_data = io.BytesIO(b'DEPLOY_OK_COMMIT_VERIFIED\n')
-        ftp.storbinary('STOR deploy_test_marker.txt', marker_data)
-        print('Wrote deploy_test_marker.txt to remote root successfully.')
-    except Exception as e:
-        print(f'Warning: Could not write deploy_test_marker.txt: {e}')
-
+    print(f'Synchronizing payload from {local_dir} into {base_pwd} with Delta Caching...')
+    upload_dir(local_dir)
     print('Deployment completed successfully!')
     ftp.quit()
 
