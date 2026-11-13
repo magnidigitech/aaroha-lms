@@ -12,6 +12,7 @@ import { api } from '../apiService';
 export default function CourseClassroomView({ 
   course, 
   onBack, 
+  onCourseComplete,
   onEnroll, 
   isEnrolled, 
   currentUser,
@@ -166,11 +167,31 @@ export default function CourseClassroomView({
       onEnroll(course);
       return;
     }
+    const wasCompleted = isLessonCompleted(lessonId);
     onCompleteLesson(lessonId);
-    if (hasNextLesson && !isLessonCompleted(lessonId)) {
-      setTimeout(() => {
-        handleNextLesson();
-      }, 300);
+
+    if (!wasCompleted) {
+      // Check if all lessons across all modules in this course are now completed
+      const willBeCourseCompleted = totalLessonsCount > 0 && (completedCount + 1) >= totalLessonsCount;
+
+      if (willBeCourseCompleted) {
+        // Course is now 100% completed across all modules!
+        // Automatically close the course and redirect to dashboard
+        setTimeout(() => {
+          if (onCourseComplete) {
+            onCourseComplete(course);
+          } else if (onBack) {
+            onBack();
+          }
+        }, 800);
+        return;
+      }
+
+      if (hasNextLesson) {
+        setTimeout(() => {
+          handleNextLesson();
+        }, 300);
+      }
     }
   };
 
@@ -210,13 +231,13 @@ export default function CourseClassroomView({
     <div className="min-h-screen bg-[#071322] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* Top Header Bar */}
       <header className="bg-[#0B192C] border-b border-[#1b3d63] px-4 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-lg">
-        {/* Left: Back to Home Button */}
+        {/* Left: Back to Dashboard Button */}
         <button
           onClick={onBack}
           className="bg-[#132A4A] hover:bg-[#1A3860] text-slate-200 hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border border-[#23456F] flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-97"
         >
           <ArrowLeft className="w-4 h-4 text-slate-300" />
-          <span>Back To Home</span>
+          <span>Back to Dashboard</span>
         </button>
 
         {/* Center: Official Aaroha Logo on Clean White Badge */}
@@ -446,6 +467,18 @@ export default function CourseClassroomView({
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>{isLessonCompleted(activeLesson.id) ? 'Completed' : 'Mark Complete'}</span>
+                  </button>
+                )}
+
+                {completedCount >= totalLessonsCount && totalLessonsCount > 0 && (
+                  <button
+                    onClick={() => (onCourseComplete ? onCourseComplete(course) : onBack())}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                    title="All modules completed. Return to student dashboard."
+                  >
+                    <GraduationCap className="w-4 h-4" />
+                    <span className="hidden sm:inline">Course Completed • Dashboard</span>
+                    <span className="sm:hidden">Dashboard</span>
                   </button>
                 )}
 

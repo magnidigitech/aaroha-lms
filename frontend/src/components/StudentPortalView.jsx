@@ -20,7 +20,7 @@ export default function StudentPortalView({
   const enrolledCourses = courses.filter(course => 
     enrollments.some(e => 
       e.course_id === course.id && 
-      e.status === 'active' && 
+      (e.status === 'active' || e.status === 'completed') && 
       (currentUser ? e.user_id === currentUser.id : true)
     )
   );
@@ -39,11 +39,18 @@ export default function StudentPortalView({
     // Find next uncompleted lesson
     const nextLesson = allLessons.find(l => !completedLessonIds.has(l.id)) || allLessons[0] || null;
 
+    const isEnrCompleted = enrollments.some(e => 
+      e.course_id === course.id && 
+      e.status === 'completed' && 
+      (currentUser ? e.user_id === currentUser.id : true)
+    );
+    const isCompleted = isEnrCompleted || (totalLessons > 0 && (completedCount >= totalLessons || progressPct >= 100));
+
     return {
       totalLessons,
-      completedCount,
-      progressPct,
-      isCompleted: totalLessons > 0 && completedCount === totalLessons,
+      completedCount: isCompleted && totalLessons > 0 ? totalLessons : completedCount,
+      progressPct: isCompleted ? 100 : progressPct,
+      isCompleted,
       nextLesson
     };
   };
@@ -236,13 +243,15 @@ export default function StudentPortalView({
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-slate-600">Progress</span>
-                        <span className="font-bold text-[#0056D2]">
+                        <span className={`font-bold ${analytics.isCompleted ? 'text-emerald-600' : 'text-[#0056D2]'}`}>
                           {analytics.progressPct}% ({analytics.completedCount}/{analytics.totalLessons})
                         </span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
                         <div
-                          className="bg-[#0056D2] h-full rounded-full transition-all duration-500"
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            analytics.isCompleted ? 'bg-emerald-600' : 'bg-[#0056D2]'
+                          }`}
                           style={{ width: `${analytics.progressPct}%` }}
                         />
                       </div>
@@ -270,11 +279,25 @@ export default function StudentPortalView({
                         e.stopPropagation();
                         onOpenCourse(course);
                       }}
-                      className="w-full bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
+                      className={`w-full text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98 ${
+                        analytics.isCompleted
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : 'bg-[#0056D2] hover:bg-[#00419e] text-white'
+                      }`}
                     >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>{analytics.progressPct > 0 ? 'Resume Course' : 'Start Course'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      {analytics.isCompleted ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Course Completed</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>{analytics.progressPct > 0 ? 'Resume Course' : 'Start Course'}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

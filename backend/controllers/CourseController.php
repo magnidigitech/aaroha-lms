@@ -30,8 +30,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Program not found or has been removed'];
         }
 
-        // Administrators and Faculty Directors have master administrative override across all programs
-        if ($userRole !== 'admin' && (int)$course['created_by'] !== $userId) {
+        // Administrators and Faculty Members have curriculum management authority across programs
+        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$course['created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this course'];
         }
 
@@ -57,8 +57,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Module not found or has been removed'];
         }
 
-        // Administrators have full access across all programs
-        if ($userRole !== 'admin' && (int)$row['course_created_by'] !== $userId) {
+        // Administrators and Faculty Members have full access across all programs
+        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this module'];
         }
 
@@ -86,8 +86,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Lecture not found or has been removed'];
         }
 
-        // Administrators have full access across all programs
-        if ($userRole !== 'admin' && (int)$row['course_created_by'] !== $userId) {
+        // Administrators and Faculty Members have full access across all programs
+        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this lecture'];
         }
 
@@ -115,8 +115,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Assignment not found or has been removed'];
         }
 
-        // Administrators have full access across all programs
-        if ($userRole !== 'admin' && (int)$row['course_created_by'] !== $userId) {
+        // Administrators and Faculty Members have full access across all programs
+        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this assignment'];
         }
 
@@ -352,7 +352,7 @@ class CourseController {
     // -------------------------------------------------------------
 
     public static function createCourse($data, $adminId, $userRole = 'admin') {
-        if ($userRole !== 'admin' && $userRole !== 'instructor') {
+        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
             self::setHttpStatus(403);
             return ['success' => false, 'error' => 'Faculty or administrative privileges required'];
         }
@@ -498,6 +498,9 @@ class CourseController {
             $stmt = $pdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$courseId]);
 
+            // Synchronize soft-deletion to fallback SQLite database if file exists
+            self::syncDeleteToSqlite($courseId);
+
             return [
                 'success' => true,
                 'message' => 'Course successfully archived. Historical enrollments and student records have been preserved.',
@@ -506,6 +509,26 @@ class CourseController {
         } catch (Exception $e) {
             self::setHttpStatus(500);
             return ['success' => false, 'error' => 'Database operation failed: ' . $e->getMessage()];
+        }
+    }
+
+    private static function syncDeleteToSqlite(int $courseId): void {
+        $sqliteCandidates = [
+            __DIR__ . '/../config/lms.sqlite',
+            __DIR__ . '/../../database/lms.sqlite',
+            dirname(__DIR__, 2) . '/database/lms.sqlite',
+            __DIR__ . '/lms.sqlite',
+        ];
+        foreach ($sqliteCandidates as $cand) {
+            if (file_exists($cand)) {
+                try {
+                    $sqlitePdo = new PDO("sqlite:{$cand}", null, null, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                    ]);
+                    $stmt = $sqlitePdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$courseId]);
+                } catch (Exception $e) {}
+            }
         }
     }
 

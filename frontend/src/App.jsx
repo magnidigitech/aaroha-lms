@@ -69,12 +69,12 @@ export default function App() {
 
   const [courses, setCourses] = useState(() => {
     try {
-      const deletedSet = new Set(
-        JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]')
-      );
+      const rawDeleted = JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]');
+      const deletedSet = new Set(rawDeleted.map(id => String(id)));
+      const isDeleted = (id) => deletedSet.has(String(id));
       const saved = localStorage.getItem('aaroha_courses');
       const pool = saved ? JSON.parse(saved) : initialCourses;
-      return pool.filter(c => !deletedSet.has(c.id));
+      return pool.filter(c => !isDeleted(c.id));
     } catch (e) {
       return initialCourses;
     }
@@ -233,13 +233,18 @@ export default function App() {
       .then(res => {
         if (res && res.courses && res.courses.length > 0) {
           setCourses(prev => {
-            const deletedSet = new Set(
-              JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]')
-            );
-            const activeServerCourses = res.courses.filter(c => !deletedSet.has(c.id));
-            const apiIds = new Set(activeServerCourses.map(c => c.id));
-            const locallyAuthored = (prev || []).filter(c => !apiIds.has(c.id) && !deletedSet.has(c.id));
-            return [...activeServerCourses, ...locallyAuthored];
+            const rawDeleted = JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]');
+            const deletedSet = new Set(rawDeleted.map(id => String(id)));
+            const isDeleted = (id) => deletedSet.has(String(id));
+            const activeServerCourses = res.courses.filter(c => !isDeleted(c.id));
+            const apiIds = new Set(activeServerCourses.map(c => String(c.id)));
+            // Retain un-synced offline local drafts only; never resurrect deleted server courses
+            const localDrafts = (prev || []).filter(c => c.is_local_draft && !apiIds.has(String(c.id)) && !isDeleted(c.id));
+            const merged = [...activeServerCourses, ...localDrafts];
+            try {
+              localStorage.setItem('aaroha_courses', JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
           });
           setIsBackendLive(true);
         }
@@ -486,17 +491,41 @@ export default function App() {
       console.warn('API lesson completion sync skipped:', err.message);
     }
 
-    const existing = lessonProgress.find(p => p.lesson_id === lessonId);
-    if (!existing) {
-      const newProgress = {
-        id: Date.now(),
-        enrollment_id: 501,
-        lesson_id: lessonId,
-        is_completed: true,
-        completed_at: new Date().toISOString()
-      };
-      setLessonProgress(prev => [...prev, newProgress]);
+    setLessonProgress(prev => {
+      const idx = prev.findIndex(p => p.lesson_id === lessonId);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], is_completed: true, completed_at: new Date().toISOString() };
+        return copy;
+      }
+      return [
+        ...prev,
+        {
+          id: Date.now(),
+          enrollment_id: 501,
+          lesson_id: lessonId,
+          is_completed: true,
+          completed_at: new Date().toISOString()
+        }
+      ];
+    });
+
+    if (selectedCourse) {
+      const allLessons = (selectedCourse.modules || []).flatMap(m => m.lessons || []);
+      const completedIds = new Set(
+        lessonProgress.filter(p => p.is_completed).map(p => p.lesson_id)
+      );
+      completedIds.add(lessonId);
+      const isAllDone = allLessons.length > 0 && allLessons.every(l => completedIds.has(l.id));
+      if (isAllDone) {
+        setEnrollments(prev => prev.map(e => 
+          e.course_id === selectedCourse.id && (!currentUser || e.user_id === currentUser.id)
+            ? { ...e, status: 'completed', completed_at: new Date().toISOString() }
+            : e
+        ));
+      }
     }
+
     showToast('Lecture marked as completed.');
   };
 
@@ -539,25 +568,29 @@ export default function App() {
 
   const handleAddCourse = async (newCourseData) => {
     let createdCourse = null;
+    let apiError = null;
     try {
       const res = await api.createCourse(newCourseData);
       if (res && res.course) {
         createdCourse = res.course;
       }
     } catch (err) {
-      console.warn('API create course sync skipped:', err.message);
+      apiError = err;
+      console.warn('API create course sync notice:', err.message);
     }
 
     const newCourse = createdCourse || {
       ...newCourseData,
       id: Date.now(),
       created_by: currentUser?.id || 1,
+      is_local_draft: true,
       modules: []
     };
 
     if (newCourse.id) {
+      const idStr = String(newCourse.id);
       setDeletedCourseIds(prev => {
-        const filtered = prev.filter(id => id !== newCourse.id);
+        const filtered = prev.filter(id => String(id) !== idStr);
         try {
           localStorage.setItem('aaroha_deleted_course_ids', JSON.stringify(filtered));
         } catch (e) {}
@@ -565,8 +598,19 @@ export default function App() {
       });
     }
 
-    setCourses(prev => [newCourse, ...prev]);
-    showToast('Program published to curriculum directory.');
+    setCourses(prev => {
+      const updated = [newCourse, ...prev];
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (createdCourse) {
+      showToast('Program successfully published and saved to database.');
+    } else {
+      showToast('Program saved locally (' + (apiError?.message || 'Offline mode') + ')');
+    }
   };
 
   const handleAddModule = async (courseId, title) => {
@@ -670,27 +714,37 @@ export default function App() {
   };
 
   const handleDeleteCourse = async (courseId) => {
-    // 1. Immediately record in deleted courses set so it NEVER resurrects on refresh
-    const updatedDeleted = Array.from(new Set([...deletedCourseIds, courseId]));
+    const idStr = String(courseId);
+    const idNum = Number(courseId);
+
+    // 1. Immediately record in deleted courses set with dual type normalization
+    const updatedDeleted = Array.from(new Set([...deletedCourseIds, idStr, idNum]));
     setDeletedCourseIds(updatedDeleted);
     try {
       localStorage.setItem('aaroha_deleted_course_ids', JSON.stringify(updatedDeleted));
     } catch (e) {}
 
-    // 2. Remove from courses state immediately
-    setCourses(prev => prev.filter(c => c.id !== courseId));
-    if (selectedCourse?.id === courseId) {
+    // 2. Remove from courses state and localStorage immediately
+    setCourses(prev => {
+      const updated = prev.filter(c => String(c.id) !== idStr);
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (selectedCourse && String(selectedCourse.id) === idStr) {
       setSelectedCourse(null);
       setActiveView('catalog');
     }
 
-    // 3. Sync to API backend with admin override
+    // 3. Sync to API backend with admin/faculty override
     try {
       await api.deleteCourse(courseId);
       showToast('Program archived from curriculum directory.');
     } catch (err) {
       console.warn('API delete course sync notice:', err.message);
-      showToast('Program archived from curriculum directory.');
+      showToast('Notice: Archive sync - ' + (err.message || 'Updated locally'));
     }
   };
 
@@ -947,11 +1001,20 @@ export default function App() {
         {activeView === 'course-classroom' && selectedCourse && (
           <CourseClassroomView
             course={selectedCourse}
-            onBack={() => setActiveView(returnView || 'catalog')}
+            onBack={() => setActiveView(returnView || 'student')}
+            onCourseComplete={(completedCourse) => {
+              setEnrollments(prev => prev.map(e => 
+                e.course_id === completedCourse.id && (!currentUser || e.user_id === currentUser.id)
+                  ? { ...e, status: 'completed', completed_at: new Date().toISOString() }
+                  : e
+              ));
+              setActiveView('student');
+              showToast(`Congratulations! You completed all modules in ${completedCourse?.title || 'the program'}.`);
+            }}
             onEnroll={handleEnroll}
             isEnrolled={
               currentUser 
-                ? enrollments.some(e => e.course_id === selectedCourse.id && e.user_id === currentUser.id && e.status === 'active')
+                ? enrollments.some(e => e.course_id === selectedCourse.id && e.user_id === currentUser.id && (e.status === 'active' || e.status === 'completed'))
                 : false
             }
             currentUser={currentUser}

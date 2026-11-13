@@ -55,7 +55,7 @@ class EnrollmentController {
             FROM enrollments e
             JOIN courses c ON e.course_id = c.id
             JOIN users u ON c.created_by = u.id
-            WHERE e.user_id = ? AND e.status = 'active'
+            WHERE e.user_id = ? AND e.status IN ('active', 'completed')
             ORDER BY e.enrolled_at DESC
         ";
         $stmt = $pdo->prepare($sql);
@@ -101,11 +101,11 @@ class EnrollmentController {
 
         // Find enrollment for this lesson's course
         $stmt = $pdo->prepare("
-            SELECT e.id AS enrollment_id
+            SELECT e.id AS enrollment_id, m.course_id
             FROM lessons l
             JOIN modules m ON l.module_id = m.id
             JOIN enrollments e ON m.course_id = e.course_id
-            WHERE l.id = ? AND e.user_id = ? AND e.status = 'active'
+            WHERE l.id = ? AND e.user_id = ? AND e.status IN ('active', 'completed')
             LIMIT 1
         ");
         $stmt->execute([$lessonId, $userId]);
@@ -117,6 +117,7 @@ class EnrollmentController {
         }
 
         $enrollmentId = (int)$enrollment['enrollment_id'];
+        $courseId = (int)$enrollment['course_id'];
 
         // Upsert lesson progress (compatible with both MySQL and SQLite)
         $upsert = $pdo->prepare("
@@ -125,9 +126,38 @@ class EnrollmentController {
         ");
         $upsert->execute([$enrollmentId, $lessonId]);
 
+        // Check if all lessons across all modules for this course are now completed
+        $totStmt = $pdo->prepare("
+            SELECT COUNT(l.id) 
+            FROM lessons l
+            JOIN modules m ON l.module_id = m.id
+            WHERE m.course_id = ?
+        ");
+        $totStmt->execute([$courseId]);
+        $totalLessons = (int)$totStmt->fetchColumn();
+
+        $compStmt = $pdo->prepare("
+            SELECT COUNT(lp.id) 
+            FROM lesson_progress lp
+            WHERE lp.enrollment_id = ? AND lp.is_completed = 1
+        ");
+        $compStmt->execute([$enrollmentId]);
+        $completedLessons = (int)$compStmt->fetchColumn();
+
+        $courseCompleted = ($totalLessons > 0 && $completedLessons >= $totalLessons);
+        if ($courseCompleted) {
+            $upd = $pdo->prepare("
+                UPDATE enrollments 
+                SET status = 'completed', completed_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ");
+            $upd->execute([$enrollmentId]);
+        }
+
         return [
             'success' => true,
-            'message' => 'Lecture marked as completed'
+            'message' => $courseCompleted ? 'Course completed successfully' : 'Lecture marked as completed',
+            'course_completed' => $courseCompleted
         ];
     }
 }
