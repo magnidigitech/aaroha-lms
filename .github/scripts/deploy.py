@@ -35,7 +35,7 @@ def main():
     # or the user configured '.' or empty string for FTP_SERVER_DIR.
     # In that case, we MUST upload directly to the landing directory without prepending paths.
     if 'index.html' in root_items or 'assets' in root_items or raw_dir in ('', '.', '/', './'):
-        base_remote = ''
+        base_remote = '/'
         print('Target directory resolved to FTP user root: /')
     else:
         # Standard unchrooted account, navigate to designated server dir
@@ -56,12 +56,12 @@ def main():
                 print(f'Creating remote directory: {current}')
                 ftp.mkd(current)
                 ftp.cwd(current)
-        base_remote = '/' + raw_dir
+        base_remote = '/' + raw_dir.strip('/')
         print(f'Target directory resolved to: {base_remote}')
 
-    def upload_dir(local_base, remote_base):
-        # 1. Navigate to target remote directory
-        target_dir = remote_base if remote_base else '/'
+    def upload_dir(local_base, remote_dir):
+        # Always navigate to absolute remote_dir
+        target_dir = '/' + remote_dir.strip('/') if remote_dir != '/' else '/'
         try:
             ftp.cwd(target_dir)
         except Exception:
@@ -71,7 +71,7 @@ def main():
                 pass
             ftp.cwd(target_dir)
 
-        # 2. Get listing of files currently in this directory
+        # Get remote file sizes in current directory
         remote_file_map = {}
         try:
             for name, facts in ftp.mlsd():
@@ -80,18 +80,17 @@ def main():
         except Exception:
             pass
 
-        # 3. Iterate through local items in this directory
         for item in sorted(os.listdir(local_base)):
             local_full = os.path.join(local_base, item)
-            child_remote = f"{remote_base}/{item}".strip('/')
+            child_remote = ('/' + target_dir.strip('/') + '/' + item).replace('//', '/')
 
             if os.path.isdir(local_full):
                 try:
-                    ftp.mkd(item)
+                    ftp.mkd(child_remote)
                 except ftplib.error_perm:
                     pass
                 upload_dir(local_full, child_remote)
-                # After returning from child, always restore cwd to this directory
+                # Restore parent cwd after child returns
                 try:
                     ftp.cwd(target_dir)
                 except Exception:
@@ -114,7 +113,7 @@ def main():
                 with open(local_full, 'rb') as f:
                     ftp.storbinary(f'STOR {item}', f)
 
-    print(f'Synchronizing payload from {local_dir} to {base_remote or "/"} with Delta Caching...')
+    print(f'Synchronizing payload from {local_dir} to {base_remote} with Delta Caching...')
     upload_dir(local_dir, base_remote)
     print('Deployment completed successfully!')
     ftp.quit()
