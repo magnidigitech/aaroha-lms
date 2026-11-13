@@ -41,6 +41,9 @@ jobs:
           cp frontend/public/.htaccess deploy_payload/.htaccess
           # Copy backend API files into api/
           cp -r backend/* deploy_payload/api/
+          # Ensure backend .htaccess and config .htaccess are copied explicitly
+          cp backend/.htaccess deploy_payload/api/.htaccess
+          cp backend/config/.htaccess deploy_payload/api/config/.htaccess
           # Remove tests and local config to keep deployment secure
           rm -rf deploy_payload/api/tests
           rm -f deploy_payload/api/config/env.php

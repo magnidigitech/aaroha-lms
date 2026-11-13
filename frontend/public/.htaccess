@@ -6,19 +6,20 @@ Options -Indexes
   RewriteEngine On
   RewriteBase /
 
-  # 1. Do not rewrite requests for the backend API (/api/...)
-  RewriteCond %{REQUEST_URI} ^/api/ [NC]
-  RewriteRule ^ - [L]
-
-  # 2. Block direct HTTP access to hidden files and version control directories
+  # 1. Block direct HTTP access to hidden files and version control directories
   RewriteRule (^\.|\/\.) - [F,L]
 
-  # 3. Do not rewrite existing physical files or directories
+  # 2. Route all API requests directly to backend entrypoint (api/index.php)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+  RewriteRule ^api$ api/index.php [QSA,L]
+
+  # 3. Serve physical static files and directories directly
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # 4. Route all other frontend requests to index.html for React SPA Router
+  # 4. Route all other client-side navigation requests to SPA index.html
   RewriteRule ^ index.html [L]
 </IfModule>
 

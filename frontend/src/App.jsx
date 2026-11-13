@@ -12,7 +12,15 @@ import aarohaLogo from './assets/aaroha_logo.webp';
 import { api } from './apiService';
 
 export default function App() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_all_users');
+      return saved ? JSON.parse(saved) : initialUsers;
+    } catch (e) {
+      return initialUsers;
+    }
+  });
+
   // Persist authentication across page refresh with instant hydration
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -48,20 +56,55 @@ export default function App() {
     intendedCourse: null
   });
 
-  const [courses, setCourses] = useState(initialCourses);
-  const [enrollments, setEnrollments] = useState(initialEnrollments);
-  const [lessonProgress, setLessonProgress] = useState(initialLessonProgress);
-  const [taskSubmissions, setTaskSubmissions] = useState(initialTaskSubmissions);
+  const [courses, setCourses] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_courses');
+      return saved ? JSON.parse(saved) : initialCourses;
+    } catch (e) {
+      return initialCourses;
+    }
+  });
+
+  const [enrollments, setEnrollments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_enrollments');
+      return saved ? JSON.parse(saved) : initialEnrollments;
+    } catch (e) {
+      return initialEnrollments;
+    }
+  });
+
+  const [lessonProgress, setLessonProgress] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_lesson_progress');
+      return saved ? JSON.parse(saved) : initialLessonProgress;
+    } catch (e) {
+      return initialLessonProgress;
+    }
+  });
+
+  const [taskSubmissions, setTaskSubmissions] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_task_submissions');
+      return saved ? JSON.parse(saved) : initialTaskSubmissions;
+    } catch (e) {
+      return initialTaskSubmissions;
+    }
+  });
   
   const [selectedCourse, setSelectedCourse] = useState(() => {
     try {
       const savedCourseId = localStorage.getItem('aaroha_selected_course_id');
+      const cachedCourses = localStorage.getItem('aaroha_courses');
+      const pool = cachedCourses ? JSON.parse(cachedCourses) : initialCourses;
       if (savedCourseId) {
-        const found = initialCourses.find(c => c.id === parseInt(savedCourseId));
+        const found = pool.find(c => c.id === parseInt(savedCourseId));
         if (found) return found;
       }
-    } catch (e) {}
-    return initialCourses[0] || null;
+      return pool[0] || null;
+    } catch (e) {
+      return initialCourses[0] || null;
+    }
   });
   const [returnView, setReturnView] = useState('catalog');
   const [activeStudentCourseId, setActiveStudentCourseId] = useState(1);
@@ -71,6 +114,37 @@ export default function App() {
   // Global search & topic filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  // Persistent storage synchronizers
+  useEffect(() => {
+    try {
+      localStorage.setItem('aaroha_all_users', JSON.stringify(users));
+    } catch (e) {}
+  }, [users]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aaroha_courses', JSON.stringify(courses));
+    } catch (e) {}
+  }, [courses]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aaroha_enrollments', JSON.stringify(enrollments));
+    } catch (e) {}
+  }, [enrollments]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aaroha_lesson_progress', JSON.stringify(lessonProgress));
+    } catch (e) {}
+  }, [lessonProgress]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aaroha_task_submissions', JSON.stringify(taskSubmissions));
+    } catch (e) {}
+  }, [taskSubmissions]);
 
   // Track active view and course in storage
   useEffect(() => {
@@ -545,7 +619,11 @@ export default function App() {
   };
 
   const handleUpdateCourse = async (courseId, courseData) => {
-    await api.updateCourse(courseId, courseData);
+    try {
+      await api.updateCourse(courseId, courseData);
+    } catch (err) {
+      console.warn('API update course sync skipped:', err.message);
+    }
     setCourses(prev => prev.map(c => {
       if (c.id === courseId) {
         const merged = { ...c, ...courseData, id: courseId, modules: c.modules || [] };
@@ -558,7 +636,11 @@ export default function App() {
   };
 
   const handleDeleteCourse = async (courseId) => {
-    await api.deleteCourse(courseId);
+    try {
+      await api.deleteCourse(courseId);
+    } catch (err) {
+      console.warn('API delete course sync skipped:', err.message);
+    }
     setCourses(prev => prev.filter(c => c.id !== courseId));
     if (selectedCourse?.id === courseId) {
       setSelectedCourse(null);
@@ -568,7 +650,11 @@ export default function App() {
   };
 
   const handleUpdateModule = async (courseId, moduleId, moduleData) => {
-    await api.updateModule(moduleId, moduleData);
+    try {
+      await api.updateModule(moduleId, moduleData);
+    } catch (err) {
+      console.warn('API update module sync skipped:', err.message);
+    }
     setCourses(prev => prev.map(c => {
       if (c.id === courseId) {
         const updatedMods = (c.modules || []).map(m => m.id === moduleId ? { ...m, ...moduleData } : m);
@@ -582,7 +668,11 @@ export default function App() {
   };
 
   const handleDeleteModule = async (courseId, moduleId) => {
-    await api.deleteModule(moduleId);
+    try {
+      await api.deleteModule(moduleId);
+    } catch (err) {
+      console.warn('API delete module sync skipped:', err.message);
+    }
     setCourses(prev => prev.map(c => {
       if (c.id === courseId) {
         const updatedMods = (c.modules || []).filter(m => m.id !== moduleId);
@@ -596,7 +686,11 @@ export default function App() {
   };
 
   const handleUpdateLesson = async (courseId, moduleId, lessonId, lessonData) => {
-    await api.updateLesson(lessonId, lessonData);
+    try {
+      await api.updateLesson(lessonId, lessonData);
+    } catch (err) {
+      console.warn('API update lesson sync skipped:', err.message);
+    }
     setCourses(prev => prev.map(c => {
       if (c.id === courseId) {
         const updatedMods = (c.modules || []).map(m => {
@@ -618,7 +712,11 @@ export default function App() {
   };
 
   const handleDeleteLesson = async (courseId, moduleId, lessonId) => {
-    await api.deleteLesson(lessonId);
+    try {
+      await api.deleteLesson(lessonId);
+    } catch (err) {
+      console.warn('API delete lesson sync skipped:', err.message);
+    }
     setCourses(prev => prev.map(c => {
       if (c.id === courseId) {
         const updatedMods = (c.modules || []).map(m => {
@@ -640,7 +738,11 @@ export default function App() {
   };
 
   const handleUpdateTask = async (courseId, moduleId, taskId, taskData) => {
-    await api.updateTask(taskId, taskData);
+    try {
+      await api.updateTask(taskId, taskData);
+    } catch (err) {
+      console.warn('API update task sync skipped:', err.message);
+    }
     setCourses(prev => prev.map(c => {
       if (c.id === courseId) {
         const updatedMods = (c.modules || []).map(m => {
@@ -662,7 +764,11 @@ export default function App() {
   };
 
   const handleDeleteTask = async (courseId, moduleId, taskId) => {
-    await api.deleteTask(taskId);
+    try {
+      await api.deleteTask(taskId);
+    } catch (err) {
+      console.warn('API delete task sync skipped:', err.message);
+    }
     setCourses(prev => prev.map(c => {
       if (c.id === courseId) {
         const updatedMods = (c.modules || []).map(m => {

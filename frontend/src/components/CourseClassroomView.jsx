@@ -316,31 +316,13 @@ export default function CourseClassroomView({
                       <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3" />
                       <p className="text-xs font-medium text-slate-400">Authorizing secure stream session...</p>
                     </div>
-                  ) : playbackError ? (
-                    <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 space-y-4">
-                      <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-blue-500/40 flex items-center justify-center text-amber-400 shadow-xl">
-                        <Lock className="w-8 h-8" />
-                      </div>
-                      <div className="space-y-1.5 max-w-md">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-950/80 px-2.5 py-1 rounded-full border border-amber-800">
-                          Enrolled Only Lecture
-                        </span>
-                        <h3 className="text-xl font-bold text-white pt-1">{activeLesson?.title}</h3>
-                        <p className="text-xs text-slate-300 leading-relaxed">
-                          {playbackError}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => onEnroll(course)}
-                        className="bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
-                      >
-                        <Award className="w-4 h-4" />
-                        <span>Enroll Now to Unlock All Lectures & Defense Labs</span>
-                      </button>
-                    </div>
                   ) : (
                     <BunnyStreamPlayer
-                      videoId={extractBunnyVideoId(activeLesson.video_url)}
+                      libraryId={playbackSession?.library_id || '807954'}
+                      videoId={playbackSession?.video_id || extractBunnyVideoId(activeLesson.video_url)}
+                      token={playbackSession?.token}
+                      expires={playbackSession?.expires}
+                      embedUrl={playbackSession?.embed_url}
                       title={activeLesson.title}
                       onExpire={() => {
                         if (activeLesson?.id) {
@@ -358,7 +340,7 @@ export default function CourseClassroomView({
                     autoPlay
                     className="w-full h-full object-cover"
                   />
-                ) : (
+                ) : activeLesson.video_url ? (
                   <iframe
                     key={activeLesson?.id}
                     src={getEmbedVideoUrl(activeLesson.video_url)}
@@ -367,6 +349,16 @@ export default function CourseClassroomView({
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   />
+                ) : (
+                  <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center p-8 text-center text-slate-300">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3 shadow-lg">
+                      <BookOpen className="w-7 h-7" />
+                    </div>
+                    <h4 className="text-base font-bold text-white">Lecture Notes & Interactive Material</h4>
+                    <p className="text-xs text-slate-400 mt-2 max-w-md leading-relaxed">
+                      This lecture is structured for deep reading, system architecture study, and task defense. Explore the technical documentation and complete the assignment below.
+                    </p>
+                  </div>
                 )
               ) : (
                 /* Locked Lesson Screen with Sleek CTA */

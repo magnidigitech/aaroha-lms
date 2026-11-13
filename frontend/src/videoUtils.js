@@ -1,6 +1,9 @@
 // Video URL parser and embed normalizer for Aaroha LMS
 // Handles YouTube, Vimeo, direct media streams, and authenticated Bunny Stream embeds
 
+export const DEFAULT_BUNNY_LIBRARY = '807954';
+export const DEFAULT_BUNNY_CDN = 'video.bunnycdn.com';
+
 export function isBunnyStreamVideo(url) {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();
@@ -25,9 +28,10 @@ export function extractBunnyVideoId(url) {
   return match ? match[0].toLowerCase() : null;
 }
 
-export function buildBunnyEmbedUrl({ libraryId = '', videoId, token, expires, autoplay = true }) {
-  if (!videoId || !libraryId) return '';
-  const base = `https://player.mediadelivery.net/embed/${libraryId}/${videoId}`;
+export function buildBunnyEmbedUrl({ libraryId = DEFAULT_BUNNY_LIBRARY, videoId, token, expires, autoplay = true }) {
+  const libId = libraryId || DEFAULT_BUNNY_LIBRARY;
+  if (!videoId || !libId) return '';
+  const base = `https://player.mediadelivery.net/embed/${libId}/${videoId}`;
   const params = new URLSearchParams();
   if (token) params.set('token', token);
   if (expires) params.set('expires', String(expires));

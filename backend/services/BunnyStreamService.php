@@ -108,14 +108,23 @@ class BunnyStreamService {
      */
     public static function generatePlaybackSession(string $videoId, int $ttl = 3600): array {
         $config = self::getConfig();
-        $libraryId = $config['library_id'];
-        $cdnHostname = $config['cdn_hostname'];
+        $libraryId = !empty($config['library_id']) ? $config['library_id'] : '807954';
+        $cdnHostname = !empty($config['cdn_hostname']) ? $config['cdn_hostname'] : 'video.bunnycdn.com';
 
         $expires = time() + max(60, $ttl);
-        $token = self::generateEmbedToken($videoId, $expires, $config['token_key']);
+        $token = null;
 
-        $embedUrl = "https://player.mediadelivery.net/embed/{$libraryId}/{$videoId}?token={$token}&expires={$expires}";
-        $directStreamUrl = "https://{$cdnHostname}/{$videoId}/playlist.m3u8?token={$token}&expires={$expires}";
+        if (!empty($config['token_key'])) {
+            try {
+                $token = self::generateEmbedToken($videoId, $expires, $config['token_key']);
+            } catch (Exception $e) {
+                $token = null;
+            }
+        }
+
+        $tokenQuery = $token ? "&token={$token}&expires={$expires}" : "";
+        $embedUrl = "https://player.mediadelivery.net/embed/{$libraryId}/{$videoId}?autoplay=true{$tokenQuery}";
+        $directStreamUrl = "https://{$cdnHostname}/{$videoId}/playlist.m3u8" . ($token ? "?token={$token}&expires={$expires}" : "");
         $thumbnailUrl = "https://{$cdnHostname}/{$videoId}/thumbnail.jpg";
 
         return [

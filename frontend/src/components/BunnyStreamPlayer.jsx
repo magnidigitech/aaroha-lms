@@ -19,7 +19,7 @@ const BUNNY_PLAYER_ORIGIN = 'https://player.mediadelivery.net';
  * - event.source === iframeRef.current.contentWindow
  */
 export default function BunnyStreamPlayer({
-  libraryId = '',
+  libraryId = '807954',
   videoId,
   token,
   expires,
@@ -29,6 +29,7 @@ export default function BunnyStreamPlayer({
   onExpire,
   className = ''
 }) {
+  const safeLibraryId = libraryId || '807954';
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const iframeRef = useRef(null);
@@ -41,7 +42,7 @@ export default function BunnyStreamPlayer({
 
   // Compute current embed URL
   const currentSrc = embedUrl || buildBunnyEmbedUrl({
-    libraryId,
+    libraryId: safeLibraryId,
     videoId,
     token,
     expires,
