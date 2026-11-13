@@ -82,9 +82,27 @@ export const api = {
     body: JSON.stringify(data)
   }),
 
+  updateCourse: (courseId, data) => request(`/courses/${courseId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  deleteCourse: (courseId) => request(`/courses/${courseId}`, {
+    method: 'DELETE'
+  }),
+
   createModule: (courseId, data) => request(`/courses/${courseId}/modules`, {
     method: 'POST',
     body: JSON.stringify(data)
+  }),
+
+  updateModule: (moduleId, data) => request(`/modules/${moduleId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  deleteModule: (moduleId) => request(`/modules/${moduleId}`, {
+    method: 'DELETE'
   }),
 
   createLesson: (moduleId, data) => request(`/modules/${moduleId}/lessons`, {
@@ -92,9 +110,27 @@ export const api = {
     body: JSON.stringify(data)
   }),
 
+  updateLesson: (lessonId, data) => request(`/lessons/${lessonId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  deleteLesson: (lessonId) => request(`/lessons/${lessonId}`, {
+    method: 'DELETE'
+  }),
+
   createTask: (moduleId, data) => request(`/modules/${moduleId}/tasks`, {
     method: 'POST',
     body: JSON.stringify(data)
+  }),
+
+  updateTask: (taskId, data) => request(`/tasks/${taskId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  deleteTask: (taskId) => request(`/tasks/${taskId}`, {
+    method: 'DELETE'
   }),
 
   // Student Actions
@@ -103,6 +139,9 @@ export const api = {
   }),
 
   getMyEnrollments: () => request('/student/enrollments'),
+
+  // Authenticated Video Playback (Bunny Stream signed token)
+  getLessonPlayback: (lessonId) => request(`/lessons/${lessonId}/playback`),
 
   completeLesson: (lessonId) => request(`/lessons/${lessonId}/complete`, {
     method: 'POST'

@@ -15,10 +15,16 @@ class JWT {
     }
 
     private static function getSecret() {
-        $envFile = __DIR__ . '/env.php';
-        if (file_exists($envFile)) {
-            $cfg = require $envFile;
-            if (!empty($cfg['JWT_SECRET'])) return $cfg['JWT_SECRET'];
+        $candidates = [
+            __DIR__ . '/env.php',
+            dirname(__DIR__, 2) . '/env.php',
+            dirname(__DIR__, 3) . '/env.php',
+        ];
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate)) {
+                $cfg = require $candidate;
+                if (!empty($cfg['JWT_SECRET'])) return $cfg['JWT_SECRET'];
+            }
         }
         return getenv('JWT_SECRET') ?: self::$secret;
     }

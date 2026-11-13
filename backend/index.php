@@ -8,6 +8,7 @@ require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/CourseController.php';
 require_once __DIR__ . '/controllers/EnrollmentController.php';
 require_once __DIR__ . '/controllers/TaskController.php';
+require_once __DIR__ . '/controllers/PlaybackController.php';
 
 // 1. Handle CORS Preflight and Headers
 handleCORS();
@@ -22,6 +23,17 @@ $path = parse_url($requestUri, PHP_URL_PATH);
 // Normalize path by stripping /api or subdomain directory prefix
 $path = preg_replace('#^.*?/api#', '', $path);
 $path = '/' . trim($path, '/');
+
+// 2.1 Security Gateway: Block direct HTTP access to secrets, database files, tests, backups
+if (preg_match('#(^\.|\/\.|\.env|env\.php|database\.php|jwt\.php|\.(sql|sqlite|sqlite3|db|mdf|bak|backup|old|swp|zip|tar|gz)$|^(config|database|tests|services)(/|$)|Test\.php)#i', $path)) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Access denied: Access to internal configuration, database files, tests, or backups is forbidden.',
+        'code' => 'ACCESS_FORBIDDEN'
+    ]);
+    exit;
+}
 
 // 3. Parse JSON Body
 $rawInput = file_get_contents('php://input');
@@ -58,23 +70,62 @@ try {
     }
 
     // -------------------------------------------------------------
-    // FACULTY / ADMIN CURRICULUM MANAGEMENT
+    // FACULTY / ADMIN CURRICULUM MANAGEMENT (CRUD & OWNERSHIP RESTRICTED)
     // -------------------------------------------------------------
+    // Courses CRUD
     elseif ($requestMethod === 'POST' && $path === '/courses') {
         $admin = AuthMiddleware::requireAdmin();
-        $response = CourseController::createCourse($inputData, (int)$admin['id']);
+        $response = CourseController::createCourse($inputData, (int)$admin['id'], (string)$admin['role']);
     }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/courses/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::updateCourse((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/courses/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::deleteCourse((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
+    }
+
+    // Modules CRUD
     elseif ($requestMethod === 'POST' && preg_match('#^/courses/(\d+)/modules$#', $path, $matches)) {
-        AuthMiddleware::requireAdmin();
-        $response = CourseController::createModule((int)$matches[1], $inputData);
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::createModule((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
     }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/modules/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::updateModule((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/modules/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::deleteModule((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
+    }
+
+    // Lessons CRUD
     elseif ($requestMethod === 'POST' && preg_match('#^/modules/(\d+)/lessons$#', $path, $matches)) {
-        AuthMiddleware::requireAdmin();
-        $response = CourseController::createLesson((int)$matches[1], $inputData);
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::createLesson((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
     }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/lessons/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::updateLesson((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/lessons/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::deleteLesson((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
+    }
+
+    // Tasks CRUD
     elseif ($requestMethod === 'POST' && preg_match('#^/modules/(\d+)/tasks$#', $path, $matches)) {
-        AuthMiddleware::requireAdmin();
-        $response = CourseController::createTask((int)$matches[1], $inputData);
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::createTask((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/tasks/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::updateTask((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/tasks/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::deleteTask((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
     }
 
     // -------------------------------------------------------------
@@ -91,6 +142,14 @@ try {
     elseif ($requestMethod === 'POST' && preg_match('#^/lessons/(\d+)/complete$#', $path, $matches)) {
         $user = AuthMiddleware::requireAuth();
         $response = EnrollmentController::completeLesson((int)$matches[1], (int)$user['id']);
+    }
+
+    // -------------------------------------------------------------
+    // AUTHENTICATED LESSON PLAYBACK & STREAMING (BUNNY STREAM)
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'GET' && preg_match('#^/lessons/(\d+)/playback$#', $path, $matches)) {
+        $user = AuthMiddleware::requireAuth();
+        $response = PlaybackController::getPlaybackSession((int)$matches[1], $user);
     }
 
     // -------------------------------------------------------------

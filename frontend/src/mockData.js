@@ -122,9 +122,11 @@ export const initialCourses = [
           {
             id: 1003,
             module_id: 102,
-            title: 'Raft Consensus Protocol & Split-Brain Mitigation',
+            title: 'Raft Consensus Protocol & Split-Brain Mitigation (Bunny Stream)',
             content_type: 'video',
-            media_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+            media_url: '0de41d3a-4d1d-498b-b731-bcc31a59ffc2',
+            video_provider: 'bunny_stream',
+            bunny_video_id: '0de41d3a-4d1d-498b-b731-bcc31a59ffc2',
             duration: '28 min',
             is_free_preview: false,
             sequence_order: 1,

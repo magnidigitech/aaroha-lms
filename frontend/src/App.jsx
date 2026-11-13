@@ -114,7 +114,12 @@ export default function App() {
               api.getMyEnrollments()
                 .then(enrRes => {
                   if (enrRes && enrRes.enrollments && enrRes.enrollments.length > 0) {
-                    setEnrollments(enrRes.enrollments);
+                    setEnrollments(enrRes.enrollments.map(e => ({
+                      ...e,
+                      id: e.enrollment_id || e.id,
+                      user_id: e.user_id || verifiedUser.id,
+                      status: e.status || e.enrollment_status || 'active'
+                    })));
                   }
                 })
                 .catch(() => {});
@@ -222,7 +227,14 @@ export default function App() {
           showToast('Welcome back, ' + loggedUser.full_name);
           api.getMyEnrollments()
             .then(enrRes => {
-              if (enrRes && enrRes.enrollments) setEnrollments(enrRes.enrollments);
+              if (enrRes && enrRes.enrollments) {
+                setEnrollments(enrRes.enrollments.map(e => ({
+                  ...e,
+                  id: e.enrollment_id || e.id,
+                  user_id: e.user_id || loggedUser.id,
+                  status: e.status || e.enrollment_status || 'active'
+                })));
+              }
             })
             .catch(() => {});
         }
@@ -532,6 +544,145 @@ export default function App() {
     showToast('Project deliverable added to syllabus.');
   };
 
+  const handleUpdateCourse = async (courseId, courseData) => {
+    await api.updateCourse(courseId, courseData);
+    setCourses(prev => prev.map(c => {
+      if (c.id === courseId) {
+        const merged = { ...c, ...courseData, id: courseId, modules: c.modules || [] };
+        if (selectedCourse?.id === courseId) setSelectedCourse(merged);
+        return merged;
+      }
+      return c;
+    }));
+    showToast('Program specifications updated.');
+  };
+
+  const handleDeleteCourse = async (courseId) => {
+    await api.deleteCourse(courseId);
+    setCourses(prev => prev.filter(c => c.id !== courseId));
+    if (selectedCourse?.id === courseId) {
+      setSelectedCourse(null);
+      setActiveView('catalog');
+    }
+    showToast('Program archived from curriculum directory.');
+  };
+
+  const handleUpdateModule = async (courseId, moduleId, moduleData) => {
+    await api.updateModule(moduleId, moduleData);
+    setCourses(prev => prev.map(c => {
+      if (c.id === courseId) {
+        const updatedMods = (c.modules || []).map(m => m.id === moduleId ? { ...m, ...moduleData } : m);
+        const updatedCourse = { ...c, modules: updatedMods };
+        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
+        return updatedCourse;
+      }
+      return c;
+    }));
+    showToast('Module specifications updated.');
+  };
+
+  const handleDeleteModule = async (courseId, moduleId) => {
+    await api.deleteModule(moduleId);
+    setCourses(prev => prev.map(c => {
+      if (c.id === courseId) {
+        const updatedMods = (c.modules || []).filter(m => m.id !== moduleId);
+        const updatedCourse = { ...c, modules: updatedMods };
+        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
+        return updatedCourse;
+      }
+      return c;
+    }));
+    showToast('Module and contained lectures archived.');
+  };
+
+  const handleUpdateLesson = async (courseId, moduleId, lessonId, lessonData) => {
+    await api.updateLesson(lessonId, lessonData);
+    setCourses(prev => prev.map(c => {
+      if (c.id === courseId) {
+        const updatedMods = (c.modules || []).map(m => {
+          if (m.id === moduleId) {
+            return {
+              ...m,
+              lessons: (m.lessons || []).map(l => l.id === lessonId ? { ...l, ...lessonData } : l)
+            };
+          }
+          return m;
+        });
+        const updatedCourse = { ...c, modules: updatedMods };
+        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
+        return updatedCourse;
+      }
+      return c;
+    }));
+    showToast('Lecture updated successfully.');
+  };
+
+  const handleDeleteLesson = async (courseId, moduleId, lessonId) => {
+    await api.deleteLesson(lessonId);
+    setCourses(prev => prev.map(c => {
+      if (c.id === courseId) {
+        const updatedMods = (c.modules || []).map(m => {
+          if (m.id === moduleId) {
+            return {
+              ...m,
+              lessons: (m.lessons || []).filter(l => l.id !== lessonId)
+            };
+          }
+          return m;
+        });
+        const updatedCourse = { ...c, modules: updatedMods };
+        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
+        return updatedCourse;
+      }
+      return c;
+    }));
+    showToast('Lecture archived.');
+  };
+
+  const handleUpdateTask = async (courseId, moduleId, taskId, taskData) => {
+    await api.updateTask(taskId, taskData);
+    setCourses(prev => prev.map(c => {
+      if (c.id === courseId) {
+        const updatedMods = (c.modules || []).map(m => {
+          if (m.id === moduleId) {
+            return {
+              ...m,
+              tasks: (m.tasks || []).map(t => t.id === taskId ? { ...t, ...taskData } : t)
+            };
+          }
+          return m;
+        });
+        const updatedCourse = { ...c, modules: updatedMods };
+        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
+        return updatedCourse;
+      }
+      return c;
+    }));
+    showToast('Assignment requirements updated.');
+  };
+
+  const handleDeleteTask = async (courseId, moduleId, taskId) => {
+    await api.deleteTask(taskId);
+    setCourses(prev => prev.map(c => {
+      if (c.id === courseId) {
+        const updatedMods = (c.modules || []).map(m => {
+          if (m.id === moduleId) {
+            return {
+              ...m,
+              tasks: (m.tasks || []).filter(t => t.id !== taskId)
+            };
+          }
+          return m;
+        });
+        const updatedCourse = { ...c, modules: updatedMods };
+        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
+        return updatedCourse;
+      }
+      return c;
+    }));
+    showToast('Assignment archived.');
+  };
+
   const handleGradeSubmission = async ({ submissionId, score, status, feedback }) => {
     try {
       await api.gradeSubmission(submissionId, { score, status, feedback });
@@ -562,7 +713,7 @@ export default function App() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl border border-slate-700 flex items-center gap-3">
@@ -668,9 +819,17 @@ export default function App() {
             courses={courses}
             taskSubmissions={taskSubmissions}
             onAddCourse={handleAddCourse}
+            onUpdateCourse={handleUpdateCourse}
+            onDeleteCourse={handleDeleteCourse}
             onAddModule={handleAddModule}
+            onUpdateModule={handleUpdateModule}
+            onDeleteModule={handleDeleteModule}
             onAddLesson={handleAddLesson}
+            onUpdateLesson={handleUpdateLesson}
+            onDeleteLesson={handleDeleteLesson}
             onAddTask={handleAddTask}
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
             onGradeSubmission={handleGradeSubmission}
           />
         )}

@@ -5,7 +5,9 @@ import {
   Share2, ExternalLink, Send, AlertCircle, RefreshCw, User, GraduationCap
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
-import { getEmbedVideoUrl, isDirectVideoFile, getVideoThumbnail } from '../videoUtils';
+import { getEmbedVideoUrl, isDirectVideoFile, getVideoThumbnail, isBunnyStreamVideo, extractBunnyVideoId } from '../videoUtils';
+import BunnyStreamPlayer from './BunnyStreamPlayer';
+import { api } from '../apiService';
 
 export default function CourseClassroomView({ 
   course, 
@@ -20,12 +22,11 @@ export default function CourseClassroomView({
   allCourses = [],
   onSelectCourse
 }) {
-  if (!course) return null;
-
   // Flatten all lessons with their parent module info
-  const allLessons = (course.modules || []).flatMap((mod, modIdx) => 
-    (mod.lessons || []).map((lesson, lessonIdx) => ({
+  const allLessons = (course?.modules || []).flatMap((mod, modIdx) => 
+    (mod.lessons || []).map((lesson) => ({
       ...lesson,
+      video_url: lesson.video_url || lesson.media_url,
       moduleIndex: modIdx,
       moduleTitle: mod.title,
       overallIndex: 0
@@ -48,7 +49,7 @@ export default function CourseClassroomView({
   // Track expanded state of module accordion
   const [expandedModules, setExpandedModules] = useState(() => {
     const initial = {};
-    (course.modules || []).forEach((_, idx) => {
+    (course?.modules || []).forEach((_, idx) => {
       initial[idx] = true;
     });
     return initial;
@@ -56,7 +57,7 @@ export default function CourseClassroomView({
 
   // Quick actions state
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(() => 142 + (course.id * 17) % 500);
+  const [likeCount, setLikeCount] = useState(() => 142 + ((course?.id || 0) * 17) % 500);
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' | 'tasks' | 'instructor'
 
   // Task submission state
@@ -64,6 +65,11 @@ export default function CourseClassroomView({
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Authenticated Video Playback Session State
+  const [playbackSession, setPlaybackSession] = useState(null);
+  const [playbackLoading, setPlaybackLoading] = useState(false);
+  const [playbackError, setPlaybackError] = useState(null);
 
   // When active lesson changes, ensure its module is expanded
   useEffect(() => {
@@ -74,6 +80,40 @@ export default function CourseClassroomView({
       }));
     }
   }, [activeLesson]);
+
+  // Fetch expiring Bunny Stream playback token from authenticated backend endpoint
+  useEffect(() => {
+    if (!activeLesson?.id) {
+      setPlaybackSession(null);
+      setPlaybackError(null);
+      return;
+    }
+
+    const currentMedia = activeLesson.video_url || activeLesson.media_url;
+    const isBunny = isBunnyStreamVideo(currentMedia);
+
+    if (isBunny || isEnrolled) {
+      setPlaybackLoading(true);
+      setPlaybackError(null);
+      api.getLessonPlayback(activeLesson.id)
+        .then(res => {
+          if (res?.playback) {
+            setPlaybackSession(res.playback);
+          }
+        })
+        .catch(err => {
+          setPlaybackError(err.message || 'Playback authorization required');
+        })
+        .finally(() => {
+          setPlaybackLoading(false);
+        });
+    } else {
+      setPlaybackSession(null);
+      setPlaybackError(null);
+    }
+  }, [activeLesson?.id, activeLesson?.video_url, activeLesson?.media_url, isEnrolled]);
+
+  if (!course) return null;
 
   // Calculate course progress percentage
   const totalLessonsCount = allLessons.length;
@@ -254,7 +294,64 @@ export default function CourseClassroomView({
             {/* Main Video Player Container (16:9 Cinema Box) */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black/90 border border-[#214368] shadow-2xl">
               {canPlayLesson(activeLesson) ? (
-                isDirectVideoFile(activeLesson.video_url) ? (
+                playbackSession?.provider === 'bunny_stream' ? (
+                  <BunnyStreamPlayer
+                    libraryId={playbackSession.library_id}
+                    videoId={playbackSession.video_id}
+                    token={playbackSession.token}
+                    expires={playbackSession.expires}
+                    embedUrl={playbackSession.embed_url}
+                    title={activeLesson.title}
+                    onExpire={() => {
+                      if (activeLesson?.id) {
+                        api.getLessonPlayback(activeLesson.id)
+                          .then(res => res?.playback && setPlaybackSession(res.playback))
+                          .catch(() => {});
+                      }
+                    }}
+                  />
+                ) : isBunnyStreamVideo(activeLesson.video_url) ? (
+                  playbackLoading ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                      <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3" />
+                      <p className="text-xs font-medium text-slate-400">Authorizing secure stream session...</p>
+                    </div>
+                  ) : playbackError ? (
+                    <div className="absolute inset-0 bg-[#0a1624]/95 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-[#132c47] border border-blue-500/40 flex items-center justify-center text-amber-400 shadow-xl">
+                        <Lock className="w-8 h-8" />
+                      </div>
+                      <div className="space-y-1.5 max-w-md">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-950/80 px-2.5 py-1 rounded-full border border-amber-800">
+                          Enrolled Only Lecture
+                        </span>
+                        <h3 className="text-xl font-bold text-white pt-1">{activeLesson?.title}</h3>
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          {playbackError}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => onEnroll(course)}
+                        className="bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
+                      >
+                        <Award className="w-4 h-4" />
+                        <span>Enroll Now to Unlock All Lectures & Defense Labs</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <BunnyStreamPlayer
+                      videoId={extractBunnyVideoId(activeLesson.video_url)}
+                      title={activeLesson.title}
+                      onExpire={() => {
+                        if (activeLesson?.id) {
+                          api.getLessonPlayback(activeLesson.id)
+                            .then(res => res?.playback && setPlaybackSession(res.playback))
+                            .catch(() => {});
+                        }
+                      }}
+                    />
+                  )
+                ) : isDirectVideoFile(activeLesson.video_url) ? (
                   <video
                     src={activeLesson.video_url}
                     controls
@@ -390,10 +487,10 @@ export default function CourseClassroomView({
             {/* Lesson Content / Tabs Section */}
             <div className="bg-[#11243b] rounded-2xl border border-[#1b3d63] overflow-hidden shadow-lg mt-4">
               {/* Tab Navigation */}
-              <div className="flex items-center gap-2 px-4 pt-3 border-b border-[#1b3d63] text-xs font-bold">
+              <div className="flex items-center gap-2 px-4 pt-3 border-b border-[#1b3d63] text-xs font-bold overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setActiveTab('notes')}
-                  className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'notes'
                       ? 'border-[#0056D2] text-[#38bdf8]'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -406,7 +503,7 @@ export default function CourseClassroomView({
                 {currentModuleTasks.length > 0 && (
                   <button
                     onClick={() => setActiveTab('tasks')}
-                    className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                       activeTab === 'tasks'
                         ? 'border-[#0056D2] text-[#38bdf8]'
                         : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -419,7 +516,7 @@ export default function CourseClassroomView({
 
                 <button
                   onClick={() => setActiveTab('instructor')}
-                  className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'instructor'
                       ? 'border-[#0056D2] text-[#38bdf8]'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -709,11 +806,11 @@ export default function CourseClassroomView({
                                 </h4>
 
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  {lesson.is_free_preview && (
+                                  {Boolean(lesson.is_free_preview) ? (
                                     <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800">
                                       Free Preview
                                     </span>
-                                  )}
+                                  ) : null}
 
                                   {locked && (
                                     <span className="text-[9px] font-medium text-slate-400 flex items-center gap-1">

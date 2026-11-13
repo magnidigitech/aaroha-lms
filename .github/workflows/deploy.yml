@@ -41,7 +41,8 @@ jobs:
           cp frontend/public/.htaccess deploy_payload/.htaccess
           # Copy backend API files into api/
           cp -r backend/* deploy_payload/api/
-          # Remove local env.php so we preserve server production config
+          # Remove tests and local config to keep deployment secure
+          rm -rf deploy_payload/api/tests
           rm -f deploy_payload/api/config/env.php
 
       - name: Deploy to Hostinger via Native Python FTP

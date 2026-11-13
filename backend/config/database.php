@@ -1,6 +1,7 @@
 <?php
 // Aaroha LMS - Database Configuration
-// Compatible with MySQL 8.0+ / MariaDB via phpMyAdmin on Hostinger Shared Hosting
+// Compatible with MySQL 8.0+ / MariaDB via phpMyAdmin on Hostinger Shared Hosting,
+// with transparent SQLite support for local development & testing.
 
 class Database {
     // Default Hostinger MySQL settings (override via env.php, environment, or direct update)
@@ -15,9 +16,37 @@ class Database {
         if (self::$pdo === null) {
             // Load credentials from optional env.php file if present
             $envConfig = [];
-            $envFile = __DIR__ . '/env.php';
-            if (file_exists($envFile)) {
-                $envConfig = require $envFile;
+            $candidates = [
+                __DIR__ . '/env.php',
+                dirname(__DIR__, 2) . '/env.php',
+                dirname(__DIR__, 3) . '/env.php',
+            ];
+            foreach ($candidates as $candidate) {
+                if (file_exists($candidate)) {
+                    $envConfig = require $candidate;
+                    break;
+                }
+            }
+
+            $driver = $envConfig['DB_DRIVER'] ?? getenv('DB_DRIVER') ?: 'mysql';
+            $sqlitePath = $envConfig['DB_SQLITE_PATH'] ?? getenv('DB_SQLITE_PATH') ?: (__DIR__ . '/../../database/lms.sqlite');
+
+            if ($driver === 'sqlite' || (!empty($sqlitePath) && file_exists($sqlitePath) && $driver !== 'mysql')) {
+                try {
+                    self::$pdo = new PDO("sqlite:{$sqlitePath}", null, null, [
+                        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    ]);
+                    self::$pdo->exec("PRAGMA foreign_keys = ON;");
+                    return self::$pdo;
+                } catch (PDOException $e) {
+                    http_response_code(500);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'SQLite database connection failed: ' . $e->getMessage()
+                    ]);
+                    exit;
+                }
             }
 
             $host = $envConfig['DB_HOST'] ?? getenv('DB_HOST') ?: self::$host;
@@ -32,12 +61,24 @@ class Database {
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES {$charset} COLLATE utf8mb4_unicode_ci"
             ];
 
             try {
                 self::$pdo = new PDO($dsn, $username, $password, $options);
+                self::$pdo->exec("SET NAMES {$charset} COLLATE utf8mb4_unicode_ci");
             } catch (PDOException $e) {
+                // If local sqlite file exists, seamlessly fallback for local dev
+                if (file_exists($sqlitePath)) {
+                    try {
+                        self::$pdo = new PDO("sqlite:{$sqlitePath}", null, null, [
+                            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        ]);
+                        self::$pdo->exec("PRAGMA foreign_keys = ON;");
+                        return self::$pdo;
+                    } catch (PDOException $sqle) {}
+                }
+
                 http_response_code(500);
                 echo json_encode([
                     'success' => false,
@@ -48,5 +89,8 @@ class Database {
         }
         return self::$pdo;
     }
-}
 
+    public static function setConnection(?PDO $pdo): void {
+        self::$pdo = $pdo;
+    }
+}

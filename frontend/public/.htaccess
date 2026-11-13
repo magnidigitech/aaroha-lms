@@ -2,18 +2,31 @@
 # Target Domain: lms.aaroha-inc.com (public_html/lms/)
 
 Options -Indexes
-RewriteEngine On
-RewriteBase /
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
 
-# 1. Do not rewrite requests for the backend API (/api/...)
-RewriteCond %{REQUEST_URI} ^/api/ [NC]
-RewriteRule ^ - [L]
+  # 1. Do not rewrite requests for the backend API (/api/...)
+  RewriteCond %{REQUEST_URI} ^/api/ [NC]
+  RewriteRule ^ - [L]
 
-# 2. Do not rewrite existing physical files or directories
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+  # 2. Block direct HTTP access to hidden files and version control directories
+  RewriteRule (^\.|\/\.) - [F,L]
 
-# 3. Route all other frontend requests to index.html for React SPA Router
-RewriteRule ^ index.html [L]
+  # 3. Do not rewrite existing physical files or directories
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 4. Route all other frontend requests to index.html for React SPA Router
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
 

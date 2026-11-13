@@ -49,7 +49,7 @@ class EnrollmentController {
 
         $sql = "
             SELECT 
-                e.id AS enrollment_id, e.status AS enrollment_status, e.enrolled_at, e.completed_at,
+                e.id, e.id AS enrollment_id, e.user_id, e.status, e.status AS enrollment_status, e.enrolled_at, e.completed_at,
                 c.id AS course_id, c.title, c.slug, c.description, c.thumbnail_url,
                 u.full_name AS instructor_name
             FROM enrollments e

@@ -6,9 +6,12 @@ node_modules/
 frontend/dist/
 hostinger_deploy/
 hostinger_deploy.zip
+deploy-package/
+*.zip
 
 # Sensitive Production Config (DO NOT COMMIT DATABASE PASSWORDS)
 backend/config/env.php
+database/*.sqlite
 .env
 .env.local
 .env.*.local

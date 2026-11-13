@@ -1,15 +1,33 @@
-# Aaroha LMS - REST API URL Rewriting & Hardening
+# Aaroha LMS - REST API URL Rewriting & Security Hardening
 # Tailored for Hostinger Apache / LiteSpeed Shared Hosting
 
 Options -Indexes
 RewriteEngine On
 
-# Pass Authorization Header to PHP in FastCGI / LiteSpeed
+# 1. Block Direct HTTP Access to Secrets, Database Files, Tests, Backups, and Hidden Files
+# Hidden files & dot directories (.env, .git, .htaccess, etc.)
+RewriteRule (^\.|\/\.) - [F,L]
+
+# Sensitive internal directories
+RewriteRule ^(config|database|tests|services)/ - [F,L]
+
+# Configuration & secret credentials
+RewriteRule (env\.php|\.env|database\.php|jwt\.php)$ - [F,L]
+
+# Database files & dumps
+RewriteRule \.(sql|sqlite|sqlite3|db|mdf)$ - [F,L]
+
+# Test suites and provisioning scripts
+RewriteRule (Test\.php|init_sqlite\.php)$ - [F,L]
+
+# Backup, temporary, and archive files
+RewriteRule \.(bak|backup|old|orig|save|swp|temp|tmp|zip|tar|gz|rar)$ - [F,L]
+
+# 2. Pass Authorization Header to PHP in FastCGI / LiteSpeed
 RewriteCond %{HTTP:Authorization} .
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-# Route all requests to index.php unless file/dir physically exists
+# 3. Route all legitimate API requests to index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
-

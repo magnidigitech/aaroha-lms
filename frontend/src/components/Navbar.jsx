@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, Bell, LogIn, UserPlus, LogOut, GraduationCap, Shield, BookOpen, Compass } from 'lucide-react';
+import { Search, ChevronDown, Bell, LogIn, UserPlus, LogOut, GraduationCap, Shield, BookOpen, Compass, Menu, X } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 
 export default function Navbar({
@@ -15,6 +15,7 @@ export default function Navbar({
   courses
 }) {
   const [isExploreOpen, setIsExploreOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const categories = [
     'All Courses',
@@ -28,39 +29,42 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-2xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-18 gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-18 gap-2 sm:gap-4">
           
           {/* Left: Brand Logo & Explore Dropdown */}
-          <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-6 flex-shrink-0">
             {/* Official Aaroha Technologies Logo */}
             <div 
               className="flex items-center gap-2 cursor-pointer select-none group" 
               onClick={() => {
                 setActiveView('catalog');
                 if (onSelectCategory) onSelectCategory('All');
+                setIsMobileMenuOpen(false);
               }}
             >
-              <div className="bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2.5 shadow-xs transition-all duration-200 group-hover:border-slate-300">
+              <div className="bg-white hover:bg-slate-50 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2 shadow-xs transition-all duration-200 group-hover:border-slate-300">
                 <img
                   src={aarohaLogo}
                   alt="Aaroha Technologies"
-                  className="h-7 sm:h-8 w-auto object-contain"
+                  className="h-6 sm:h-8 w-auto object-contain"
                 />
-                <span className="text-[10px] font-black tracking-widest text-[#0056D2] uppercase pl-2 border-l border-slate-200 hidden sm:inline">
+                <span className="text-[10px] font-black tracking-widest text-[#0056D2] uppercase pl-2 border-l border-slate-200 hidden md:inline">
                   Academy
                 </span>
               </div>
             </div>
 
-            {/* Coursera-style Explore Dropdown Button */}
-            <div className="relative">
+            {/* Coursera-style Explore Dropdown Button (Tablet/Desktop) */}
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setIsExploreOpen(!isExploreOpen)}
-                className="px-3.5 py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors shadow-2xs"
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                aria-expanded={isExploreOpen}
+                aria-label="Explore course categories"
               >
                 <Compass className="w-4 h-4" />
-                <span className="hidden sm:inline">Explore</span>
+                <span>Explore</span>
                 <ChevronDown className={'w-3.5 h-3.5 transition-transform duration-200 ' + (isExploreOpen ? 'rotate-180' : '')} />
               </button>
 
@@ -81,22 +85,19 @@ export default function Navbar({
                         setActiveView('catalog');
                         if (onSelectCategory) onSelectCategory(cat === 'All Courses' ? 'All' : cat);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/60 transition-colors flex items-center justify-between"
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/60 transition-colors flex items-center justify-between cursor-pointer"
                     >
                       <span>{cat}</span>
                       <ChevronDown className="w-3.5 h-3.5 text-slate-300 -rotate-90" />
                     </button>
                   ))}
-                  <div className="px-4 py-2 mt-1 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-500">
-                    Earn verified certificates accredited by Aaroha Institute
-                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Center: Coursera Global Search Bar */}
-          <div className="hidden lg:flex flex-1 max-w-lg mx-2">
+          {/* Center: Coursera Global Search Bar (Desktop) */}
+          <div className="hidden xl:flex flex-1 max-w-md mx-4">
             <div className="relative w-full">
               <input
                 type="text"
@@ -110,7 +111,8 @@ export default function Navbar({
               />
               <button 
                 onClick={() => setActiveView('catalog')}
-                className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0056D2] text-white flex items-center justify-center hover:bg-[#00419e] transition-colors"
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0056D2] text-white flex items-center justify-center hover:bg-[#00419e] transition-colors cursor-pointer"
+                aria-label="Search curriculum"
               >
                 <Search className="w-3.5 h-3.5" />
               </button>
@@ -118,27 +120,27 @@ export default function Navbar({
           </div>
 
           {/* Right Navigation & User Surface */}
-          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-            {/* Direct Navigation Links */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {/* Desktop Direct Navigation Links */}
             <button
               onClick={() => setActiveView('catalog')}
-              className={'text-xs font-semibold transition-colors ' + 
+              className={'text-xs font-semibold transition-colors hidden lg:inline-block ' + 
                 (activeView === 'catalog' ? 'text-[#0056D2]' : 'text-slate-600 hover:text-slate-900')}
             >
               Degrees & Certificates
             </button>
 
-            {/* Authenticated Links */}
+            {/* Authenticated Links (Desktop) */}
             {currentUser?.role === 'student' && (
               <button
                 onClick={() => setActiveView('student')}
-                className={'text-xs font-bold transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
+                className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
                   (activeView === 'student'
                     ? 'bg-blue-50 text-[#0056D2] border border-blue-200'
                     : 'text-slate-700 hover:text-[#0056D2]')}
               >
                 <GraduationCap className="w-4 h-4 text-[#0056D2]" />
-                <span>My Learning</span>
+                <span className="hidden md:inline">My Learning</span>
                 {stats?.enrolledCount > 0 && (
                   <span className="bg-[#0056D2] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                     {stats.enrolledCount}
@@ -150,13 +152,13 @@ export default function Navbar({
             {currentUser?.role === 'admin' && (
               <button
                 onClick={() => setActiveView('admin')}
-                className={'text-xs font-bold transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
+                className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
                   (activeView === 'admin'
                     ? 'bg-blue-50 text-[#0056D2] border border-blue-200'
                     : 'text-slate-700 hover:text-[#0056D2]')}
               >
                 <Shield className="w-4 h-4 text-[#0056D2]" />
-                <span>Faculty Console</span>
+                <span className="hidden md:inline">Faculty Console</span>
                 {stats?.pendingReviews > 0 && (
                   <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                     {stats.pendingReviews}
@@ -165,16 +167,16 @@ export default function Navbar({
               </button>
             )}
 
-            {/* Coursera-style Auth Controls */}
+            {/* User Avatar & Logout (Desktop) */}
             {currentUser ? (
-              <div className="flex items-center gap-3 pl-2 sm:pl-3 border-l border-slate-200">
+              <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-slate-200">
                 <div className="flex items-center gap-2">
                   <img
                     src={currentUser.avatar}
                     alt={currentUser.full_name}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 shrink-0"
                   />
-                  <div className="hidden md:block text-left">
+                  <div className="hidden lg:block text-left">
                     <div className="text-xs font-bold text-slate-900 leading-tight">
                       {currentUser.full_name}
                     </div>
@@ -187,31 +189,171 @@ export default function Navbar({
                 <button
                   onClick={onLogout}
                   title="Sign Out"
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer hidden md:block"
+                  aria-label="Sign out"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="hidden md:flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className="text-xs font-bold text-[#0056D2] hover:text-[#00419e] hover:underline px-2 py-1.5 transition-colors"
+                  className="text-xs font-bold text-[#0056D2] hover:text-[#00419e] hover:underline px-2 py-1.5 transition-colors cursor-pointer"
                 >
                   Log In
                 </button>
 
                 <button
                   onClick={() => onOpenAuth('register')}
-                  className="px-4 py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
-                  <span>Join for Free</span>
+                  <span>Join Free</span>
                 </button>
               </div>
             )}
+
+            {/* Mobile Hamburger Toggle Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 md:hidden transition-colors cursor-pointer"
+              aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={isMobileMenuOpen}
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer / Menu (Visible on < md screens) */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 py-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+            {/* Mobile Search */}
+            <div className="relative px-1">
+              <input
+                type="text"
+                placeholder="Search programs (e.g. Raft, mTLS)..."
+                value={searchQuery || ''}
+                onChange={(e) => {
+                  if (setSearchQuery) setSearchQuery(e.target.value);
+                  if (activeView !== 'catalog') setActiveView('catalog');
+                }}
+                className="w-full pl-3 pr-9 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:border-blue-600"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Mobile Nav Links */}
+            <div className="flex flex-col space-y-1 px-1">
+              <button
+                onClick={() => {
+                  setActiveView('catalog');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+                  activeView === 'catalog' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                Degrees & Certificates Catalog
+              </button>
+
+              {currentUser?.role === 'student' && (
+                <button
+                  onClick={() => {
+                    setActiveView('student');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between ${
+                    activeView === 'student' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-[#0056D2]" />
+                    <span>My Learning Dashboard</span>
+                  </div>
+                  {stats?.enrolledCount > 0 && (
+                    <span className="bg-[#0056D2] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                      {stats.enrolledCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    setActiveView('admin');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between ${
+                    activeView === 'admin' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-[#0056D2]" />
+                    <span>Faculty Console</span>
+                  </div>
+                  {stats?.pendingReviews > 0 && (
+                    <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                      {stats.pendingReviews}
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Auth Controls */}
+            <div className="pt-2 border-t border-slate-100 px-1">
+              {currentUser ? (
+                <div className="flex items-center justify-between px-2 py-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.full_name}
+                      className="w-7 h-7 rounded-full object-cover ring-1 ring-blue-500/30 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
+                      <div className="text-[10px] text-slate-500 capitalize">{currentUser.role}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      onLogout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-lg flex items-center gap-1.5"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    onClick={() => {
+                      onOpenAuth('login');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl text-center"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    onClick={() => {
+                      onOpenAuth('register');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl text-center shadow-xs"
+                  >
+                    Join Free
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );

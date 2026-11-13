@@ -1,347 +1,471 @@
 import React, { useState } from 'react';
-import { Shield, Plus, BookOpen, Layers, ListTodo, CheckCircle2, Clock, Eye, AlertCircle, Edit3, ArrowRight, RotateCcw, X } from 'lucide-react';
+import { 
+  Shield, Plus, BookOpen, Layers, ListTodo, CheckCircle2, Clock, 
+  Eye, AlertCircle, Edit3, Trash2, ArrowRight, RotateCcw, X, 
+  GraduationCap, Award, FileText, Video
+} from 'lucide-react';
+import CourseModal from './admin/CourseModal';
+import ModuleModal from './admin/ModuleModal';
+import LectureModal from './admin/LectureModal';
+import AssignmentModal from './admin/AssignmentModal';
+import DeleteConfirmModal from './admin/DeleteConfirmModal';
 
 export default function AdminPortalView({
-  courses,
-  taskSubmissions,
+  courses = [],
+  taskSubmissions = [],
   onAddCourse,
+  onUpdateCourse,
+  onDeleteCourse,
   onAddModule,
+  onUpdateModule,
+  onDeleteModule,
   onAddLesson,
+  onUpdateLesson,
+  onDeleteLesson,
   onAddTask,
+  onUpdateTask,
+  onDeleteTask,
   onGradeSubmission
 }) {
   const [activeTab, setActiveTab] = useState('courses'); // 'courses' | 'grading'
 
-  // Modal states
-  const [isNewCourseOpen, setIsNewCourseOpen] = useState(false);
-  const [isNewModuleOpen, setIsNewModuleOpen] = useState(false);
-  const [isNewLessonOpen, setIsNewLessonOpen] = useState(false);
-  const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
-  const [selectedCourseForModule, setSelectedCourseForModule] = useState(null);
-  const [selectedModuleForContent, setSelectedModuleForContent] = useState(null);
+  // Modal dialog states
+  const [courseModal, setCourseModal] = useState({ isOpen: false, initialData: null });
+  const [moduleModal, setModuleModal] = useState({ isOpen: false, courseId: null, initialData: null });
+  const [lectureModal, setLectureModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
+  const [assignmentModal, setAssignmentModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
 
-  // Grading modal
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    title: '',
+    itemName: '',
+    itemType: '',
+    affectedChildren: '',
+    studentImpact: '',
+    confirmButtonText: 'Confirm Archive',
+    onConfirm: async () => {}
+  });
+
+  // Grading modal state
   const [gradingModalSubmission, setGradingModalSubmission] = useState(null);
   const [gradeScore, setGradeScore] = useState('');
   const [gradeStatus, setGradeStatus] = useState('passed');
   const [gradeFeedback, setGradeFeedback] = useState('');
 
-  // Domain & Duration custom toggles
-  const [isCustomDomain, setIsCustomDomain] = useState(false);
-  const [isCustomDuration, setIsCustomDuration] = useState(false);
-
-  const availableDomains = Array.from(new Set([
-    'Cloud Architecture',
-    'Applied AI',
-    'Cybersecurity',
-    'Distributed Systems',
-    'Data Engineering',
-    'DevOps & SRE',
-    ...courses.map(c => c.category).filter(Boolean)
-  ]));
-
-  // Forms
-  const [courseForm, setCourseForm] = useState({
-    title: '',
-    slug: '',
-    description: '',
-    category: 'Cloud Architecture',
-    level: 'Advanced Level',
-    duration: '8 Weeks',
-    thumbnail_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
-    is_published: true
-  });
-
-  const [moduleTitle, setModuleTitle] = useState('');
-
-  const [lessonForm, setLessonForm] = useState({
-    title: '',
-    content_type: 'video',
-    media_url: '',
-    content_body: '',
-    duration: '20 min',
-    is_free_preview: false
-  });
-
-  const [taskForm, setTaskForm] = useState({
-    title: '',
-    instructions: '',
-    task_type: 'text_response',
-    max_score: 100,
-    passing_score: 75
-  });
-
   const pendingSubmissions = taskSubmissions.filter(s => s.status === 'under_review');
   const gradedSubmissions = taskSubmissions.filter(s => s.status !== 'under_review');
 
-  const handleCreateCourse = (e) => {
-    e.preventDefault();
-    if (!courseForm.title.trim()) return;
+  // Deletion Triggers with explicit impact explanations
+  const triggerDeleteCourse = (course) => {
+    const modCount = course.modules?.length || 0;
+    const lessonCount = (course.modules || []).reduce((acc, m) => acc + (m.lessons?.length || 0), 0);
+    const taskCount = (course.modules || []).reduce((acc, m) => acc + (m.tasks?.length || 0), 0);
 
-    onAddCourse({
-      ...courseForm,
-      category: courseForm.category.trim() || 'General Engineering',
-      duration: courseForm.duration.trim() || '8 Weeks',
-      level: courseForm.level || 'Advanced Level',
-      slug: courseForm.slug || courseForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    setDeleteModal({
+      isOpen: true,
+      title: 'Archive Executive Program',
+      itemName: course.title,
+      itemType: 'Program',
+      affectedChildren: `This will archive ${modCount} module(s), ${lessonCount} lecture(s), and ${taskCount} assignment(s).`,
+      studentImpact: 'The course will be removed from public student listings and new playback authorization. All existing student enrollments, completion records, and evaluations are strictly preserved.',
+      confirmButtonText: 'Archive Program',
+      onConfirm: async () => {
+        if (onDeleteCourse) await onDeleteCourse(course.id);
+      }
     });
-
-    setCourseForm({
-      title: '',
-      slug: '',
-      description: '',
-      category: 'Cloud Architecture',
-      level: 'Advanced Level',
-      duration: '8 Weeks',
-      thumbnail_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
-      is_published: true
-    });
-    setIsCustomDomain(false);
-    setIsCustomDuration(false);
-    setIsNewCourseOpen(false);
   };
 
-  const handleCreateModule = (e) => {
-    e.preventDefault();
-    if (!moduleTitle.trim() || !selectedCourseForModule) return;
+  const triggerDeleteModule = (courseId, module) => {
+    const lessonCount = module.lessons?.length || 0;
+    const taskCount = module.tasks?.length || 0;
 
-    onAddModule(selectedCourseForModule.id, moduleTitle);
-    setModuleTitle('');
-    setIsNewModuleOpen(false);
+    setDeleteModal({
+      isOpen: true,
+      title: 'Archive Syllabus Module',
+      itemName: module.title,
+      itemType: 'Module',
+      affectedChildren: `This will archive ${lessonCount} lecture(s) and ${taskCount} assignment(s) within this module.`,
+      studentImpact: 'Contained lectures and projects will be hidden from student syllabus views and future playback requests. Historical student completion progress is preserved.',
+      confirmButtonText: 'Archive Module',
+      onConfirm: async () => {
+        if (onDeleteModule) await onDeleteModule(courseId, module.id);
+      }
+    });
   };
 
-  const handleCreateLesson = (e) => {
-    e.preventDefault();
-    if (!lessonForm.title.trim() || !selectedModuleForContent) return;
+  const triggerDeleteLecture = (courseId, moduleId, lesson) => {
+    const isBunny = lesson.video_provider === 'bunny_stream';
 
-    onAddLesson(selectedModuleForContent.course_id, selectedModuleForContent.id, lessonForm);
-    setLessonForm({
-      title: '',
-      content_type: 'video',
-      media_url: '',
-      content_body: '',
-      duration: '20 min',
-      is_free_preview: false
+    setDeleteModal({
+      isOpen: true,
+      title: 'Archive Lecture',
+      itemName: lesson.title,
+      itemType: 'Lecture',
+      affectedChildren: isBunny ? 'The underlying video on Bunny Stream will NOT be deleted.' : '',
+      studentImpact: 'New student playback requests will be rejected. Historical completion records for students who finished this lecture remain preserved.',
+      confirmButtonText: 'Archive Lecture',
+      onConfirm: async () => {
+        if (onDeleteLesson) await onDeleteLesson(courseId, moduleId, lesson.id);
+      }
     });
-    setIsNewLessonOpen(false);
   };
 
-  const handleCreateTask = (e) => {
-    e.preventDefault();
-    if (!taskForm.title.trim() || !selectedModuleForContent) return;
-
-    onAddTask(selectedModuleForContent.course_id, selectedModuleForContent.id, taskForm);
-    setTaskForm({
-      title: '',
-      instructions: '',
-      task_type: 'text_response',
-      max_score: 100,
-      passing_score: 75
+  const triggerDeleteTask = (courseId, moduleId, task) => {
+    setDeleteModal({
+      isOpen: true,
+      title: 'Archive Assignment',
+      itemName: task.title,
+      itemType: 'Project/Assignment',
+      affectedChildren: '',
+      studentImpact: 'The project deliverable will be removed from future syllabus requirements. Existing student submissions, awarded scores, and faculty feedback are preserved.',
+      confirmButtonText: 'Archive Assignment',
+      onConfirm: async () => {
+        if (onDeleteTask) await onDeleteTask(courseId, moduleId, task.id);
+      }
     });
-    setIsNewTaskOpen(false);
+  };
+
+  const handleOpenGradeModal = (submission) => {
+    setGradingModalSubmission(submission);
+    setGradeScore(submission.score !== null ? String(submission.score) : '85');
+    setGradeStatus(submission.status === 'under_review' ? 'passed' : submission.status);
+    setGradeFeedback(submission.feedback || 'Exemplary architectural defense meeting enterprise specifications.');
   };
 
   const handleSaveGrade = (e) => {
     e.preventDefault();
-    if (!gradingModalSubmission) return;
+    if (!gradingModalSubmission || !onGradeSubmission) return;
 
     onGradeSubmission({
       submissionId: gradingModalSubmission.id,
-      score: parseInt(gradeScore) || 0,
+      score: parseInt(gradeScore, 10) || 0,
       status: gradeStatus,
       feedback: gradeFeedback
     });
-
     setGradingModalSubmission(null);
-    setGradeScore('');
-    setGradeFeedback('');
   };
 
   return (
-    <div className="space-y-6 pb-24">
-      {/* Faculty Console Header */}
-      <div className="bg-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xs border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider">
-            <Shield className="w-4 h-4 text-indigo-400" />
-            <span>Faculty Administration</span>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold uppercase tracking-wider">
+              Faculty Administration
+            </span>
+            <span className="text-xs text-slate-400 font-medium hidden sm:inline">•</span>
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">Systems Accreditation Portal</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold mt-1 text-white">Course Management & Evaluation</h1>
-          <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl leading-relaxed">
-            Publish executive engineering programs, structure lectures and project deliverables, and review student technical defenses.
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
+            Curriculum Authoring & Faculty Console
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Manage programs, structure modules, configure Bunny Stream lectures, and grade technical deliverables
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-slate-800 px-5 py-3 rounded-2xl border border-slate-700 text-center">
-            <span className="text-2xl font-black text-white">{courses.length}</span>
-            <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">Active Programs</p>
-          </div>
-          <div className="bg-amber-500/20 px-5 py-3 rounded-2xl border border-amber-500/30 text-center">
-            <span className="text-2xl font-black text-amber-400">{pendingSubmissions.length}</span>
-            <p className="text-[10px] uppercase font-bold text-amber-300 mt-0.5">Pending Review</p>
-          </div>
-        </div>
+        {/* Action Button: Create Program */}
+        <button
+          onClick={() => setCourseModal({ isOpen: true, initialData: null })}
+          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-97 cursor-pointer shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Author Program</span>
+        </button>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      {/* Tabs */}
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-1 overflow-x-auto">
         <button
           onClick={() => setActiveTab('courses')}
-          className={'px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ' +
-            (activeTab === 'courses' ? 'bg-[#0056D2] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100')}
+          className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-2 shrink-0 ${
+            activeTab === 'courses'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
         >
           <BookOpen className="w-4 h-4" />
-          <span>Course Catalog</span>
+          <span>Curriculum Directory ({courses.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('grading')}
-          className={'px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ' +
-            (activeTab === 'grading' ? 'bg-[#0056D2] text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100')}
+          className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-2 shrink-0 ${
+            activeTab === 'grading'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
         >
-          <ListTodo className="w-4 h-4" />
-          <span>Evaluation Queue</span>
+          <GraduationCap className="w-4 h-4" />
+          <span>Student Deliverable Queue</span>
           {pendingSubmissions.length > 0 && (
-            <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
+            <span className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-black rounded-full">
               {pendingSubmissions.length}
             </span>
           )}
         </button>
       </div>
 
-      {/* TAB 1: CURRICULUM DIRECTORY */}
+      {/* TAB 1: CURRICULUM MANAGEMENT */}
       {activeTab === 'courses' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">Program Catalog</h2>
-              <p className="text-xs text-slate-500">Configure modules, lectures, and project rubrics</p>
-            </div>
-            <button
-              onClick={() => {
-                setIsCustomDomain(false);
-                setIsCustomDuration(false);
-                setIsNewCourseOpen(true);
-              }}
-              className="px-4 py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Program</span>
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {courses.map(course => (
-              <div
-                key={course.id}
-                className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden"
+          {courses.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200">
+              <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-800">No programs in curriculum directory</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                Begin structuring executive education by authoring your first technical program.
+              </p>
+              <button
+                onClick={() => setCourseModal({ isOpen: true, initialData: null })}
+                className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-blue-700"
               >
-                <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 border-b border-slate-200">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={course.thumbnail_url}
-                      alt={course.title}
-                      className="w-14 h-14 rounded-xl object-cover border border-slate-200 shadow-xs"
-                    />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-slate-900">{course.title}</h3>
-                        <span className={'text-[10px] font-bold px-2 py-0.5 rounded-md ' +
-                          (course.is_published ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700')}>
-                          {course.is_published ? 'Published' : 'Draft'}
-                        </span>
+                Create Program
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {courses.map((course) => (
+                <div key={course.id} className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden transition-all hover:border-slate-300">
+                  {/* Course Header Banner */}
+                  <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/80 border-b border-slate-200">
+                    <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                      <img
+                        src={course.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=200&q=80'}
+                        alt={course.title}
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                            {course.title}
+                          </h3>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
+                            course.is_published ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            {course.is_published ? 'Published' : 'Draft'}
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-md shrink-0">
+                            {course.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{course.description}</p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{course.description}</p>
+                    </div>
+
+                    {/* Course Controls: Add Module, Edit Course, Delete Course */}
+                    <div className="flex items-center gap-2 self-end md:self-auto shrink-0 flex-wrap">
+                      <button
+                        onClick={() => setModuleModal({ isOpen: true, courseId: course.id, initialData: null })}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Add Module</span>
+                      </button>
+
+                      <button
+                        onClick={() => setCourseModal({ isOpen: true, initialData: course })}
+                        className="px-3 py-1.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Edit Course specifications"
+                        aria-label={`Edit Course: ${course.title}`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Edit Course</span>
+                      </button>
+
+                      <button
+                        onClick={() => triggerDeleteCourse(course)}
+                        className="px-2.5 py-1.5 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-slate-600 hover:text-red-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Archive Course"
+                        aria-label={`Archive Course: ${course.title}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <span className="hidden sm:inline">Archive</span>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setSelectedCourseForModule(course);
-                        setIsNewModuleOpen(true);
-                      }}
-                      className="px-3.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Module
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-5 space-y-4">
-                  {course.modules?.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">No modules created yet. Click "Add Module" to start structuring curriculum.</p>
-                  ) : (
-                    course.modules?.map((mod, modIdx) => (
-                      <div key={mod.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                        <div className="px-4 py-2.5 bg-slate-100/70 flex items-center justify-between text-xs font-bold text-slate-800 border-b border-slate-200">
-                          <div className="flex items-center gap-2">
-                            <span className="w-4 h-4 rounded bg-slate-900 text-white text-[9px] flex items-center justify-center font-bold">
-                              {modIdx + 1}
-                            </span>
-                            <span>{mod.title}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedModuleForContent({ course_id: course.id, id: mod.id });
-                                setIsNewLessonOpen(true);
-                              }}
-                              className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-semibold rounded-md flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3 text-indigo-600" />
-                              Add Lecture
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedModuleForContent({ course_id: course.id, id: mod.id });
-                                setIsNewTaskOpen(true);
-                              }}
-                              className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-[11px] font-semibold rounded-md flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3 text-indigo-600" />
-                              Add Project
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="p-3 divide-y divide-slate-100 space-y-2">
-                          {mod.lessons?.map(l => (
-                            <div key={l.id} className="pt-2 first:pt-0 flex items-center justify-between text-xs text-slate-700">
-                              <div className="flex items-center gap-2">
-                                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                                <span className="font-medium text-slate-800">{l.title}</span>
-                                <span className="text-[10px] text-slate-400">({l.content_type} • {l.duration})</span>
-                              </div>
-                              {l.is_free_preview && (
-                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded border border-emerald-200">
-                                  Free Preview
+                  {/* Modules Listing */}
+                  <div className="p-4 sm:p-5 space-y-4">
+                    {!course.modules || course.modules.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic py-2">
+                        No modules created yet. Click "Add Module" above to structure this program.
+                      </p>
+                    ) : (
+                      course.modules.map((mod, modIdx) => (
+                        <div key={mod.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                          {/* Module Header */}
+                          <div className="px-3.5 sm:px-4 py-2.5 bg-slate-100/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-bold text-slate-800 border-b border-slate-200">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-5 h-5 rounded-md bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold shrink-0">
+                                {modIdx + 1}
+                              </span>
+                              <span className="truncate">{mod.title}</span>
+                              {mod.estimated_time && (
+                                <span className="text-[10px] font-normal text-slate-500 shrink-0 hidden sm:inline">
+                                  ({mod.estimated_time})
                                 </span>
                               )}
                             </div>
-                          ))}
 
-                          {mod.tasks?.map(t => (
-                            <div key={t.id} className="pt-2 flex items-center justify-between text-xs text-indigo-950 bg-indigo-50/40 p-2 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <ListTodo className="w-3.5 h-3.5 text-indigo-600" />
-                                <span className="font-bold">{t.title}</span>
-                              </div>
-                              <span className="text-[11px] font-semibold text-indigo-800">
-                                Threshold: {t.passing_score}/{t.max_score} pts
-                              </span>
+                            {/* Module Controls: Add Lecture, Add Project, Edit Module, Delete Module */}
+                            <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0 flex-wrap">
+                              <button
+                                onClick={() => setLectureModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: null })}
+                                className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3 text-blue-600" />
+                                <span>Add Lecture</span>
+                              </button>
+
+                              <button
+                                onClick={() => setAssignmentModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: null })}
+                                className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                              >
+                                <Plus className="w-3 h-3 text-indigo-600" />
+                                <span>Add Project</span>
+                              </button>
+
+                              <button
+                                onClick={() => setModuleModal({ isOpen: true, courseId: course.id, initialData: mod })}
+                                className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                title="Edit Module"
+                                aria-label={`Edit Module: ${mod.title}`}
+                              >
+                                <Edit3 className="w-3 h-3 text-slate-600" />
+                                <span className="hidden sm:inline">Edit</span>
+                              </button>
+
+                              <button
+                                onClick={() => triggerDeleteModule(course.id, mod)}
+                                className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                title="Archive Module"
+                                aria-label={`Archive Module: ${mod.title}`}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
                             </div>
-                          ))}
+                          </div>
+
+                          {/* Lectures & Tasks List */}
+                          <div className="p-3 sm:p-4 space-y-2">
+                            {/* Lectures */}
+                            {(!mod.lessons || mod.lessons.length === 0) && (!mod.tasks || mod.tasks.length === 0) && (
+                              <p className="text-[11px] text-slate-400 italic py-1">
+                                No lectures or assignments added yet.
+                              </p>
+                            )}
+
+                            {mod.lessons?.map((l) => (
+                              <div 
+                                key={l.id} 
+                                className="py-2 px-2.5 rounded-lg hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-700 border-b border-slate-100 last:border-b-0"
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                  <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                  <span className="font-semibold text-slate-900 truncate">{l.title}</span>
+                                  <span className="text-[10px] text-slate-400 shrink-0">
+                                    ({l.content_type} • {l.duration})
+                                  </span>
+
+                                  {/* Explicit Boolean Condition to prevent rendering stray "0" */}
+                                  {Boolean(l.is_free_preview) ? (
+                                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded border border-emerald-200 shrink-0">
+                                      Free Preview
+                                    </span>
+                                  ) : null}
+
+                                  {l.video_provider === 'bunny_stream' && (
+                                    <span 
+                                      className="px-2 py-0.5 bg-amber-50 text-amber-800 text-[10px] font-bold rounded border border-amber-200 shrink-0"
+                                      title="Signed Bunny Stream authenticated delivery"
+                                    >
+                                      Bunny Stream
+                                    </span>
+                                  )}
+
+                                  {!Boolean(l.is_published) ? (
+                                    <span className="px-1.5 py-0.5 bg-slate-200 text-slate-700 text-[9px] font-bold rounded shrink-0">
+                                      Draft
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {/* Lecture Controls: Edit Lecture, Delete Lecture */}
+                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                  <button
+                                    onClick={() => setLectureModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: l })}
+                                    className="px-2 py-1 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Edit Lecture"
+                                    aria-label={`Edit Lecture: ${l.title}`}
+                                  >
+                                    <Edit3 className="w-3 h-3 text-blue-600" />
+                                    <span>Edit</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => triggerDeleteLecture(course.id, mod.id, l)}
+                                    className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Archive Lecture"
+                                    aria-label={`Archive Lecture: ${l.title}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Tasks / Projects */}
+                            {mod.tasks?.map((t) => (
+                              <div 
+                                key={t.id} 
+                                className="p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-950"
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                  <ListTodo className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                  <span className="font-bold text-slate-900 truncate">{t.title}</span>
+                                  <span className="text-[11px] font-semibold text-indigo-700 shrink-0">
+                                    Pass: {t.passing_score}/{t.max_score} pts
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 capitalize shrink-0">
+                                    ({t.task_type.replace('_', ' ')})
+                                  </span>
+                                </div>
+
+                                {/* Task Controls: Edit Project, Delete Project */}
+                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                  <button
+                                    onClick={() => setAssignmentModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: t })}
+                                    className="px-2 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Edit Assignment"
+                                    aria-label={`Edit Assignment: ${t.title}`}
+                                  >
+                                    <Edit3 className="w-3 h-3 text-indigo-600" />
+                                    <span>Edit</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => triggerDeleteTask(course.id, mod.id, t)}
+                                    className="px-1.5 py-1 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-red-600 text-[11px] font-medium rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Archive Assignment"
+                                    aria-label={`Archive Assignment: ${t.title}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -358,41 +482,38 @@ export default function AdminPortalView({
               <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
                 Awaiting Evaluation ({pendingSubmissions.length})
               </span>
-              <span className="text-xs text-slate-400">Action Required</span>
             </div>
 
             {pendingSubmissions.length === 0 ? (
-              <div className="p-10 text-center text-xs text-slate-500">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                All student project deliverables have been reviewed and evaluated.
+              <div className="p-8 text-center text-slate-400 text-xs">
+                No deliverables currently pending faculty review.
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {pendingSubmissions.map(sub => (
-                  <div key={sub.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                    <div className="space-y-1">
+                {pendingSubmissions.map((sub) => (
+                  <div key={sub.id} className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-900">{sub.student_name}</span>
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded">
-                          Under Faculty Review
-                        </span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">{sub.student_name}</span>
+                        <span className="text-[10px] text-slate-400">• {new Date(sub.submitted_at).toLocaleDateString()}</span>
                       </div>
-                      <p className="text-xs text-slate-600 font-medium">Assignment #{sub.task_id}</p>
-                      <p className="text-xs text-slate-500 line-clamp-2 max-w-xl italic">
-                        "{sub.submission_text}"
-                      </p>
+                      <p className="text-xs text-slate-600 line-clamp-2">{sub.submission_text}</p>
+                      {sub.attachment_url && (
+                        <a 
+                          href={sub.attachment_url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-[11px] text-blue-600 hover:underline font-semibold block pt-0.5 truncate"
+                        >
+                          {sub.attachment_url}
+                        </a>
+                      )}
                     </div>
 
                     <button
-                      onClick={() => {
-                        setGradingModalSubmission(sub);
-                        setGradeScore(90);
-                        setGradeStatus('passed');
-                        setGradeFeedback('Rigorous implementation meeting enterprise production standards.');
-                      }}
-                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 self-start sm:self-center"
+                      onClick={() => handleOpenGradeModal(sub)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition-all self-end md:self-auto cursor-pointer"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
                       Evaluate Deliverable
                     </button>
                   </div>
@@ -400,523 +521,100 @@ export default function AdminPortalView({
               </div>
             )}
           </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Completed Evaluations ({gradedSubmissions.length})
-              </span>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {gradedSubmissions.map(sub => (
-                <div key={sub.id} className="p-4 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-bold text-slate-900">{sub.student_name}</span>
-                    <p className="text-[11px] text-slate-500 italic mt-0.5">Faculty Remarks: "{sub.feedback}"</p>
-                  </div>
-                  <div className="text-right">
-                    <span className={'px-2.5 py-1 rounded text-[11px] font-bold ' +
-                      (sub.status === 'passed' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800')}>
-                      {sub.status.toUpperCase()} ({sub.score} / 100 PTS)
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
-      {/* MODAL 1: Create Program */}
-      {isNewCourseOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Create New Executive Program</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsNewCourseOpen(false);
-                  setIsCustomDomain(false);
-                  setIsCustomDuration(false);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                title="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* MODAL 1: Course Modal (Create & Edit) */}
+      <CourseModal
+        isOpen={courseModal.isOpen}
+        onClose={() => setCourseModal({ isOpen: false, initialData: null })}
+        initialData={courseModal.initialData}
+        onSave={async (data) => {
+          if (courseModal.initialData?.id) {
+            if (onUpdateCourse) await onUpdateCourse(courseModal.initialData.id, data);
+          } else {
+            if (onAddCourse) await onAddCourse(data);
+          }
+        }}
+      />
 
-            <form onSubmit={handleCreateCourse} className="space-y-3.5 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700">Program Title:</label>
-                <input
-                  type="text"
-                  required
-                  value={courseForm.title}
-                  onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
-                  placeholder="Enter program title"
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
+      {/* MODAL 2: Module Modal (Create & Edit) */}
+      <ModuleModal
+        isOpen={moduleModal.isOpen}
+        onClose={() => setModuleModal({ isOpen: false, courseId: null, initialData: null })}
+        courseId={moduleModal.courseId}
+        initialData={moduleModal.initialData}
+        onSave={async (data) => {
+          if (moduleModal.initialData?.id) {
+            if (onUpdateModule) await onUpdateModule(moduleModal.courseId, moduleModal.initialData.id, data);
+          } else {
+            if (onAddModule) await onAddModule(moduleModal.courseId, data.title);
+          }
+        }}
+      />
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="font-semibold text-slate-700">Domain / Category:</label>
-                  <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomDomain(false);
-                        setCourseForm(prev => ({
-                          ...prev,
-                          category: availableDomains.includes(prev.category) && prev.category ? prev.category : (availableDomains[0] || 'Cloud Architecture')
-                        }));
-                      }}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        !isCustomDomain
-                          ? 'bg-white text-[#0056D2] shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      Existing List
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomDomain(true);
-                        setCourseForm(prev => ({
-                          ...prev,
-                          category: availableDomains.includes(prev.category) ? '' : prev.category
-                        }));
-                      }}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        isCustomDomain
-                          ? 'bg-white text-[#0056D2] shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      + Add New
-                    </button>
-                  </div>
-                </div>
+      {/* MODAL 3: Lecture Modal (Create & Edit with Bunny Stream Video ID validation) */}
+      <LectureModal
+        isOpen={lectureModal.isOpen}
+        onClose={() => setLectureModal({ isOpen: false, courseId: null, moduleId: null, initialData: null })}
+        courseId={lectureModal.courseId}
+        moduleId={lectureModal.moduleId}
+        initialData={lectureModal.initialData}
+        onSave={async (data) => {
+          if (lectureModal.initialData?.id) {
+            if (onUpdateLesson) await onUpdateLesson(lectureModal.courseId, lectureModal.moduleId, lectureModal.initialData.id, data);
+          } else {
+            if (onAddLesson) await onAddLesson(lectureModal.courseId, lectureModal.moduleId, data);
+          }
+        }}
+      />
 
-                {!isCustomDomain ? (
-                  <select
-                    value={courseForm.category}
-                    onChange={(e) => {
-                      if (e.target.value === '__add_new__') {
-                        setIsCustomDomain(true);
-                        setCourseForm({ ...courseForm, category: '' });
-                      } else {
-                        setCourseForm({ ...courseForm, category: e.target.value });
-                      }
-                    }}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
-                  >
-                    {availableDomains.map(domain => (
-                      <option key={domain} value={domain}>{domain}</option>
-                    ))}
-                    <option value="__add_new__">+ Add New Domain / Category...</option>
-                  </select>
-                ) : (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      autoFocus
-                      placeholder="Enter new domain (e.g. Data Engineering, DevOps, Blockchain...)"
-                      value={courseForm.category}
-                      onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
-                      className="flex-1 p-2.5 bg-white border border-[#0056D2] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0056D2] text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomDomain(false);
-                        setCourseForm({ ...courseForm, category: availableDomains[0] || 'Cloud Architecture' });
-                      }}
-                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1.5 transition-colors whitespace-nowrap shadow-xs"
-                      title="Switch back to dropdown list"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-                      Select Existing
-                    </button>
-                  </div>
-                )}
-              </div>
+      {/* MODAL 4: Assignment Modal (Create & Edit) */}
+      <AssignmentModal
+        isOpen={assignmentModal.isOpen}
+        onClose={() => setAssignmentModal({ isOpen: false, courseId: null, moduleId: null, initialData: null })}
+        courseId={assignmentModal.courseId}
+        moduleId={assignmentModal.moduleId}
+        initialData={assignmentModal.initialData}
+        onSave={async (data) => {
+          if (assignmentModal.initialData?.id) {
+            if (onUpdateTask) await onUpdateTask(assignmentModal.courseId, assignmentModal.moduleId, assignmentModal.initialData.id, data);
+          } else {
+            if (onAddTask) await onAddTask(assignmentModal.courseId, assignmentModal.moduleId, data);
+          }
+        }}
+      />
 
-              <div>
-                <label className="font-semibold text-slate-700">Executive Summary:</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={courseForm.description}
-                  onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
-                  placeholder="Enter program description, syllabus outcomes, and prerequisites..."
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
-                />
-              </div>
+      {/* MODAL 5: Safe Deletion & Archiving Confirmation Dialog */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteModal.onConfirm}
+        title={deleteModal.title}
+        itemName={deleteModal.itemName}
+        itemType={deleteModal.itemType}
+        affectedChildren={deleteModal.affectedChildren}
+        studentImpact={deleteModal.studentImpact}
+        confirmButtonText={deleteModal.confirmButtonText}
+      />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700">Target Level:</label>
-                  <select
-                    value={courseForm.level}
-                    onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
-                  >
-                    <option value="Beginner Level">Beginner Level</option>
-                    <option value="Intermediate Level">Intermediate Level</option>
-                    <option value="Advanced Level">Advanced Level</option>
-                    <option value="Comprehensive (All Levels)">Comprehensive (All Levels)</option>
-                    <option value="Executive Level">Executive Level</option>
-                  </select>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="font-semibold text-slate-700">Duration:</label>
-                    <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomDuration(false);
-                          setCourseForm(prev => ({
-                            ...prev,
-                            duration: ['4 Weeks', '6 Weeks', '8 Weeks', '10 Weeks', '12 Weeks', '16 Weeks', 'Self-Paced (1–3 Months)', 'Self-Paced (3–6 Months)'].includes(prev.duration) && prev.duration ? prev.duration : '8 Weeks'
-                          }));
-                        }}
-                        className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                          !isCustomDuration
-                            ? 'bg-white text-[#0056D2] shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        List
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomDuration(true);
-                          setCourseForm(prev => ({ ...prev, duration: '' }));
-                        }}
-                        className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                          isCustomDuration
-                            ? 'bg-white text-[#0056D2] shadow-xs'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        + Custom
-                      </button>
-                    </div>
-                  </div>
-
-                  {!isCustomDuration ? (
-                    <select
-                      value={courseForm.duration}
-                      onChange={(e) => {
-                        if (e.target.value === '__custom__') {
-                          setIsCustomDuration(true);
-                          setCourseForm({ ...courseForm, duration: '' });
-                        } else {
-                          setCourseForm({ ...courseForm, duration: e.target.value });
-                        }
-                      }}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-[#0056D2] focus:bg-white text-xs"
-                    >
-                      <option value="4 Weeks">4 Weeks</option>
-                      <option value="6 Weeks">6 Weeks</option>
-                      <option value="8 Weeks">8 Weeks</option>
-                      <option value="10 Weeks">10 Weeks</option>
-                      <option value="12 Weeks">12 Weeks</option>
-                      <option value="16 Weeks">16 Weeks</option>
-                      <option value="Self-Paced (1–3 Months)">Self-Paced (1–3 Months)</option>
-                      <option value="Self-Paced (3–6 Months)">Self-Paced (3–6 Months)</option>
-                      <option value="__custom__">Custom Duration...</option>
-                    </select>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        required
-                        autoFocus
-                        placeholder="e.g. 5 Weeks, 6 Months"
-                        value={courseForm.duration}
-                        onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
-                        className="flex-1 p-2.5 bg-white border border-[#0056D2] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#0056D2] text-xs"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomDuration(false);
-                          setCourseForm({ ...courseForm, duration: '8 Weeks' });
-                        }}
-                        className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 flex items-center gap-1 transition-colors whitespace-nowrap shadow-xs"
-                        title="Switch back to dropdown list"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-                        List
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNewCourseOpen(false);
-                    setIsCustomDomain(false);
-                    setIsCustomDuration(false);
-                  }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] text-white font-bold rounded-xl shadow-xs transition-colors"
-                >
-                  Publish Program
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: Add Module */}
-      {isNewModuleOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">
-              Add Module: {selectedCourseForModule?.title}
-            </h3>
-            <form onSubmit={handleCreateModule} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700">Module Title:</label>
-                <input
-                  type="text"
-                  required
-                  value={moduleTitle}
-                  onChange={(e) => setModuleTitle(e.target.value)}
-                  placeholder="Enter module title"
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsNewModuleOpen(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl"
-                >
-                  Save Module
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: Add Lesson */}
-      {isNewLessonOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Add Curriculum Lecture</h3>
-            <form onSubmit={handleCreateLesson} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700">Lecture Title:</label>
-                <input
-                  type="text"
-                  required
-                  value={lessonForm.title}
-                  onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                  placeholder="Enter lecture title"
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700">Format:</label>
-                  <select
-                    value={lessonForm.content_type}
-                    onChange={(e) => setLessonForm({ ...lessonForm, content_type: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="video">Video Lecture</option>
-                    <option value="article">Technical Reading</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700">Duration:</label>
-                  <input
-                    type="text"
-                    value={lessonForm.duration}
-                    onChange={(e) => setLessonForm({ ...lessonForm, duration: e.target.value })}
-                    placeholder="Duration (e.g. 25 min)"
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-              </div>
-
-              {lessonForm.content_type === 'video' && (
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="font-semibold text-slate-700">Video Stream or YouTube / Vimeo URL:</label>
-                    <span className="text-[10px] text-slate-400">YouTube, Vimeo, MP4 supported</span>
-                  </div>
-                  <input
-                    type="url"
-                    value={lessonForm.media_url}
-                    onChange={(e) => setLessonForm({ ...lessonForm, media_url: e.target.value })}
-                    placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="font-semibold text-slate-700">Technical Foundation Notes:</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={lessonForm.content_body}
-                  onChange={(e) => setLessonForm({ ...lessonForm, content_body: e.target.value })}
-                  placeholder="Enter technical lecture notes, reference architecture, and documentation..."
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="preview"
-                  checked={lessonForm.is_free_preview}
-                  onChange={(e) => setLessonForm({ ...lessonForm, is_free_preview: e.target.checked })}
-                  className="rounded text-slate-900"
-                />
-                <label htmlFor="preview" className="font-semibold text-slate-700">
-                  Enable Free Preview Access for prospective applicants
-                </label>
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsNewLessonOpen(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-slate-900 text-white font-bold rounded-xl"
-                >
-                  Save Lecture
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: Add Task */}
-      {isNewTaskOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Add Evaluated Project Deliverable</h3>
-            <form onSubmit={handleCreateTask} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700">Project Title:</label>
-                <input
-                  type="text"
-                  required
-                  value={taskForm.title}
-                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                  placeholder="Enter deliverable title"
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700">Passing Score (out of 100):</label>
-                  <input
-                    type="number"
-                    value={taskForm.passing_score}
-                    onChange={(e) => setTaskForm({ ...taskForm, passing_score: parseInt(e.target.value) || 75 })}
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700">Deliverable Format:</label>
-                  <select
-                    value={taskForm.task_type}
-                    onChange={(e) => setTaskForm({ ...taskForm, task_type: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="text_response">Technical Defense Document</option>
-                    <option value="file_upload">Repository / Benchmark Artifact</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700">Rubric & Instructions:</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={taskForm.instructions}
-                  onChange={(e) => setTaskForm({ ...taskForm, instructions: e.target.value })}
-                  placeholder="Specify evaluation criteria, expected benchmarks, and submission requirements..."
-                  className="w-full mt-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsNewTaskOpen(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 font-semibold rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl"
-                >
-                  Save Deliverable
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 5: Grade Submission */}
+      {/* MODAL 6: Grade Submission Modal */}
       {gradingModalSubmission && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 my-auto">
             <h3 className="text-base font-bold text-slate-900">
               Evaluate Deliverable: {gradingModalSubmission.student_name}
             </h3>
 
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-2">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
               <span className="font-bold text-slate-900">Student Technical Submission:</span>
               <p className="whitespace-pre-wrap text-slate-700 leading-relaxed">{gradingModalSubmission.submission_text}</p>
               {gradingModalSubmission.attachment_url && (
-                <p className="text-indigo-600 font-semibold pt-1">
+                <p className="text-blue-600 font-semibold pt-1 truncate">
                   Artifact: <a href={gradingModalSubmission.attachment_url} target="_blank" rel="noreferrer" className="underline">{gradingModalSubmission.attachment_url}</a>
                 </p>
               )}
