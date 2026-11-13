@@ -47,6 +47,8 @@ jobs:
           # Remove tests and local config to keep deployment secure
           rm -rf deploy_payload/api/tests
           rm -f deploy_payload/api/config/env.php
+          # Create deployment verification marker
+          echo "{\"commit\":\"${GITHUB_SHA}\",\"deployed_at\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\",\"build\":\"production\"}" > deploy_payload/version.json
 
       - name: Deploy to Hostinger via Native Python FTP
         env:

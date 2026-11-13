@@ -23,11 +23,23 @@ Options -Indexes
   RewriteRule ^ index.html [L]
 </IfModule>
 
-# Security Headers
+# Security Headers & Cache-Busting Control
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set X-XSS-Protection "1; mode=block"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Prevent CDN / proxy caching of SPA entrypoint and API responses
+  <FilesMatch "^(index\.html|version\.json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  # Cache static assets with unique build hashes for maximum performance
+  <FilesMatch "\.(js|css|webp|png|jpg|svg|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
 </IfModule>
 

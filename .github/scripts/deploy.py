@@ -29,23 +29,28 @@ def main():
         print(f'Notice: nlst() error: {e}')
     print(f'FTP root listing: {nlst}')
 
+    # Normalize listing to basenames to eliminate any leading slash or path variations
+    basenames = [x.rstrip('/').split('/')[-1] for x in nlst]
+    print(f'FTP root basenames: {basenames}')
+
     # Auto-resolve correct document root
     # Priority 1: User is already chrooted into web root (index.html or assets present)
     target_dir = ''
-    if 'index.html' in nlst or 'assets' in nlst:
+    if 'index.html' in basenames or 'assets' in basenames:
         target_dir = ''
         print('-> Target resolved to FTP root (chrooted web root): /')
-    elif 'lms' in nlst:
+    elif 'lms' in basenames:
         target_dir = 'lms'
         print('-> Target resolved to subfolder: /lms')
-    elif 'public_html' in nlst:
+    elif 'public_html' in basenames:
         try:
             p_nlst = ftp.nlst('public_html')
-            target_dir = 'public_html/lms' if any('lms' in x for x in p_nlst) else 'public_html'
+            p_basenames = [x.rstrip('/').split('/')[-1] for x in p_nlst]
+            target_dir = 'public_html/lms' if any('lms' in x for x in p_basenames) else 'public_html'
         except Exception:
             target_dir = 'public_html/lms'
         print(f'-> Target resolved inside public_html: /{target_dir}')
-    elif 'domains' in nlst:
+    elif 'domains' in basenames:
         target_dir = 'domains/aaroha-inc.com/public_html/lms'
         print(f'-> Target resolved to domains path: /{target_dir}')
     elif raw_dir:
@@ -99,7 +104,7 @@ def main():
                 if item == 'env.php':
                     continue
                 file_size = os.path.getsize(local_full)
-                force_upload = item in ('index.html', '.htaccess')
+                force_upload = item in ('index.html', '.htaccess', 'version.json')
 
                 if not force_upload and item in remote_file_map and remote_file_map[item] == file_size:
                     print(f'  [CACHE HIT] {child_rel} (unchanged, {file_size} bytes)')

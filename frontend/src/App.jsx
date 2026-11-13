@@ -418,7 +418,7 @@ export default function App() {
       console.warn('API enrollment sync skipped (or offline):', err.message);
     }
 
-    const alreadyEnrolled = enrollments.some(e => (e.course_id === courseId || e.id === courseId) && (e.user_id === userId || !e.user_id));
+    const alreadyEnrolled = enrollments.some(e => e.course_id === courseId && (e.user_id === userId || !e.user_id));
     if (!alreadyEnrolled) {
       const newEnrollment = {
         id: Date.now(),

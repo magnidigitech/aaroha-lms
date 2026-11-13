@@ -18,7 +18,11 @@ export default function StudentPortalView({
 
   // 1. Filter courses where the user has an active enrollment
   const enrolledCourses = courses.filter(course => 
-    enrollments.some(e => e.course_id === course.id && e.status === 'active')
+    enrollments.some(e => 
+      e.course_id === course.id && 
+      e.status === 'active' && 
+      (currentUser ? e.user_id === currentUser.id : true)
+    )
   );
 
   // 2. Helper to compute progress and find next lecture for a course

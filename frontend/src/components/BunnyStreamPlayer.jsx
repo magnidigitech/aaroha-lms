@@ -202,6 +202,17 @@ export default function BunnyStreamPlayer({
     return () => clearInterval(interval);
   }, [expires, onExpire]);
 
+  // Timeout guard: if Bunny stream fails to report ready within 7 seconds, dismiss loading
+  useEffect(() => {
+    if (!isLoading) return;
+    const timer = setTimeout(() => {
+      if (!isPlayerReadyRef.current) {
+        setIsLoading(false);
+      }
+    }, 7000);
+    return () => clearTimeout(timer);
+  }, [isLoading, videoId]);
+
   const handleIframeLoad = () => {
     // Iframe DOM loaded; player readiness will confirm via Player.js 'ready' message
     setIsLoading(false);

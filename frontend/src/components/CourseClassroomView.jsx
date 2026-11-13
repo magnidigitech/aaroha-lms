@@ -24,13 +24,17 @@ export default function CourseClassroomView({
 }) {
   // Flatten all lessons with their parent module info
   const allLessons = (course?.modules || []).flatMap((mod, modIdx) => 
-    (mod.lessons || []).map((lesson) => ({
-      ...lesson,
-      video_url: lesson.video_url || lesson.media_url,
-      moduleIndex: modIdx,
-      moduleTitle: mod.title,
-      overallIndex: 0
-    }))
+    (mod.lessons || []).map((lesson) => {
+      const normalizedMedia = lesson.media_url || lesson.video_url || lesson.bunny_video_id || '';
+      return {
+        ...lesson,
+        media_url: normalizedMedia,
+        video_url: normalizedMedia,
+        moduleIndex: modIdx,
+        moduleTitle: mod.title,
+        overallIndex: 0
+      };
+    })
   ).map((lesson, idx) => ({ ...lesson, overallIndex: idx }));
 
   // Pick initial lesson: first incomplete if enrolled, or first free preview
@@ -200,16 +204,18 @@ export default function CourseClassroomView({
     setTimeout(() => setSubmitSuccess(false), 4000);
   };
 
+  const currentMedia = activeLesson?.media_url || activeLesson?.video_url || activeLesson?.bunny_video_id || '';
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-[#071322] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* Top Header Bar */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+      <header className="bg-[#0B192C] border-b border-[#1b3d63] px-4 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-lg">
         {/* Left: Back to Home Button */}
         <button
           onClick={onBack}
-          className="bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-300 flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-97"
+          className="bg-[#132A4A] hover:bg-[#1A3860] text-slate-200 hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border border-[#23456F] flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-97"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-600" />
+          <ArrowLeft className="w-4 h-4 text-slate-300" />
           <span>Back To Home</span>
         </button>
 
@@ -234,14 +240,14 @@ export default function CourseClassroomView({
         {/* Right: Enrollment CTA or Learner Account Badge */}
         <div className="flex items-center gap-3">
           {isEnrolled ? (
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs text-emerald-800 font-semibold shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-700 px-3 py-1.5 rounded-xl text-xs text-emerald-300 font-semibold shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="hidden sm:inline">Enrolled Candidate</span>
             </div>
           ) : (
             <button
               onClick={() => onEnroll(course)}
-              className="bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-97 cursor-pointer"
+              className="bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-97 cursor-pointer"
             >
               <Award className="w-4 h-4" />
               <span>Enroll in Program</span>
@@ -249,20 +255,20 @@ export default function CourseClassroomView({
           )}
 
           {currentUser ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <div className="flex items-center gap-2 pl-2 border-l border-[#1b3d63]">
               <img
                 src={currentUser.avatar}
                 alt={currentUser.full_name}
-                className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/30"
+                className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50"
               />
-              <span className="text-xs font-semibold text-slate-700 hidden md:inline">
+              <span className="text-xs font-semibold text-slate-200 hidden md:inline">
                 {currentUser.full_name.split(' ')[0]}
               </span>
             </div>
           ) : (
             <button
               onClick={() => onEnroll(course)}
-              className="text-xs text-slate-600 hover:text-slate-900 font-semibold px-2 py-1 transition-colors"
+              className="text-xs text-slate-300 hover:text-white font-semibold px-2 py-1 transition-colors"
             >
               Sign In
             </button>
@@ -281,18 +287,18 @@ export default function CourseClassroomView({
             <div className="flex items-center gap-2 text-xs font-medium flex-wrap">
               <span 
                 onClick={onBack}
-                className="text-[#0056D2] font-bold hover:underline cursor-pointer transition-colors"
+                className="text-emerald-400 font-bold hover:underline cursor-pointer transition-colors"
               >
                 {course.title}
               </span>
-              <span className="text-slate-400 font-normal">›</span>
-              <span className="text-slate-800 font-semibold truncate max-w-xl">
+              <span className="text-slate-500 font-normal">›</span>
+              <span className="text-white font-semibold truncate max-w-xl">
                 {activeLesson?.title || 'Program Foundations'}
               </span>
             </div>
 
             {/* Main Video Player Container (16:9 Cinema Box) */}
-            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-200 shadow-md">
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-[#1b3d63] shadow-2xl">
               {canPlayLesson(activeLesson) ? (
                 playbackSession?.provider === 'bunny_stream' ? (
                   <BunnyStreamPlayer
@@ -310,7 +316,7 @@ export default function CourseClassroomView({
                       }
                     }}
                   />
-                ) : isBunnyStreamVideo(activeLesson.video_url) ? (
+                ) : isBunnyStreamVideo(currentMedia) ? (
                   playbackLoading ? (
                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
                       <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3" />
@@ -319,7 +325,7 @@ export default function CourseClassroomView({
                   ) : (
                     <BunnyStreamPlayer
                       libraryId={playbackSession?.library_id || '807954'}
-                      videoId={playbackSession?.video_id || extractBunnyVideoId(activeLesson.video_url)}
+                      videoId={playbackSession?.video_id || extractBunnyVideoId(currentMedia)}
                       token={playbackSession?.token}
                       expires={playbackSession?.expires}
                       embedUrl={playbackSession?.embed_url}
@@ -333,24 +339,24 @@ export default function CourseClassroomView({
                       }}
                     />
                   )
-                ) : isDirectVideoFile(activeLesson.video_url) ? (
+                ) : isDirectVideoFile(currentMedia) ? (
                   <video
-                    src={activeLesson.video_url}
+                    src={currentMedia}
                     controls
                     autoPlay
                     className="w-full h-full object-cover"
                   />
-                ) : activeLesson.video_url ? (
+                ) : currentMedia ? (
                   <iframe
                     key={activeLesson?.id}
-                    src={getEmbedVideoUrl(activeLesson.video_url)}
+                    src={getEmbedVideoUrl(currentMedia)}
                     title={activeLesson.title}
                     className="w-full h-full border-0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   />
                 ) : (
-                  <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center p-8 text-center text-slate-300">
+                  <div className="w-full h-full bg-[#081526] flex flex-col items-center justify-center p-8 text-center text-slate-300">
                     <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3 shadow-lg">
                       <BookOpen className="w-7 h-7" />
                     </div>
@@ -377,7 +383,7 @@ export default function CourseClassroomView({
                   </div>
                   <button
                     onClick={() => onEnroll(course)}
-                    className="bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
+                    className="bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
                   >
                     <Award className="w-4 h-4" />
                     <span>Enroll Now to Unlock All Lectures & Defense Labs</span>
@@ -387,7 +393,7 @@ export default function CourseClassroomView({
             </div>
 
             {/* Quick Actions Bar (Below Video Player) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 py-2 border-b border-slate-200 text-xs text-slate-600">
+            <div className="flex flex-wrap items-center justify-between gap-3 py-2 border-b border-[#1b3d63] text-xs text-slate-300">
               {/* Left Buttons: Like, Views, Report, Duration */}
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Like Button */}
@@ -395,33 +401,33 @@ export default function CourseClassroomView({
                   onClick={handleLike}
                   className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-semibold ${
                     isLiked
-                      ? 'bg-blue-50 border-blue-300 text-[#0056D2]'
-                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                      ? 'bg-blue-600/30 border-blue-400 text-[#38bdf8]'
+                      : 'bg-[#0F223A] hover:bg-[#163356] border-[#1b3d63] text-slate-300'
                   }`}
                   title="Like this lecture"
                 >
-                  <ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-current text-[#0056D2]' : 'text-slate-500'}`} />
+                  <ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-current text-[#38bdf8]' : 'text-slate-400'}`} />
                   <span>{likeCount}</span>
                 </button>
 
                 {/* View Count */}
-                <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                  <Eye className="w-3.5 h-3.5 text-slate-500" />
+                <div className="bg-[#0F223A] border border-[#1b3d63] px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs text-slate-300 font-medium">
+                  <Eye className="w-3.5 h-3.5 text-slate-400" />
                   <span>{course.enrolled_count ? (course.enrolled_count * 2 + 180).toLocaleString() : '604'}</span>
                 </div>
 
                 {/* Report Button */}
                 <button
                   onClick={() => alert('Issue reported to curriculum faculty.')}
-                  className="bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-xs text-slate-600 font-medium"
+                  className="bg-[#0F223A] hover:bg-[#163356] border border-[#1b3d63] px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-xs text-slate-300 font-medium"
                 >
-                  <Flag className="w-3.5 h-3.5 text-slate-500" />
+                  <Flag className="w-3.5 h-3.5 text-slate-400" />
                   <span>Report</span>
                 </button>
 
                 {/* Duration Pill */}
-                <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                  <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <div className="bg-[#0F223A] border border-[#1b3d63] px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs text-slate-300 font-medium">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
                   <span>{activeLesson?.duration || '15 min'}</span>
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                 </div>
@@ -434,8 +440,8 @@ export default function CourseClassroomView({
                     onClick={() => handleToggleComplete(activeLesson.id)}
                     className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
                       isLessonCompleted(activeLesson.id)
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-600'
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                     }`}
                   >
                     <CheckCircle2 className="w-4 h-4" />
@@ -446,7 +452,7 @@ export default function CourseClassroomView({
                 {hasPrevLesson && (
                   <button
                     onClick={handlePrevLesson}
-                    className="bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+                    className="bg-[#0F223A] hover:bg-[#163356] border border-[#1b3d63] px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 transition-colors cursor-pointer"
                     title="Previous Lesson"
                   >
                     Previous
@@ -456,7 +462,7 @@ export default function CourseClassroomView({
                 {hasNextLesson && (
                   <button
                     onClick={handleNextLesson}
-                    className="bg-[#0056D2] hover:bg-[#00419e] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    className="bg-[#0056D2] hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                     title="Next Lesson"
                   >
                     <span>Next Lesson</span>
@@ -468,24 +474,24 @@ export default function CourseClassroomView({
 
             {/* Big Prominent Lesson Heading */}
             <div className="pt-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-snug">
                 {activeLesson?.title || course.title}
               </h1>
-              <p className="text-xs text-slate-500 mt-1">
-                Part of <span className="text-slate-800 font-semibold">{course.title}</span> · Accredited by Aaroha Institute
+              <p className="text-xs text-slate-400 mt-1">
+                Part of <span className="text-slate-200 font-semibold">{course.title}</span> · Accredited by Aaroha Institute
               </p>
             </div>
 
             {/* Lesson Content / Tabs Section */}
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs mt-4">
+            <div className="bg-[#0B1A2F] rounded-2xl border border-[#1b3d63] overflow-hidden shadow-lg mt-4">
               {/* Tab Navigation */}
-              <div className="flex items-center gap-2 px-4 pt-3 border-b border-slate-200 bg-slate-50/70 text-xs font-bold overflow-x-auto scrollbar-none">
+              <div className="flex items-center gap-2 px-4 pt-3 border-b border-[#1b3d63] bg-[#081526]/80 text-xs font-bold overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setActiveTab('notes')}
                   className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'notes'
-                      ? 'border-[#0056D2] text-[#0056D2]'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                      ? 'border-[#0056D2] text-[#38bdf8]'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -497,8 +503,8 @@ export default function CourseClassroomView({
                     onClick={() => setActiveTab('tasks')}
                     className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                       activeTab === 'tasks'
-                        ? 'border-[#0056D2] text-[#0056D2]'
-                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                        ? 'border-[#0056D2] text-[#38bdf8]'
+                        : 'border-transparent text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     <Award className="w-3.5 h-3.5" />
@@ -510,8 +516,8 @@ export default function CourseClassroomView({
                   onClick={() => setActiveTab('instructor')}
                   className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'instructor'
-                      ? 'border-[#0056D2] text-[#0056D2]'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                      ? 'border-[#0056D2] text-[#38bdf8]'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <User className="w-3.5 h-3.5" />
@@ -521,20 +527,20 @@ export default function CourseClassroomView({
 
               {/* Tab 1: Notes & Overview */}
               {activeTab === 'notes' && (
-                <div className="p-5 space-y-4 text-xs text-slate-600 leading-relaxed">
+                <div className="p-5 space-y-4 text-xs text-slate-300 leading-relaxed">
                   <div className="space-y-2">
-                    <h4 className="text-sm font-bold text-slate-900">Summary & Learning Objectives</h4>
-                    <p>
-                      {activeLesson?.summary || course.description}
+                    <h4 className="text-sm font-bold text-white">Summary & Learning Objectives</h4>
+                    <p className="text-slate-300">
+                      {activeLesson?.content_body || activeLesson?.summary || course.description}
                     </p>
                   </div>
 
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                    <h5 className="font-bold text-slate-800 text-xs flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-[#0056D2]" />
+                  <div className="bg-[#0e213b] p-4 rounded-xl border border-[#1b3d63] space-y-2">
+                    <h5 className="font-bold text-white text-xs flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-[#38bdf8]" />
                       <span>Production Takeaways & Applied Systems Architecture</span>
                     </h5>
-                    <ul className="list-disc list-inside space-y-1 text-slate-600">
+                    <ul className="list-disc list-inside space-y-1 text-slate-300">
                       <li>Understand key design trade-offs and edge failure modes covered in this lecture.</li>
                       <li>Review benchmark implementations aligned with production distributed engineering standards.</li>
                       <li>Verify zero-trust security postures and telemetry observability patterns.</li>
@@ -549,20 +555,20 @@ export default function CourseClassroomView({
                   {currentModuleTasks.map(task => {
                     const submission = (taskSubmissions || []).find(s => s.task_id === task.id);
                     return (
-                      <div key={task.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                      <div key={task.id} className="bg-[#0e213b] p-4 rounded-xl border border-[#1b3d63] space-y-3">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800">
                               Module Evaluated Defense
                             </span>
-                            <h4 className="text-sm font-bold text-slate-900 mt-1">{task.title}</h4>
-                            <p className="text-slate-600 text-xs mt-1 leading-relaxed">{task.description}</p>
+                            <h4 className="text-sm font-bold text-white mt-1">{task.title}</h4>
+                            <p className="text-slate-300 text-xs mt-1 leading-relaxed">{task.description}</p>
                           </div>
                           {submission && (
                             <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md border flex-shrink-0 ${
                               submission.status === 'graded' 
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                                : 'bg-amber-50 text-amber-800 border-amber-200'
+                                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800' 
+                                : 'bg-amber-950/80 text-amber-300 border-amber-800'
                             }`}>
                               {submission.status === 'graded' ? 'Accredited / Passed' : 'Pending Review'}
                             </span>
@@ -571,38 +577,38 @@ export default function CourseClassroomView({
 
                         {/* Submission Form (Enrolled Students Only) */}
                         {isEnrolled ? (
-                          <form onSubmit={(e) => handleTaskSubmit(e, task.id)} className="space-y-3 pt-2 border-t border-slate-200">
+                          <form onSubmit={(e) => handleTaskSubmit(e, task.id)} className="space-y-3 pt-2 border-t border-[#1b3d63]">
                             <div>
-                              <label className="font-semibold text-slate-700 block mb-1">Defense Solution Notes / Implementation Rationale:</label>
+                              <label className="font-semibold text-slate-300 block mb-1">Defense Solution Notes / Implementation Rationale:</label>
                               <textarea
                                 rows={3}
                                 required
                                 value={submissionText}
                                 onChange={(e) => setSubmissionText(e.target.value)}
                                 placeholder="Detail your architecture choices, benchmarks, and edge failover handling..."
-                                className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-blue-500"
+                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                             <div>
-                              <label className="font-semibold text-slate-700 block mb-1">Artifact / Repository Link:</label>
+                              <label className="font-semibold text-slate-300 block mb-1">Artifact / Repository Link:</label>
                               <input
                                 type="url"
                                 value={attachmentUrl}
                                 onChange={(e) => setAttachmentUrl(e.target.value)}
                                 placeholder="https://github.com/org/repo or https://aaroha-inc.com/artifacts/rfc.pdf"
-                                className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-blue-500"
+                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                             <div className="flex items-center justify-between pt-1">
                               {submitSuccess && (
-                                <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
-                                  <Check className="w-4 h-4 text-emerald-600" /> Solution submitted for faculty review.
+                                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                                  <Check className="w-4 h-4 text-emerald-400" /> Solution submitted for faculty review.
                                 </span>
                               )}
                               <button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="ml-auto bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                                className="ml-auto bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                               >
                                 <Send className="w-3.5 h-3.5" />
                                 <span>{isSubmitting ? 'Submitting...' : 'Submit Assignment'}</span>
@@ -610,11 +616,11 @@ export default function CourseClassroomView({
                             </div>
                           </form>
                         ) : (
-                          <div className="p-3 bg-blue-50/70 rounded-lg border border-blue-200 flex items-center justify-between text-xs">
-                            <span className="text-slate-700">Enroll to submit coursework and receive verified faculty evaluations.</span>
+                          <div className="p-3 bg-blue-950/40 rounded-lg border border-blue-900 flex items-center justify-between text-xs">
+                            <span className="text-slate-300">Enroll to submit coursework and receive verified faculty evaluations.</span>
                             <button
                               onClick={() => onEnroll(course)}
-                              className="text-[#0056D2] font-bold hover:underline ml-3 flex-shrink-0"
+                              className="text-[#38bdf8] font-bold hover:underline ml-3 flex-shrink-0"
                             >
                               Enroll Now
                             </button>
@@ -630,36 +636,36 @@ export default function CourseClassroomView({
               {activeTab === 'instructor' && (
                 <div className="p-5 space-y-4 text-xs">
                   {course.instructor && (
-                    <div className="flex items-start gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className="flex items-start gap-4 bg-[#0e213b] p-4 rounded-xl border border-[#1b3d63]">
                       <img
                         src={course.instructor.avatar}
                         alt={course.instructor.name}
-                        className="w-14 h-14 rounded-full object-cover ring-2 ring-blue-500/30 flex-shrink-0"
+                        className="w-14 h-14 rounded-full object-cover ring-2 ring-blue-500/50 flex-shrink-0"
                       />
                       <div className="space-y-1">
-                        <h4 className="text-sm font-bold text-slate-900">{course.instructor.name}</h4>
-                        <p className="text-[#0056D2] font-semibold">{course.instructor.title}</p>
-                        <p className="text-slate-600">{course.instructor.department}</p>
+                        <h4 className="text-sm font-bold text-white">{course.instructor.name}</h4>
+                        <p className="text-[#38bdf8] font-semibold">{course.instructor.title}</p>
+                        <p className="text-slate-300">{course.instructor.department}</p>
                       </div>
                     </div>
                   )}
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <div className="text-slate-500 text-[10px] uppercase font-bold">Target Level</div>
-                      <div className="text-slate-900 font-bold text-xs mt-1">{course.level || 'Principal Systems'}</div>
+                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
+                      <div className="text-slate-400 text-[10px] uppercase font-bold">Target Level</div>
+                      <div className="text-white font-bold text-xs mt-1">{course.level || 'Principal Systems'}</div>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <div className="text-slate-500 text-[10px] uppercase font-bold">Duration</div>
-                      <div className="text-slate-900 font-bold text-xs mt-1">{course.duration || '8 Weeks'}</div>
+                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
+                      <div className="text-slate-400 text-[10px] uppercase font-bold">Duration</div>
+                      <div className="text-white font-bold text-xs mt-1">{course.duration || '8 Weeks'}</div>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <div className="text-slate-500 text-[10px] uppercase font-bold">Total Lessons</div>
-                      <div className="text-slate-900 font-bold text-xs mt-1">{totalLessonsCount} Lectures</div>
+                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
+                      <div className="text-slate-400 text-[10px] uppercase font-bold">Total Lessons</div>
+                      <div className="text-white font-bold text-xs mt-1">{totalLessonsCount} Lectures</div>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <div className="text-slate-500 text-[10px] uppercase font-bold">Accreditation</div>
-                      <div className="text-emerald-700 font-bold text-xs mt-1">Verified Certificate</div>
+                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
+                      <div className="text-slate-400 text-[10px] uppercase font-bold">Accreditation</div>
+                      <div className="text-emerald-400 font-bold text-xs mt-1">Verified Certificate</div>
                     </div>
                   </div>
                 </div>
@@ -673,19 +679,19 @@ export default function CourseClassroomView({
             
             {/* Course Title */}
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
+              <h2 className="text-xl font-extrabold text-white tracking-tight leading-tight">
                 {course.title}
               </h2>
             </div>
 
             {/* Course Progress Section */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
                 <span>Course Progress</span>
-                <span className="font-bold text-emerald-600">{progressPct}% Completed</span>
+                <span className="font-bold text-emerald-400">{progressPct}% Completed</span>
               </div>
               {/* Progress Bar Track & Vibrant Green Fill */}
-              <div className="w-full h-2 rounded-full bg-slate-200 border border-slate-300/80 overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-[#071322] border border-[#1b3d63] overflow-hidden">
                 <div 
                   className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${Math.max(progressPct, isEnrolled ? 4 : 0)}%` }}
@@ -694,7 +700,7 @@ export default function CourseClassroomView({
             </div>
 
             {/* Module Accordion Playlist Card */}
-            <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-xs space-y-4">
+            <div className="rounded-2xl bg-[#0B1A2F] border border-[#1b3d63] p-4 shadow-xl space-y-4">
               {(course.modules || []).map((mod, modIdx) => {
                 const isOpen = !!expandedModules[modIdx];
                 const modLessons = mod.lessons || [];
@@ -705,7 +711,7 @@ export default function CourseClassroomView({
                     {/* Module Accordion Header */}
                     <button
                       onClick={() => toggleModule(modIdx)}
-                      className="w-full flex items-center justify-between text-left p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group"
+                      className="w-full flex items-center justify-between text-left p-2.5 rounded-xl hover:bg-[#132d4e] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Blue Module Circle Icon */}
@@ -713,39 +719,45 @@ export default function CourseClassroomView({
                           {modIdx + 1}
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                          <h3 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors truncate">
                             {mod.title.startsWith('Module') ? mod.title : `Module ${modIdx + 1}: ${mod.title}`}
                           </h3>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
+                          <p className="text-[11px] text-slate-400 mt-0.5">
                             {modLessonsCount} Lessons · {mod.duration || '2 hr 15 min'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-slate-400 group-hover:text-slate-600 transition-colors pl-2 flex-shrink-0">
+                      <div className="text-slate-400 group-hover:text-slate-200 transition-colors pl-2 flex-shrink-0">
                         {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </div>
                     </button>
 
                     {/* Lesson Timeline (When Expanded) */}
                     {isOpen && (
-                      <div className="relative pl-6 space-y-2.5 before:absolute before:left-[17px] before:top-2 before:bottom-3 before:w-0.5 before:bg-slate-200">
+                      <div className="relative pl-6 space-y-2.5 before:absolute before:left-[17px] before:top-2 before:bottom-3 before:w-0.5 before:bg-[#1b3d63]">
                         {modLessons.map((lesson) => {
                           const isCurrent = activeLesson?.id === lesson.id;
                           const completed = isLessonCompleted(lesson.id);
                           const locked = !canPlayLesson(lesson);
-                          const thumb = getVideoThumbnail(lesson.video_url, course.thumbnail_url);
+                          const lessonMedia = lesson.media_url || lesson.video_url || lesson.bunny_video_id || '';
+                          const thumb = getVideoThumbnail(lessonMedia, course.thumbnail_url);
 
                           return (
                             <div
                               key={lesson.id}
                               onClick={() => {
-                                setActiveLesson(lesson);
+                                const full = allLessons.find(l => l.id === lesson.id) || {
+                                  ...lesson,
+                                  video_url: lessonMedia,
+                                  media_url: lessonMedia
+                                };
+                                setActiveLesson(full);
                               }}
                               className={`relative group rounded-xl p-2 flex items-center gap-3 transition-all cursor-pointer select-none ${
                                 isCurrent
-                                  ? 'bg-blue-50/90 border-2 border-[#0056D2] shadow-xs'
-                                  : 'bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80'
+                                  ? 'bg-[#132d4e] border-2 border-[#0056D2] shadow-md'
+                                  : 'bg-[#0F223A]/80 hover:bg-[#153154] border border-[#1b3d63]'
                               }`}
                             >
                               {/* Timeline Node on the Left Vertical Line */}
@@ -755,16 +767,16 @@ export default function CourseClassroomView({
                                     <Check className="w-3 h-3 stroke-[3]" />
                                   </div>
                                 ) : isCurrent ? (
-                                  <div className="w-5 h-5 rounded-full bg-blue-600 ring-4 ring-blue-100 flex items-center justify-center shadow-xs">
+                                  <div className="w-5 h-5 rounded-full bg-blue-600 ring-4 ring-blue-900/60 flex items-center justify-center shadow-xs">
                                     <Play className="w-2.5 h-2.5 text-white fill-current" />
                                   </div>
                                 ) : (
-                                  <div className="w-4 h-4 rounded-full bg-white border-2 border-slate-300"></div>
+                                  <div className="w-4 h-4 rounded-full bg-[#0B1A2F] border-2 border-slate-600"></div>
                                 )}
                               </div>
 
                               {/* 16:9 Thumbnail Preview */}
-                              <div className="relative w-16 h-10 sm:w-20 sm:h-11 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0">
+                              <div className="relative w-16 h-10 sm:w-20 sm:h-11 rounded-lg overflow-hidden bg-slate-900 border border-[#1b3d63] flex-shrink-0">
                                 {thumb ? (
                                   <img
                                     src={thumb}
@@ -772,19 +784,19 @@ export default function CourseClassroomView({
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                                   />
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-slate-200 text-slate-500">
+                                  <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400">
                                     <Play className="w-4 h-4" />
                                   </div>
                                 )}
                                 
                                 {locked && (
-                                  <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center text-amber-300">
+                                  <div className="absolute inset-0 bg-slate-950/75 flex items-center justify-center text-amber-300">
                                     <Lock className="w-3.5 h-3.5" />
                                   </div>
                                 )}
 
                                 {/* Duration Badge in Thumbnail */}
-                                <div className="absolute bottom-0.5 right-0.5 bg-black/75 text-[9px] font-bold px-1 py-0.2 rounded text-white">
+                                <div className="absolute bottom-0.5 right-0.5 bg-black/80 text-[9px] font-bold px-1 py-0.2 rounded text-white">
                                   {lesson.duration || '5m'}
                                 </div>
                               </div>
@@ -792,20 +804,20 @@ export default function CourseClassroomView({
                               {/* Lesson Title & Status */}
                               <div className="flex-1 min-w-0 space-y-0.5">
                                 <h4 className={`text-xs font-bold line-clamp-2 leading-snug transition-colors ${
-                                  isCurrent ? 'text-[#0056D2]' : 'text-slate-800 group-hover:text-slate-900'
+                                  isCurrent ? 'text-[#38bdf8]' : 'text-slate-200 group-hover:text-white'
                                 }`}>
                                   {lesson.title}
                                 </h4>
 
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   {Boolean(lesson.is_free_preview) ? (
-                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                    <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800">
                                       Free Preview
                                     </span>
                                   ) : null}
 
                                   {locked && (
-                                    <span className="text-[9px] font-medium text-slate-500 flex items-center gap-1">
+                                    <span className="text-[9px] font-medium text-slate-400 flex items-center gap-1">
                                       <Lock className="w-2.5 h-2.5 text-slate-400" /> Enrolled Only
                                     </span>
                                   )}
