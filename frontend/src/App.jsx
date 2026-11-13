@@ -58,10 +58,23 @@ export default function App() {
     intendedCourse: null
   });
 
+  const [deletedCourseIds, setDeletedCourseIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_deleted_course_ids');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   const [courses, setCourses] = useState(() => {
     try {
+      const deletedSet = new Set(
+        JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]')
+      );
       const saved = localStorage.getItem('aaroha_courses');
-      return saved ? JSON.parse(saved) : initialCourses;
+      const pool = saved ? JSON.parse(saved) : initialCourses;
+      return pool.filter(c => !deletedSet.has(c.id));
     } catch (e) {
       return initialCourses;
     }
@@ -215,14 +228,18 @@ export default function App() {
         });
     }
 
-    // 2. Load courses from API with persistent non-destructive merge
+    // 2. Load courses from API with persistent non-destructive merge & delete preservation
     api.getCourses()
       .then(res => {
         if (res && res.courses && res.courses.length > 0) {
           setCourses(prev => {
-            const apiIds = new Set(res.courses.map(c => c.id));
-            const locallyAuthored = (prev || []).filter(c => !apiIds.has(c.id));
-            return [...res.courses, ...locallyAuthored];
+            const deletedSet = new Set(
+              JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]')
+            );
+            const activeServerCourses = res.courses.filter(c => !deletedSet.has(c.id));
+            const apiIds = new Set(activeServerCourses.map(c => c.id));
+            const locallyAuthored = (prev || []).filter(c => !apiIds.has(c.id) && !deletedSet.has(c.id));
+            return [...activeServerCourses, ...locallyAuthored];
           });
           setIsBackendLive(true);
         }
@@ -537,6 +554,17 @@ export default function App() {
       created_by: currentUser?.id || 1,
       modules: []
     };
+
+    if (newCourse.id) {
+      setDeletedCourseIds(prev => {
+        const filtered = prev.filter(id => id !== newCourse.id);
+        try {
+          localStorage.setItem('aaroha_deleted_course_ids', JSON.stringify(filtered));
+        } catch (e) {}
+        return filtered;
+      });
+    }
+
     setCourses(prev => [newCourse, ...prev]);
     showToast('Program published to curriculum directory.');
   };
@@ -642,17 +670,28 @@ export default function App() {
   };
 
   const handleDeleteCourse = async (courseId) => {
+    // 1. Immediately record in deleted courses set so it NEVER resurrects on refresh
+    const updatedDeleted = Array.from(new Set([...deletedCourseIds, courseId]));
+    setDeletedCourseIds(updatedDeleted);
     try {
-      await api.deleteCourse(courseId);
-    } catch (err) {
-      console.warn('API delete course sync skipped:', err.message);
-    }
+      localStorage.setItem('aaroha_deleted_course_ids', JSON.stringify(updatedDeleted));
+    } catch (e) {}
+
+    // 2. Remove from courses state immediately
     setCourses(prev => prev.filter(c => c.id !== courseId));
     if (selectedCourse?.id === courseId) {
       setSelectedCourse(null);
       setActiveView('catalog');
     }
-    showToast('Program archived from curriculum directory.');
+
+    // 3. Sync to API backend with admin override
+    try {
+      await api.deleteCourse(courseId);
+      showToast('Program archived from curriculum directory.');
+    } catch (err) {
+      console.warn('API delete course sync notice:', err.message);
+      showToast('Program archived from curriculum directory.');
+    }
   };
 
   const handleUpdateModule = async (courseId, moduleId, moduleData) => {

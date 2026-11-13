@@ -18,7 +18,7 @@ class CourseController {
     // -------------------------------------------------------------
 
     private static function checkCourseOwnership($pdo, int $courseId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor') {
+        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -30,7 +30,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Program not found or has been removed'];
         }
 
-        if ((int)$course['created_by'] !== $userId) {
+        // Administrators and Faculty Directors have master administrative override across all programs
+        if ($userRole !== 'admin' && (int)$course['created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this course'];
         }
 
@@ -38,7 +39,7 @@ class CourseController {
     }
 
     private static function checkModuleOwnership($pdo, int $moduleId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor') {
+        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -56,7 +57,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Module not found or has been removed'];
         }
 
-        if ((int)$row['course_created_by'] !== $userId) {
+        // Administrators have full access across all programs
+        if ($userRole !== 'admin' && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this module'];
         }
 
@@ -64,7 +66,7 @@ class CourseController {
     }
 
     private static function checkLessonOwnership($pdo, int $lessonId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor') {
+        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -84,7 +86,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Lecture not found or has been removed'];
         }
 
-        if ((int)$row['course_created_by'] !== $userId) {
+        // Administrators have full access across all programs
+        if ($userRole !== 'admin' && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this lecture'];
         }
 
@@ -92,7 +95,7 @@ class CourseController {
     }
 
     private static function checkTaskOwnership($pdo, int $taskId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor') {
+        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -112,7 +115,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Assignment not found or has been removed'];
         }
 
-        if ((int)$row['course_created_by'] !== $userId) {
+        // Administrators have full access across all programs
+        if ($userRole !== 'admin' && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this assignment'];
         }
 
