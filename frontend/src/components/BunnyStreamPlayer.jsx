@@ -219,6 +219,25 @@ export default function BunnyStreamPlayer({
     );
   }
 
+  const isMisconfigured = !currentSrc || currentSrc.includes('YOUR_') || currentSrc.includes('/embed//');
+
+  if (isMisconfigured) {
+    return (
+      <div 
+        className={`w-full h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-center text-slate-200 ${className}`}
+        role="alert"
+      >
+        <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 mb-3 shadow-md">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h4 className="text-sm font-bold text-white">Bunny Stream Configuration Required</h4>
+        <p className="text-xs text-slate-300 mt-1.5 max-w-md leading-relaxed">
+          Please enter your Bunny Stream credentials (Library ID: <span className="font-mono text-amber-300">807954</span> and Token Key) in <span className="font-mono text-slate-200 bg-slate-800 px-1.5 py-0.5 rounded">backend/config/env.php</span> to enable video playback.
+        </p>
+      </div>
+    );
+  }
+
   if (hasError) {
     return (
       <div 
