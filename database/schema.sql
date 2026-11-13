@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(120) NOT NULL,
     email VARCHAR(191) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'student') NOT NULL DEFAULT 'student',
+    role VARCHAR(50) NOT NULL DEFAULT 'student',
     title VARCHAR(150) NULL,
     avatar VARCHAR(500) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

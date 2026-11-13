@@ -52,6 +52,9 @@ jobs:
           cp database/lms.sqlite deploy_payload/api/config/lms.sqlite
           cp database/lms.sqlite deploy_payload/database/lms.sqlite
           cp database/.htaccess deploy_payload/database/.htaccess
+          # Copy schema and seed definitions for automatic zero-downtime MySQL provisioning
+          cp database/schema.sql deploy_payload/api/config/schema.sql
+          cp database/seeds_dev.sql deploy_payload/api/config/seeds_dev.sql
           # Remove tests and local config to keep deployment secure
           rm -rf deploy_payload/api/tests
           rm -f deploy_payload/api/config/env.php

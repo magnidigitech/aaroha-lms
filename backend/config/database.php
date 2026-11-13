@@ -81,6 +81,35 @@ class Database {
             try {
                 self::$pdo = new PDO($dsn, $username, $password, $options);
                 self::$pdo->exec("SET NAMES {$charset} COLLATE utf8mb4_unicode_ci");
+
+                // Auto-provision MySQL schema & seeds if database is empty
+                try {
+                    $tableCheck = self::$pdo->query("SHOW TABLES LIKE 'courses'")->fetch();
+                    if (!$tableCheck) {
+                        $schemaFiles = [
+                            __DIR__ . '/schema.sql',
+                            __DIR__ . '/../../database/schema.sql',
+                            dirname(__DIR__, 2) . '/database/schema.sql'
+                        ];
+                        $seedFiles = [
+                            __DIR__ . '/seeds_dev.sql',
+                            __DIR__ . '/../../database/seeds_dev.sql',
+                            dirname(__DIR__, 2) . '/database/seeds_dev.sql'
+                        ];
+                        foreach ($schemaFiles as $sf) {
+                            if (file_exists($sf)) {
+                                self::$pdo->exec(file_get_contents($sf));
+                                break;
+                            }
+                        }
+                        foreach ($seedFiles as $sf) {
+                            if (file_exists($sf)) {
+                                self::$pdo->exec(file_get_contents($sf));
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception $initErr) {}
             } catch (PDOException $e) {
                 // If local sqlite file exists, seamlessly fallback to maintain 100% operational uptime
                 if ($resolvedSqlite && file_exists($resolvedSqlite)) {
