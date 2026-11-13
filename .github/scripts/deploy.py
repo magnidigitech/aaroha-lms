@@ -59,39 +59,41 @@ def main():
         base_remote = '/' + raw_dir
         print(f'Target directory resolved to: {base_remote}')
 
-    def get_remote_files(remote_dir):
-        files = {}
-        target = remote_dir if remote_dir else '/'
+    def upload_dir(local_base, remote_base):
+        # 1. Navigate to target remote directory
+        target_dir = remote_base if remote_base else '/'
         try:
-            ftp.cwd(target)
+            ftp.cwd(target_dir)
+        except Exception:
+            try:
+                ftp.mkd(target_dir)
+            except ftplib.error_perm:
+                pass
+            ftp.cwd(target_dir)
+
+        # 2. Get listing of files currently in this directory
+        remote_file_map = {}
+        try:
             for name, facts in ftp.mlsd():
                 if facts.get('type') == 'file':
-                    files[name] = int(facts.get('size', -1))
-        except Exception:
-            pass
-        return files
-
-    def upload_dir(local_base, remote_base):
-        remote_file_map = get_remote_files(remote_base)
-        target_cwd = remote_base if remote_base else '/'
-        try:
-            ftp.cwd(target_cwd)
+                    remote_file_map[name] = int(facts.get('size', -1))
         except Exception:
             pass
 
+        # 3. Iterate through local items in this directory
         for item in sorted(os.listdir(local_base)):
             local_full = os.path.join(local_base, item)
-            remote_full = f'{remote_base}/{item}'.lstrip('/') if remote_base else item
+            child_remote = f"{remote_base}/{item}".strip('/')
 
             if os.path.isdir(local_full):
                 try:
-                    ftp.mkd(remote_full)
+                    ftp.mkd(item)
                 except ftplib.error_perm:
                     pass
-                upload_dir(local_full, remote_full)
-                # Restore parent working directory after recursive step
+                upload_dir(local_full, child_remote)
+                # After returning from child, always restore cwd to this directory
                 try:
-                    ftp.cwd(target_cwd)
+                    ftp.cwd(target_dir)
                 except Exception:
                     pass
             else:
@@ -105,12 +107,12 @@ def main():
 
                 # Delta Check: Skip if remote file exists and has identical size
                 if not force_upload and item in remote_file_map and remote_file_map[item] == file_size:
-                    print(f'  [CACHE HIT] {item} (unchanged, {file_size} bytes)')
+                    print(f'  [CACHE HIT] {child_remote} (unchanged, {file_size} bytes)')
                     continue
 
-                print(f'  -> Uploading {remote_full} ({file_size} bytes)...')
+                print(f'  -> Uploading {child_remote} ({file_size} bytes)...')
                 with open(local_full, 'rb') as f:
-                    ftp.storbinary(f'STOR {remote_full}', f)
+                    ftp.storbinary(f'STOR {item}', f)
 
     print(f'Synchronizing payload from {local_dir} to {base_remote or "/"} with Delta Caching...')
     upload_dir(local_dir, base_remote)
