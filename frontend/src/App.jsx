@@ -6,7 +6,7 @@ import CourseClassroomView from './components/CourseClassroomView';
 import StudentPortalView from './components/StudentPortalView';
 import AdminPortalView from './components/AdminPortalView';
 import AuthModal from './components/AuthModal';
-import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions } from './mockData';
+import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions, initialCertificates } from './mockData';
 import { CheckCircle2 } from 'lucide-react';
 import aarohaLogo from './assets/aaroha_logo.webp';
 import { api } from './apiService';
@@ -106,6 +106,15 @@ export default function App() {
       return initialTaskSubmissions;
     }
   });
+
+  const [certificates, setCertificates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_certificates');
+      return saved ? JSON.parse(saved) : initialCertificates;
+    } catch (e) {
+      return initialCertificates;
+    }
+  });
   
   const [selectedCourse, setSelectedCourse] = useState(() => {
     try {
@@ -178,6 +187,12 @@ export default function App() {
     } catch (e) {}
   }, [taskSubmissions]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('aaroha_certificates', JSON.stringify(certificates));
+    } catch (e) {}
+  }, [certificates]);
+
   // Track active view and course in storage
   useEffect(() => {
     if (activeView) {
@@ -229,6 +244,19 @@ export default function App() {
                   }
                 })
                 .catch(() => {});
+
+              api.getMyCertificates()
+                .then(certRes => {
+                  if (certRes && certRes.certificates && certRes.certificates.length > 0) {
+                    setCertificates(prev => {
+                      const codeMap = new Map();
+                      prev.forEach(c => codeMap.set(c.certificate_code, c));
+                      certRes.certificates.forEach(c => codeMap.set(c.certificate_code, c));
+                      return Array.from(codeMap.values());
+                    });
+                  }
+                })
+                .catch(() => {});
             }
           }
         })
@@ -267,6 +295,16 @@ export default function App() {
             } catch (e) {}
             return merged;
           });
+
+          setSelectedCourse(prevSel => {
+            if (!prevSel) return prevSel;
+            const rawDeleted = JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]');
+            const deletedSet = new Set(rawDeleted.map(id => String(id)));
+            const activeServerCourses = res.courses.filter(c => !deletedSet.has(String(c.id)));
+            const serverUpdated = activeServerCourses.find(c => String(c.id) === String(prevSel.id));
+            return serverUpdated || prevSel;
+          });
+
           setIsBackendLive(true);
         }
       })
@@ -645,85 +683,176 @@ export default function App() {
   };
 
   const handleAddModule = async (courseId, title) => {
+    let createdModule = null;
     try {
-      await api.createModule(courseId, { title });
+      const res = await api.createModule(courseId, { title });
+      if (res && (res.module || res.module_id)) {
+        createdModule = res.module || {
+          id: res.module_id,
+          course_id: courseId,
+          title,
+          sequence_order: 1,
+          lessons: [],
+          tasks: []
+        };
+      }
     } catch (err) {
       console.warn('API create module sync skipped:', err.message);
     }
 
-    const updated = courses.map(c => {
-      if (c.id === courseId) {
-        const newMod = {
-          id: Date.now(),
-          course_id: courseId,
-          title: title,
-          sequence_order: (c.modules?.length || 0) + 1,
-          lessons: [],
-          tasks: []
-        };
-        return { ...c, modules: [...(c.modules || []), newMod] };
-      }
-      return c;
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const newMod = createdModule || {
+            id: Date.now(),
+            course_id: courseId,
+            title: title,
+            sequence_order: (c.modules?.length || 0) + 1,
+            lessons: [],
+            tasks: []
+          };
+          const updatedMods = [...(c.modules || []), newMod];
+          return { ...c, modules: updatedMods };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
     });
-    setCourses(updated);
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const newMod = createdModule || {
+        id: Date.now(),
+        course_id: courseId,
+        title: title,
+        sequence_order: (prevSel.modules?.length || 0) + 1,
+        lessons: [],
+        tasks: []
+      };
+      return { ...prevSel, modules: [...(prevSel.modules || []), newMod] };
+    });
+
     showToast('Module appended to syllabus.');
   };
 
   const handleAddLesson = async (courseId, moduleId, lessonData) => {
+    let createdLesson = null;
     try {
-      await api.createLesson(moduleId, lessonData);
+      const res = await api.createLesson(moduleId, lessonData);
+      if (res && (res.lesson || res.lesson_id)) {
+        createdLesson = res.lesson || {
+          ...lessonData,
+          id: res.lesson_id,
+          module_id: moduleId
+        };
+      }
     } catch (err) {
       console.warn('API create lesson sync skipped:', err.message);
     }
 
-    const updated = courses.map(c => {
-      if (c.id === courseId) {
-        const updatedModules = c.modules?.map(m => {
-          if (m.id === moduleId) {
-            const newLesson = {
-              ...lessonData,
-              id: Date.now(),
-              module_id: moduleId,
-              sequence_order: (m.lessons?.length || 0) + 1
-            };
-            return { ...m, lessons: [...(m.lessons || []), newLesson] };
-          }
-          return m;
-        });
-        return { ...c, modules: updatedModules };
-      }
-      return c;
+    const lessonToInsert = createdLesson || {
+      ...lessonData,
+      id: Date.now(),
+      module_id: moduleId
+    };
+
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedModules = (c.modules || []).map(m => {
+            if (String(m.id) === String(moduleId)) {
+              const fullLesson = {
+                ...lessonToInsert,
+                sequence_order: (m.lessons?.length || 0) + 1
+              };
+              return { ...m, lessons: [...(m.lessons || []), fullLesson] };
+            }
+            return m;
+          });
+          return { ...c, modules: updatedModules };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
     });
-    setCourses(updated);
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedModules = (prevSel.modules || []).map(m => {
+        if (String(m.id) === String(moduleId)) {
+          const fullLesson = {
+            ...lessonToInsert,
+            sequence_order: (m.lessons?.length || 0) + 1
+          };
+          return { ...m, lessons: [...(m.lessons || []), fullLesson] };
+        }
+        return m;
+      });
+      return { ...prevSel, modules: updatedModules };
+    });
+
     showToast('Lecture saved to module.');
   };
 
   const handleAddTask = async (courseId, moduleId, taskData) => {
+    let createdTask = null;
     try {
-      await api.createTask(moduleId, taskData);
+      const res = await api.createTask(moduleId, taskData);
+      if (res && (res.task || res.task_id)) {
+        createdTask = res.task || {
+          ...taskData,
+          id: res.task_id,
+          module_id: moduleId,
+          is_mandatory: true
+        };
+      }
     } catch (err) {
       console.warn('API create task sync skipped:', err.message);
     }
 
-    const updated = courses.map(c => {
-      if (c.id === courseId) {
-        const updatedModules = c.modules?.map(m => {
-          if (m.id === moduleId) {
-            const newTask = {
-              ...taskData,
-              id: Date.now(),
-              module_id: moduleId,
-              is_mandatory: true
-            };
-            return { ...m, tasks: [...(m.tasks || []), newTask] };
-          }
-          return m;
-        });
-        return { ...c, modules: updatedModules };
-      }
-      return c;
+    const taskToInsert = createdTask || {
+      ...taskData,
+      id: Date.now(),
+      module_id: moduleId,
+      is_mandatory: true
+    };
+
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedModules = (c.modules || []).map(m => {
+            if (String(m.id) === String(moduleId)) {
+              return { ...m, tasks: [...(m.tasks || []), taskToInsert] };
+            }
+            return m;
+          });
+          return { ...c, modules: updatedModules };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
     });
-    setCourses(updated);
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedModules = (prevSel.modules || []).map(m => {
+        if (String(m.id) === String(moduleId)) {
+          return { ...m, tasks: [...(m.tasks || []), taskToInsert] };
+        }
+        return m;
+      });
+      return { ...prevSel, modules: updatedModules };
+    });
+
     showToast('Project deliverable added to syllabus.');
   };
 
@@ -733,14 +862,25 @@ export default function App() {
     } catch (err) {
       console.warn('API update course sync skipped:', err.message);
     }
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        const merged = { ...c, ...courseData, id: courseId, modules: c.modules || [] };
-        if (selectedCourse?.id === courseId) setSelectedCourse(merged);
-        return merged;
-      }
-      return c;
-    }));
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const merged = { ...c, ...courseData, id: courseId, modules: c.modules || [] };
+          return merged;
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      return { ...prevSel, ...courseData, id: courseId, modules: prevSel.modules || [] };
+    });
+
     showToast('Program specifications updated.');
   };
 
@@ -785,15 +925,26 @@ export default function App() {
     } catch (err) {
       console.warn('API update module sync skipped:', err.message);
     }
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        const updatedMods = (c.modules || []).map(m => m.id === moduleId ? { ...m, ...moduleData } : m);
-        const updatedCourse = { ...c, modules: updatedMods };
-        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
-        return updatedCourse;
-      }
-      return c;
-    }));
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedMods = (c.modules || []).map(m => String(m.id) === String(moduleId) ? { ...m, ...moduleData } : m);
+          return { ...c, modules: updatedMods };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedMods = (prevSel.modules || []).map(m => String(m.id) === String(moduleId) ? { ...m, ...moduleData } : m);
+      return { ...prevSel, modules: updatedMods };
+    });
+
     showToast('Module specifications updated.');
   };
 
@@ -803,15 +954,26 @@ export default function App() {
     } catch (err) {
       console.warn('API delete module sync skipped:', err.message);
     }
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        const updatedMods = (c.modules || []).filter(m => m.id !== moduleId);
-        const updatedCourse = { ...c, modules: updatedMods };
-        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
-        return updatedCourse;
-      }
-      return c;
-    }));
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedMods = (c.modules || []).filter(m => String(m.id) !== String(moduleId));
+          return { ...c, modules: updatedMods };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedMods = (prevSel.modules || []).filter(m => String(m.id) !== String(moduleId));
+      return { ...prevSel, modules: updatedMods };
+    });
+
     showToast('Module and contained lectures archived.');
   };
 
@@ -821,23 +983,42 @@ export default function App() {
     } catch (err) {
       console.warn('API update lesson sync skipped:', err.message);
     }
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        const updatedMods = (c.modules || []).map(m => {
-          if (m.id === moduleId) {
-            return {
-              ...m,
-              lessons: (m.lessons || []).map(l => l.id === lessonId ? { ...l, ...lessonData } : l)
-            };
-          }
-          return m;
-        });
-        const updatedCourse = { ...c, modules: updatedMods };
-        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
-        return updatedCourse;
-      }
-      return c;
-    }));
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedMods = (c.modules || []).map(m => {
+            if (String(m.id) === String(moduleId)) {
+              return {
+                ...m,
+                lessons: (m.lessons || []).map(l => String(l.id) === String(lessonId) ? { ...l, ...lessonData } : l)
+              };
+            }
+            return m;
+          });
+          return { ...c, modules: updatedMods };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedMods = (prevSel.modules || []).map(m => {
+        if (String(m.id) === String(moduleId)) {
+          return {
+            ...m,
+            lessons: (m.lessons || []).map(l => String(l.id) === String(lessonId) ? { ...l, ...lessonData } : l)
+          };
+        }
+        return m;
+      });
+      return { ...prevSel, modules: updatedMods };
+    });
+
     showToast('Lecture updated successfully.');
   };
 
@@ -847,23 +1028,42 @@ export default function App() {
     } catch (err) {
       console.warn('API delete lesson sync skipped:', err.message);
     }
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        const updatedMods = (c.modules || []).map(m => {
-          if (m.id === moduleId) {
-            return {
-              ...m,
-              lessons: (m.lessons || []).filter(l => l.id !== lessonId)
-            };
-          }
-          return m;
-        });
-        const updatedCourse = { ...c, modules: updatedMods };
-        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
-        return updatedCourse;
-      }
-      return c;
-    }));
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedMods = (c.modules || []).map(m => {
+            if (String(m.id) === String(moduleId)) {
+              return {
+                ...m,
+                lessons: (m.lessons || []).filter(l => String(l.id) !== String(lessonId))
+              };
+            }
+            return m;
+          });
+          return { ...c, modules: updatedMods };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedMods = (prevSel.modules || []).map(m => {
+        if (String(m.id) === String(moduleId)) {
+          return {
+            ...m,
+            lessons: (m.lessons || []).filter(l => String(l.id) !== String(lessonId))
+          };
+        }
+        return m;
+      });
+      return { ...prevSel, modules: updatedMods };
+    });
+
     showToast('Lecture archived.');
   };
 
@@ -873,23 +1073,42 @@ export default function App() {
     } catch (err) {
       console.warn('API update task sync skipped:', err.message);
     }
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        const updatedMods = (c.modules || []).map(m => {
-          if (m.id === moduleId) {
-            return {
-              ...m,
-              tasks: (m.tasks || []).map(t => t.id === taskId ? { ...t, ...taskData } : t)
-            };
-          }
-          return m;
-        });
-        const updatedCourse = { ...c, modules: updatedMods };
-        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
-        return updatedCourse;
-      }
-      return c;
-    }));
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedMods = (c.modules || []).map(m => {
+            if (String(m.id) === String(moduleId)) {
+              return {
+                ...m,
+                tasks: (m.tasks || []).map(t => String(t.id) === String(taskId) ? { ...t, ...taskData } : t)
+              };
+            }
+            return m;
+          });
+          return { ...c, modules: updatedMods };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedMods = (prevSel.modules || []).map(m => {
+        if (String(m.id) === String(moduleId)) {
+          return {
+            ...m,
+            tasks: (m.tasks || []).map(t => String(t.id) === String(taskId) ? { ...t, ...taskData } : t)
+          };
+        }
+        return m;
+      });
+      return { ...prevSel, modules: updatedMods };
+    });
+
     showToast('Assignment requirements updated.');
   };
 
@@ -899,23 +1118,42 @@ export default function App() {
     } catch (err) {
       console.warn('API delete task sync skipped:', err.message);
     }
-    setCourses(prev => prev.map(c => {
-      if (c.id === courseId) {
-        const updatedMods = (c.modules || []).map(m => {
-          if (m.id === moduleId) {
-            return {
-              ...m,
-              tasks: (m.tasks || []).filter(t => t.id !== taskId)
-            };
-          }
-          return m;
-        });
-        const updatedCourse = { ...c, modules: updatedMods };
-        if (selectedCourse?.id === courseId) setSelectedCourse(updatedCourse);
-        return updatedCourse;
-      }
-      return c;
-    }));
+    setCourses(prev => {
+      const updated = prev.map(c => {
+        if (String(c.id) === String(courseId)) {
+          const updatedMods = (c.modules || []).map(m => {
+            if (String(m.id) === String(moduleId)) {
+              return {
+                ...m,
+                tasks: (m.tasks || []).filter(t => String(t.id) !== String(taskId))
+              };
+            }
+            return m;
+          });
+          return { ...c, modules: updatedMods };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setSelectedCourse(prevSel => {
+      if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
+      const updatedMods = (prevSel.modules || []).map(m => {
+        if (String(m.id) === String(moduleId)) {
+          return {
+            ...m,
+            tasks: (m.tasks || []).filter(t => String(t.id) !== String(taskId))
+          };
+        }
+        return m;
+      });
+      return { ...prevSel, modules: updatedMods };
+    });
+
     showToast('Assignment archived.');
   };
 
@@ -941,6 +1179,51 @@ export default function App() {
     });
     setTaskSubmissions(updated);
     showToast('Faculty evaluation recorded.');
+  };
+
+  const handleIssueCertificate = async (courseId, certData) => {
+    let issued = null;
+    try {
+      const res = await api.issueCertificate(courseId, certData);
+      if (res && res.certificate) {
+        issued = res.certificate;
+      }
+    } catch (err) {
+      console.warn('Backend API certificate issuance fallback:', err.message);
+    }
+
+    if (!issued) {
+      const randomHex = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      issued = {
+        id: Date.now(),
+        certificate_code: 'AAROHA-CERT-' + new Date().getFullYear() + '-' + randomHex + '-' + randomDigits,
+        course_id: courseId,
+        course_title: certData.course_title,
+        user_id: certData.user_id,
+        recipient_name: certData.recipient_name,
+        recipient_email: certData.recipient_email,
+        issuer_id: currentUser?.id || 1,
+        issuer_name: certData.issuer_name || currentUser?.full_name || 'Dr. Aris Thorne',
+        issuer_title: certData.issuer_title || currentUser?.title || 'Director of Curriculum & Distributed Systems Faculty',
+        grade: certData.grade || 'Executive Distinction (Verified Peer Reviewed)',
+        issued_at: certData.issued_at || new Date().toISOString()
+      };
+    }
+
+    setCertificates(prev => [issued, ...prev.filter(c => c.certificate_code !== issued.certificate_code)]);
+
+    // If recipient is an enrolled student, mark enrollment as completed
+    if (issued.user_id) {
+      setEnrollments(prev => prev.map(e => 
+        String(e.course_id) === String(courseId) && String(e.user_id) === String(issued.user_id)
+          ? { ...e, status: 'completed', completed_at: issued.issued_at || new Date().toISOString() }
+          : e
+      ));
+    }
+
+    showToast('Official Certificate generated and issued successfully!');
+    return issued;
   };
 
   const pendingCount = taskSubmissions.filter(s => s.status === 'under_review').length;
@@ -1003,6 +1286,7 @@ export default function App() {
             enrollments={currentUser ? enrollments.filter(e => e.user_id === currentUser.id) : enrollments}
             lessonProgress={lessonProgress}
             taskSubmissions={taskSubmissions}
+            certificates={certificates}
             onOpenCourse={(course) => {
               setSelectedCourse(course);
               setReturnView('student');
@@ -1090,6 +1374,9 @@ export default function App() {
             onUpdateTask={handleUpdateTask}
             onDeleteTask={handleDeleteTask}
             onGradeSubmission={handleGradeSubmission}
+            onIssueCertificate={handleIssueCertificate}
+            currentUser={currentUser}
+            enrolledStudents={users.filter(u => u.role === 'student')}
           />
         )}
       </main>

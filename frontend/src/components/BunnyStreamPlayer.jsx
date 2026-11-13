@@ -319,14 +319,16 @@ export default function BunnyStreamPlayer({
         }}
       />
 
-      {/* Security Accreditation Badge */}
-      <div 
-        className="absolute top-2 right-2 pointer-events-none z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-slate-300 font-medium opacity-75 hover:opacity-100 transition-opacity"
-        title="Authenticated via Bunny Stream Token Authentication"
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span>Token-Authenticated Stream</span>
-      </div>
+      {/* Security Accreditation Badge (Displayed strictly when a cryptographically signed token is active) */}
+      {Boolean(token) && (
+        <div 
+          className="absolute top-2 right-2 pointer-events-none z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-slate-300 font-medium opacity-75 hover:opacity-100 transition-opacity"
+          title="Authenticated via Bunny Stream Token Authentication"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Token-Authenticated Stream</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -94,19 +94,24 @@ export default function CourseClassroomView({
       return;
     }
 
-    const currentMedia = activeLesson.video_url || activeLesson.media_url;
+    const currentMedia = activeLesson.video_url || activeLesson.media_url || activeLesson.bunny_video_id || '';
     const isBunny = isBunnyStreamVideo(currentMedia);
 
-    if (isBunny || isEnrolled) {
+    if (isBunny || isEnrolled || activeLesson.is_free_preview) {
       setPlaybackLoading(true);
       setPlaybackError(null);
       api.getLessonPlayback(activeLesson.id)
         .then(res => {
           if (res?.playback) {
             setPlaybackSession(res.playback);
+            setPlaybackError(null);
+          } else {
+            setPlaybackSession(null);
+            setPlaybackError(res?.error || 'Unable to establish playback session');
           }
         })
         .catch(err => {
+          setPlaybackSession(null);
           setPlaybackError(err.message || 'Playback authorization required');
         })
         .finally(() => {
@@ -116,7 +121,7 @@ export default function CourseClassroomView({
       setPlaybackSession(null);
       setPlaybackError(null);
     }
-  }, [activeLesson?.id, activeLesson?.video_url, activeLesson?.media_url, isEnrolled]);
+  }, [activeLesson?.id, activeLesson?.video_url, activeLesson?.media_url, activeLesson?.bunny_video_id, activeLesson?.is_free_preview, isEnrolled]);
 
   if (!course) return null;
 
@@ -321,7 +326,7 @@ export default function CourseClassroomView({
             {/* Main Video Player Container (16:9 Cinema Box) */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-[#1b3d63] shadow-2xl">
               {canPlayLesson(activeLesson) ? (
-                playbackSession?.provider === 'bunny_stream' ? (
+                playbackSession?.provider === 'bunny_stream' && playbackSession?.token ? (
                   <BunnyStreamPlayer
                     libraryId={playbackSession.library_id}
                     videoId={playbackSession.video_id}
@@ -343,22 +348,75 @@ export default function CourseClassroomView({
                       <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3" />
                       <p className="text-xs font-medium text-slate-400">Authorizing secure stream session...</p>
                     </div>
+                  ) : playbackError ? (
+                    <div className="w-full h-full bg-[#081526] flex flex-col items-center justify-center p-8 text-center text-slate-300">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3 shadow-lg">
+                        <AlertCircle className="w-7 h-7" />
+                      </div>
+                      <h4 className="text-base font-bold text-white">Playback Authorization Notice</h4>
+                      <p className="text-xs text-slate-300 mt-2 max-w-md leading-relaxed">
+                        {playbackError}
+                      </p>
+                      <div className="flex items-center gap-3 mt-4">
+                        {!currentUser && (
+                          <button
+                            onClick={() => onEnroll(course)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                          >
+                            <User className="w-4 h-4" />
+                            <span>Sign In to Access Stream</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (activeLesson?.id) {
+                              setPlaybackLoading(true);
+                              setPlaybackError(null);
+                              api.getLessonPlayback(activeLesson.id)
+                                .then(res => {
+                                  if (res?.playback) setPlaybackSession(res.playback);
+                                  else setPlaybackError(res?.error || 'Unable to authorize playback');
+                                })
+                                .catch(err => setPlaybackError(err.message || 'Unable to authorize playback'))
+                                .finally(() => setPlaybackLoading(false));
+                            }
+                          }}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Retry Authorization</span>
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <BunnyStreamPlayer
-                      libraryId={playbackSession?.library_id || '807954'}
-                      videoId={playbackSession?.video_id || extractBunnyVideoId(currentMedia)}
-                      token={playbackSession?.token}
-                      expires={playbackSession?.expires}
-                      embedUrl={playbackSession?.embed_url}
-                      title={activeLesson.title}
-                      onExpire={() => {
-                        if (activeLesson?.id) {
-                          api.getLessonPlayback(activeLesson.id)
-                            .then(res => res?.playback && setPlaybackSession(res.playback))
-                            .catch(() => {});
-                        }
-                      }}
-                    />
+                    <div className="w-full h-full bg-[#081526] flex flex-col items-center justify-center p-8 text-center text-slate-300">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3 shadow-lg">
+                        <RefreshCw className="w-7 h-7" />
+                      </div>
+                      <h4 className="text-base font-bold text-white">Secure Video Stream</h4>
+                      <p className="text-xs text-slate-300 mt-2 max-w-md leading-relaxed">
+                        Establishing encrypted token session for Bunny Stream...
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (activeLesson?.id) {
+                            setPlaybackLoading(true);
+                            setPlaybackError(null);
+                            api.getLessonPlayback(activeLesson.id)
+                              .then(res => {
+                                if (res?.playback) setPlaybackSession(res.playback);
+                                else setPlaybackError(res?.error || 'Unable to authorize playback');
+                              })
+                              .catch(err => setPlaybackError(err.message || 'Unable to authorize playback'))
+                              .finally(() => setPlaybackLoading(false));
+                          }
+                        }}
+                        className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Authorize Playback</span>
+                      </button>
+                    </div>
                   )
                 ) : isDirectVideoFile(currentMedia) ? (
                   <video

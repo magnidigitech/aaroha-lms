@@ -32,3 +32,33 @@ body {
 .glow-hover:hover {
   animation: white-pulse-glow 1.8s infinite ease-in-out;
 }
+
+/* Accredited Certificate Print & PDF Engine */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #aaroha-certificate-print-region,
+  #aaroha-certificate-print-region * {
+    visibility: visible;
+  }
+  #aaroha-certificate-print-region {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    min-height: 100vh;
+    margin: 0;
+    padding: 2.5rem;
+    box-shadow: none !important;
+    border-width: 6px !important;
+    background-color: #fffdf9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    z-index: 999999;
+  }
+  @page {
+    size: landscape;
+    margin: 0;
+  }
+}

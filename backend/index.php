@@ -149,7 +149,7 @@ try {
     // AUTHENTICATED LESSON PLAYBACK & STREAMING (BUNNY STREAM)
     // -------------------------------------------------------------
     elseif ($requestMethod === 'GET' && preg_match('#^/lessons/(\d+)/playback$#', $path, $matches)) {
-        $user = AuthMiddleware::requireAuth();
+        $user = AuthMiddleware::getOptionalAuth() ?? ['id' => 0, 'role' => 'student'];
         $response = PlaybackController::getPlaybackSession((int)$matches[1], $user);
     }
 

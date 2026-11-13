@@ -3,18 +3,26 @@ import {
   GraduationCap, BookOpen, CheckCircle2, Play, Clock, Award, 
   ArrowRight, Search, ChevronRight, TrendingUp, Layers, Sparkles
 } from 'lucide-react';
+import CertificateModal from './CertificateModal';
 
 export default function StudentPortalView({
   courses = [],
   enrollments = [],
   lessonProgress = [],
   taskSubmissions = [],
+  certificates = [],
   onOpenCourse,
   onExploreCatalog,
   currentUser
 }) {
   const [filter, setFilter] = useState('all'); // 'all' | 'in_progress' | 'completed'
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCertificate, setSelectedCertificate] = useState(null);
+
+  // Filter certificates belonging to current student
+  const userCertificates = certificates.filter(c => 
+    !currentUser || String(c.user_id) === String(currentUser.id) || (currentUser.email && c.recipient_email === currentUser.email)
+  );
 
   // Helper to determine if an enrollment is within its 6-month validity period
   const isEnrollmentWithinSixMonths = (enrollment) => {
@@ -168,7 +176,9 @@ export default function StudentPortalView({
 
           <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Accreditations</span>
-            <div className="text-2xl font-black text-amber-600">{completedProgramsCount}</div>
+            <div className="text-2xl font-black text-amber-600">
+              {userCertificates.length > 0 ? userCertificates.length : completedProgramsCount}
+            </div>
             <span className="text-[11px] text-slate-500">Certificates Issued</span>
           </div>
         </div>
@@ -230,6 +240,7 @@ export default function StudentPortalView({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map(course => {
             const analytics = getCourseAnalytics(course);
+            const courseCert = userCertificates.find(c => String(c.course_id) === String(course.id));
 
             return (
               <div
@@ -322,6 +333,21 @@ export default function StudentPortalView({
                       </div>
                     )}
 
+                    {/* View Certificate Button (If Issued by Faculty) */}
+                    {courseCert && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCertificate(courseCert);
+                        }}
+                        className="w-full text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white transition-all shadow-md hover:shadow-lg cursor-pointer active:scale-98"
+                      >
+                        <Award className="w-4 h-4 text-amber-200" />
+                        <span>View Official Certificate</span>
+                      </button>
+                    )}
+
                     {/* Action Button */}
                     <button
                       type="button"
@@ -384,6 +410,13 @@ export default function StudentPortalView({
           </button>
         </div>
       )}
+
+      {/* Certificate Viewer Modal */}
+      <CertificateModal
+        isOpen={Boolean(selectedCertificate)}
+        onClose={() => setSelectedCertificate(null)}
+        certificate={selectedCertificate}
+      />
 
     </div>
   );

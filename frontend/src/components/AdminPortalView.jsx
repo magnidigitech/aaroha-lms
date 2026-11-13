@@ -9,6 +9,7 @@ import ModuleModal from './admin/ModuleModal';
 import LectureModal from './admin/LectureModal';
 import AssignmentModal from './admin/AssignmentModal';
 import DeleteConfirmModal from './admin/DeleteConfirmModal';
+import IssueCertificateModal from './admin/IssueCertificateModal';
 
 export default function AdminPortalView({
   courses = [],
@@ -25,7 +26,10 @@ export default function AdminPortalView({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
-  onGradeSubmission
+  onGradeSubmission,
+  onIssueCertificate,
+  currentUser,
+  enrolledStudents = []
 }) {
   const [activeTab, setActiveTab] = useState('courses'); // 'courses' | 'grading'
 
@@ -34,6 +38,7 @@ export default function AdminPortalView({
   const [moduleModal, setModuleModal] = useState({ isOpen: false, courseId: null, initialData: null });
   const [lectureModal, setLectureModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
   const [assignmentModal, setAssignmentModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
+  const [issueCertificateModal, setIssueCertificateModal] = useState({ isOpen: false, course: null });
 
   // Per-course card active pillar tab state ('syllabus' | 'outcomes' | 'about' | 'faculty')
   const [courseCardTabs, setCourseCardTabs] = useState({});
@@ -261,8 +266,18 @@ export default function AdminPortalView({
                       </div>
                     </div>
 
-                    {/* Course Controls: Add Module, Edit Course, Delete Course */}
+                    {/* Course Controls: Issue Certificate, Add Module, Edit Course, Delete Course */}
                     <div className="flex items-center gap-2 self-end md:self-auto shrink-0 flex-wrap">
+                      <button
+                        onClick={() => setIssueCertificateModal({ isOpen: true, course })}
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 hover:border-amber-300 text-amber-900 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title={'Issue Official Accredited Certificate for ' + course.title}
+                        aria-label={'Issue Certificate: ' + course.title}
+                      >
+                        <Award className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Issue Certificate</span>
+                      </button>
+
                       <button
                         onClick={() => setModuleModal({ isOpen: true, courseId: course.id, initialData: null })}
                         className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
@@ -861,6 +876,16 @@ export default function AdminPortalView({
         affectedChildren={deleteModal.affectedChildren}
         studentImpact={deleteModal.studentImpact}
         confirmButtonText={deleteModal.confirmButtonText}
+      />
+
+      {/* MODAL 6: Issue Official Certificate Dialog */}
+      <IssueCertificateModal
+        isOpen={issueCertificateModal.isOpen}
+        onClose={() => setIssueCertificateModal({ isOpen: false, course: null })}
+        course={issueCertificateModal.course}
+        onIssue={onIssueCertificate}
+        currentUser={currentUser}
+        enrolledStudents={enrolledStudents}
       />
 
       {/* MODAL 6: Grade Submission Modal */}
