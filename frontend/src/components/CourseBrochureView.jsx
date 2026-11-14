@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Play, Lock, ArrowRight, BookOpen, 
   ListTodo, Star, Award, Globe, Calendar, ChevronDown, ChevronUp
@@ -18,6 +18,17 @@ export default function CourseBrochureView({
     // Expand the first module by default
     return { 0: true };
   });
+
+  useEffect(() => {
+    if (course?.modules && course.modules.length > 0) {
+      setExpandedModules(prev => {
+        if (!prev || Object.keys(prev).length === 0) {
+          return { 0: true };
+        }
+        return prev;
+      });
+    }
+  }, [course?.id, course?.modules?.length]);
 
   if (!course) return null;
 
@@ -244,7 +255,14 @@ export default function CourseBrochureView({
 
           {/* Module Accordions */}
           <div className="space-y-4">
-            {(course.modules || []).map((mod, modIdx) => {
+            {(!course.modules || course.modules.length === 0) ? (
+              <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center space-y-2">
+                <BookOpen className="w-8 h-8 text-slate-400 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800">Syllabus Modules Loading</h4>
+                <p className="text-xs text-slate-500">Retrieving curriculum structure, lectures, and project assignments...</p>
+              </div>
+            ) : (
+              (course.modules || []).map((mod, modIdx) => {
               const isExpanded = !!expandedModules[modIdx];
               const lessonCount = mod.lessons?.length || 0;
               const taskCount = mod.tasks?.length || 0;
@@ -291,7 +309,7 @@ export default function CourseBrochureView({
                           key={lesson.id || lIdx}
                           onClick={() => {
                             if (isEnrolled || lesson.is_free_preview) {
-                              onOpenClassroom(course);
+                              onOpenClassroom(course, lesson);
                             } else {
                               onEnroll(course);
                             }
@@ -383,7 +401,7 @@ export default function CourseBrochureView({
                   )}
                 </div>
               );
-            })}
+            }))}
           </div>
         </section>
       )}

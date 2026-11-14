@@ -53,7 +53,8 @@ export default function CourseClassroomView({
   onSubmitTask,
   allCourses = [],
   onSelectCourse,
-  onOpenProfile
+  onOpenProfile,
+  initialLessonId = null
 }) {
   // Flatten all lessons with their parent module info
   const allLessons = (course?.modules || []).flatMap((mod, modIdx) => 
@@ -73,6 +74,10 @@ export default function CourseClassroomView({
   // Pick initial lesson: first incomplete if enrolled, or first free preview
   const [activeLesson, setActiveLesson] = useState(() => {
     if (allLessons.length === 0) return null;
+    if (initialLessonId) {
+      const match = allLessons.find(l => l.id === initialLessonId);
+      if (match) return match;
+    }
     if (isEnrolled && lessonProgress.length > 0) {
       const firstIncomplete = allLessons.find(l => 
         !lessonProgress.some(p => p.lesson_id === l.id && p.is_completed)
@@ -91,6 +96,51 @@ export default function CourseClassroomView({
     });
     return initial;
   });
+
+  // Synchronize active lesson whenever the course changes or lessons load asynchronously
+  useEffect(() => {
+    if (allLessons.length === 0) {
+      setActiveLesson(null);
+      return;
+    }
+
+    const currentBelongsToCourse = activeLesson && allLessons.some(l => l.id === activeLesson.id);
+    if (!currentBelongsToCourse) {
+      if (initialLessonId) {
+        const foundInitial = allLessons.find(l => l.id === initialLessonId);
+        if (foundInitial) {
+          setActiveLesson(foundInitial);
+          return;
+        }
+      }
+      if (isEnrolled && lessonProgress.length > 0) {
+        const firstIncomplete = allLessons.find(l => 
+          !lessonProgress.some(p => p.lesson_id === l.id && p.is_completed)
+        );
+        if (firstIncomplete) {
+          setActiveLesson(firstIncomplete);
+          return;
+        }
+      }
+      const firstPreview = allLessons.find(l => l.is_free_preview);
+      setActiveLesson(firstPreview || allLessons[0]);
+    }
+  }, [course?.id, allLessons.length, initialLessonId, isEnrolled]);
+
+  // Expand all modules by default whenever a course loads
+  useEffect(() => {
+    if (course?.modules && course.modules.length > 0) {
+      setExpandedModules(prev => {
+        const next = { ...prev };
+        course.modules.forEach((_, idx) => {
+          if (next[idx] === undefined) {
+            next[idx] = true;
+          }
+        });
+        return next;
+      });
+    }
+  }, [course?.id, course?.modules]);
 
   // Navigation tabs state
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' | 'tasks' | 'instructor'
@@ -358,7 +408,24 @@ export default function CourseClassroomView({
 
             {/* Main Video Player Container (16:9 Cinema Box) */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-[#1b3d63] shadow-2xl">
-              {canPlayLesson(activeLesson) ? (
+              {allLessons.length === 0 ? (
+                <div className="w-full h-full bg-[#081526] flex flex-col items-center justify-center p-8 text-center text-slate-300">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3 shadow-lg">
+                    <BookOpen className="w-7 h-7" />
+                  </div>
+                  <h4 className="text-base font-bold text-white">Syllabus Modules Loading</h4>
+                  <p className="text-xs text-slate-300 mt-2 max-w-md leading-relaxed">
+                    Curriculum lectures and modules are being retrieved for this program.
+                  </p>
+                  <button
+                    onClick={onBack}
+                    className="mt-4 px-4 py-2 bg-[#132A4A] hover:bg-[#1A3860] border border-[#23456F] text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Return to Catalog</span>
+                  </button>
+                </div>
+              ) : canPlayLesson(activeLesson) ? (
                 playbackSession?.provider === 'bunny_stream' && playbackSession?.token ? (
                   <BunnyStreamPlayer
                     libraryId={playbackSession.library_id}
@@ -804,7 +871,14 @@ export default function CourseClassroomView({
 
             {/* Module Accordion Playlist Card */}
             <div className="rounded-2xl bg-[#0B1A2F] border border-[#1b3d63] p-4 shadow-xl space-y-4">
-              {(course.modules || []).map((mod, modIdx) => {
+              {(!course.modules || course.modules.length === 0) ? (
+                <div className="p-6 text-center space-y-2">
+                  <div className="w-7 h-7 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin mx-auto mb-2" />
+                  <p className="text-xs text-slate-300 font-semibold">Loading Modules...</p>
+                  <p className="text-[11px] text-slate-500">Retrieving syllabus structure</p>
+                </div>
+              ) : (
+                (course.modules || []).map((mod, modIdx) => {
                 const isOpen = !!expandedModules[modIdx];
                 const modLessons = mod.lessons || [];
                 const modLessonsCount = modLessons.length;
@@ -925,7 +999,7 @@ export default function CourseClassroomView({
                     )}
                   </div>
                 );
-              })}
+              }))}
             </div>
 
           </div>

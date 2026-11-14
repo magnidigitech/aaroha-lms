@@ -134,6 +134,8 @@ export default function DegreesCertificatesView({
       authority: 'Systems Engineering Laboratory',
       validity: '3 Years · Verifiable Online Credential',
       level: 'Tier-1 Principal Engineer Benchmark',
+      courseId: 1,
+      courseSlug: 'distributed-cloud-architecture',
       description: 'Validates mastery of high-throughput distributed protocols, Raft split-brain mitigation, and multi-region fault domains.',
       requirements: [
         '100% completion of Distributed Cloud Architecture modules',
@@ -148,6 +150,8 @@ export default function DegreesCertificatesView({
       authority: 'Applied Intelligence Directorate',
       validity: '3 Years · Verifiable Online Credential',
       level: 'Staff Systems / ML Infrastructure',
+      courseId: 2,
+      courseSlug: 'applied-ml-engineering',
       description: 'Validates production readiness for deploying large-scale neural network models, dynamic batching, and GPU acceleration.',
       requirements: [
         '100% completion of Applied ML Engineering modules',
@@ -162,6 +166,8 @@ export default function DegreesCertificatesView({
       authority: 'Center for Cyber Resilience',
       validity: '3 Years · Verifiable Online Credential',
       level: 'Senior Security Architect',
+      courseId: 3,
+      courseSlug: 'enterprise-cyber-defense',
       description: 'Validates expertise in cryptographic supply-chain security, SLSA Level 3 compliance, and eBPF kernel observability.',
       requirements: [
         '100% completion of Enterprise Cyber Defense modules',
@@ -343,7 +349,9 @@ export default function DegreesCertificatesView({
 
           <div className="grid grid-cols-1 gap-8">
             {degreePrograms.map((program) => {
-              const matchedCourse = courses.find(c => c.id === program.courseId) || courses[0];
+              const matchedCourse = courses.find(c => c.id === program.courseId || c.slug === program.courseSlug) || 
+                                    courses.find(c => c.category === program.title.split(' ')[0]) || 
+                                    courses[0];
               return (
                 <div
                   key={program.id}
@@ -511,7 +519,7 @@ export default function DegreesCertificatesView({
                 <div className="pt-4 border-t border-slate-100">
                   <button
                     onClick={() => {
-                      const matched = courses[0];
+                      const matched = courses.find(c => c.id === cert.courseId || c.slug === cert.courseSlug) || courses[0];
                       if (matched) onOpenCourseDetails(matched);
                     }}
                     className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl text-center transition-colors shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"

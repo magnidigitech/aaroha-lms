@@ -404,6 +404,82 @@ export const initialCourses = [
         ]
       }
     ]
+  },
+  {
+    id: 9,
+    title: 'NLP',
+    slug: 'nlp',
+    institution: 'Aaroha Institute of Technology',
+    institution_subtitle: 'Systems Engineering Laboratory',
+    partner_type: 'Specialization',
+    category: 'Applied AI',
+    level: 'Advanced Level',
+    duration: '8 Weeks',
+    commitment: '4–6 hours/week',
+    schedule_type: 'Flexible Schedule',
+    certificate_type: 'Shareable Professional Certificate',
+    rating: 4.90,
+    reviews_count: '0',
+    badge_text: 'New',
+    description: 'Master Natural Language Processing architectures, transformer foundations, and token-authenticated video streams.',
+    thumbnail_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
+    skills: ['Natural Language Processing', 'Transformers', 'Applied AI'],
+    what_you_will_learn: [
+      'Master fundamental NLP concepts, tokenization, and attention mechanics',
+      'Deploy and evaluate language models using token-authenticated video streams'
+    ],
+    is_published: true,
+    created_by: 1,
+    prerequisites: 'Python & Linear Algebra',
+    about: 'Master Natural Language Processing architectures, transformer foundations, and token-authenticated video streams.',
+    instructor: {
+      name: 'Dr. Aris Thorne',
+      title: 'Senior Systems Architect & Labs Director',
+      department: 'Aaroha Institute of Technology',
+      avatar: '/avatars/3d/memo_1.png',
+      bio: 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+      rating: 4.94,
+      students: '25,000+'
+    },
+    modules: [
+      {
+        id: 302,
+        course_id: 9,
+        title: 'Module 1: Basics of NLP & Language Modeling',
+        sequence_order: 1,
+        estimated_time: '5 hours to complete',
+        description: 'Introduction to Natural Language Processing architectures, tokenization, and neural language representation.',
+        lessons: [
+          {
+            id: 3002,
+            module_id: 302,
+            title: 'Basics of NLP',
+            content_type: 'video',
+            video_provider: 'bunny_stream',
+            duration: '5 min',
+            media_url: '0de41d3a-4d1d-498b-b731-bcc31a59ffc2',
+            sequence_order: 1,
+            is_free_preview: 1,
+            is_published: 1,
+            content_body: 'Introduction to Natural Language Processing'
+          },
+          {
+            id: 3003,
+            module_id: 302,
+            title: 'Transformer Architecture Foundations',
+            content_type: 'video',
+            video_provider: 'bunny_stream',
+            duration: '20 min',
+            media_url: '0de41d3a-4d1d-498b-b731-bcc31a59ffc2',
+            sequence_order: 2,
+            is_free_preview: 1,
+            is_published: 1,
+            content_body: 'Deep dive into multi-head attention and transformer feed-forward blocks.'
+          }
+        ],
+        tasks: []
+      }
+    ]
   }
 ];
 
@@ -416,6 +492,24 @@ export const initialEnrollments = [
     enrolled_at: '2026-10-15T10:00:00Z',
     expires_at: '2027-04-15T10:00:00Z',
     completed_at: null
+  },
+  {
+    id: 502,
+    user_id: 2,
+    course_id: 2,
+    status: 'completed',
+    enrolled_at: '2026-11-13T12:26:27Z',
+    expires_at: '2027-05-13T12:26:27Z',
+    completed_at: '2026-11-14T05:51:16Z'
+  },
+  {
+    id: 503,
+    user_id: 2,
+    course_id: 9,
+    status: 'completed',
+    enrolled_at: '2026-11-13T12:28:43Z',
+    expires_at: '2027-05-13T12:28:43Z',
+    completed_at: '2026-11-14T05:51:09Z'
   }
 ];
 

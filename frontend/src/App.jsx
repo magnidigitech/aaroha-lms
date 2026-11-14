@@ -130,13 +130,25 @@ export default function App() {
       const pool = cachedCourses ? JSON.parse(cachedCourses) : initialCourses.filter(c => !c.is_deleted);
       if (savedCourseId) {
         const found = pool.find(c => c.id === parseInt(savedCourseId));
-        if (found) return found;
+        if (found) {
+          const fallback = initialCourses.find(c => c.id === found.id);
+          return {
+            ...found,
+            modules: (found.modules && found.modules.length > 0) ? found.modules : (fallback?.modules || [])
+          };
+        }
       }
-      return pool.find(c => !c.is_deleted) || pool[0] || null;
+      const defaultCourse = pool.find(c => !c.is_deleted) || pool[0] || initialCourses[0];
+      const fallback = initialCourses.find(c => c.id === defaultCourse?.id);
+      return {
+        ...defaultCourse,
+        modules: (defaultCourse?.modules && defaultCourse.modules.length > 0) ? defaultCourse.modules : (fallback?.modules || [])
+      };
     } catch (e) {
-      return initialCourses.find(c => !c.is_deleted) || null;
+      return initialCourses.find(c => !c.is_deleted) || initialCourses[0] || null;
     }
   });
+  const [targetClassroomLessonId, setTargetClassroomLessonId] = useState(null);
   const [returnView, setReturnView] = useState('catalog');
   const [activeStudentCourseId, setActiveStudentCourseId] = useState(2);
   const [toastMessage, setToastMessage] = useState(null);
@@ -337,7 +349,12 @@ export default function App() {
     if (activeView === 'student' || activeView === 'catalog' || activeView === 'degrees') {
       setReturnView(activeView);
     }
-    setSelectedCourse(course);
+    const fallback = initialCourses.find(c => c.id === course?.id);
+    const enriched = {
+      ...course,
+      modules: (course?.modules && course.modules.length > 0) ? course.modules : (fallback?.modules || [])
+    };
+    setSelectedCourse(enriched);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Strictly check if current user is enrolled in this course (active or completed within 6-month validity period):
@@ -360,7 +377,12 @@ export default function App() {
     try {
       const res = await api.getCourseDetails(course.id || course.slug);
       if (res && res.course) {
-        setSelectedCourse(res.course);
+        const serverCourse = res.course;
+        const fb = initialCourses.find(c => c.id === serverCourse.id);
+        setSelectedCourse({
+          ...serverCourse,
+          modules: (serverCourse.modules && serverCourse.modules.length > 0) ? serverCourse.modules : (fb?.modules || [])
+        });
       }
     } catch (err) {
       // Retain existing selected course
@@ -1349,7 +1371,12 @@ export default function App() {
             taskSubmissions={taskSubmissions}
             certificates={certificates}
             onOpenCourse={(course) => {
-              setSelectedCourse(course);
+              const fallback = initialCourses.find(c => c.id === course?.id);
+              const enriched = {
+                ...course,
+                modules: (course?.modules && course.modules.length > 0) ? course.modules : (fallback?.modules || [])
+              };
+              setSelectedCourse(enriched);
               setReturnView('student');
               setActiveView('course-classroom');
             }}
@@ -1388,8 +1415,16 @@ export default function App() {
                   )
                 : false
             }
-            onOpenClassroom={(course) => {
-              setSelectedCourse(course);
+            onOpenClassroom={(course, lesson) => {
+              const fallback = initialCourses.find(c => c.id === course?.id);
+              const enriched = {
+                ...course,
+                modules: (course?.modules && course.modules.length > 0) ? course.modules : (fallback?.modules || [])
+              };
+              setSelectedCourse(enriched);
+              if (lesson && lesson.id) {
+                setTargetClassroomLessonId(lesson.id);
+              }
               setActiveView('course-classroom');
             }}
             currentUser={currentUser}
@@ -1400,6 +1435,7 @@ export default function App() {
         {activeView === 'course-classroom' && selectedCourse && (
           <CourseClassroomView
             course={selectedCourse}
+            initialLessonId={targetClassroomLessonId}
             onBack={() => setActiveView(returnView || 'student')}
             onCourseComplete={(completedCourse) => {
               setEnrollments(prev => prev.map(e => 

@@ -151,6 +151,50 @@ class Database {
                                 issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                             )");
+
+                            // Ensure Core Course 1 (Distributed Cloud Architecture) is active and provisioned
+                            $c1 = self::$pdo->query("SELECT id, is_deleted, is_published FROM courses WHERE id = 1")->fetch();
+                            if (!$c1) {
+                                self::$pdo->exec("INSERT INTO courses (id, title, slug, category, level, duration, partner_type, rating, reviews_count, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by) VALUES
+                                (1, 'Distributed Cloud Architecture & High-Throughput Systems', 'distributed-cloud-architecture', 'Cloud Architecture', 'Advanced Level', '8 Weeks', 'Specialization', 4.90, '2.8K', 'Recently updated', 'Design fault-tolerant, multi-region distributed systems capable of sustaining 100k+ QPS with strict P99 latency budgets, Raft consensus, and transactional integrity.', 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80', '[\"Distributed Systems\", \"Raft Consensus Protocol\", \"BGP Anycast Routing\", \"mTLS & Zero-Trust\", \"Storage Engines (LSM & B-Trees)\", \"Kafka & CDC Event Streaming\"]', '[\"Architect zero-trust multi-region ingress gateways utilizing Anycast BGP and Envoy proxy mesh routing\", \"Implement fault-tolerant distributed state machines using Raft consensus and split-brain mitigation invariants\", \"Tune write-heavy storage engines by comparing Log-Structured Merge (LSM) trees with InnoDB B+Trees\", \"Eliminate dual-write vulnerabilities with Change Data Capture (CDC) pipelines and transactional outbox patterns\"]', 1, 0, 1)");
+                            } elseif ((int)$c1['is_deleted'] === 1 || (int)$c1['is_published'] === 0) {
+                                self::$pdo->exec("UPDATE courses SET is_deleted = 0, is_published = 1 WHERE id = 1");
+                            }
+
+                            // Ensure Modules 101, 102, 103 for Course 1
+                            $m101 = self::$pdo->query("SELECT id FROM modules WHERE id = 101")->fetch();
+                            if (!$m101) {
+                                self::$pdo->exec("INSERT INTO modules (id, course_id, title, estimated_time, description, sequence_order, is_deleted) VALUES
+                                (101, 1, 'Module 1: Global Edge Routing & Zero-Trust Boundaries', '5 hours to complete', 'Explore ingress topology, Anycast BGP routing, and mTLS cryptography inside production Kubernetes clusters.', 1, 0),
+                                (102, 1, 'Module 2: Distributed Consensus & State Storage', '6 hours to complete', 'Master Raft leader election, commit log safety, and high-performance LSM storage engine compaction.', 2, 0),
+                                (103, 1, 'Module 3: Event Sourcing & High-Throughput Streaming', '5 hours to complete', 'Build change-data-capture pipelines and Kafka stream processors for guaranteed delivery semantics.', 3, 0)");
+                            } else {
+                                self::$pdo->exec("UPDATE modules SET is_deleted = 0 WHERE id IN (101, 102, 103)");
+                            }
+
+                            // Ensure Lessons 1001-1005 for Course 1
+                            $l1001 = self::$pdo->query("SELECT id FROM lessons WHERE id = 1001")->fetch();
+                            if (!$l1001) {
+                                self::$pdo->exec("INSERT INTO lessons (id, module_id, title, content_type, video_provider, duration, content_body, media_url, sequence_order, is_free_preview, is_published, is_deleted) VALUES
+                                (1001, 101, 'Multi-Region Anycast Topology & BGP Ingress Routing', 'video', 'youtube', '22 min', 'An in-depth analysis of global edge ingress networks. We evaluate how Anycast DNS and BGP route optimization direct user packets to the nearest Point of Presence (PoP), mitigating latency before requests reach internal mesh clusters. We examine real packet capture profiles and failure mode recovery when an undersea transit link experiences degradation.', 'https://www.youtube.com/embed/dQw4w9WgXcQ', 1, 1, 1, 0),
+                                (1002, 101, 'Mutual TLS (mTLS) & Ephemeral Identity in Microservices', 'article', NULL, '14 min read', 'Perimeter-only security models fail once an adversary establishes lateral mobility inside your cluster. In this lesson, we specify zero-trust service-to-service communication using SPIFFE/SPIRE identity standards. We examine x509 certificate rotation pipelines, hardware security module (HSM) key isolation, and how Envoy sidecars negotiate cryptographic handshakes without introducing CPU bottlenecks.', NULL, 2, 0, 1, 0),
+                                (1003, 102, 'Raft Consensus Protocol & Split-Brain Mitigation', 'video', 'youtube', '28 min', 'Stateful services require unambiguous truth. We unpack the Raft consensus algorithm: leader election, log replication, safety invariants, and commit index advancement. We inspect how network partitions induce partitioned quorums and why strict majority voting guarantees no two nodes can commit contradictory log entries.', 'https://www.youtube.com/embed/R2-9sDYtOt4', 1, 0, 1, 0),
+                                (1004, 102, 'LSM Trees vs B-Trees in Modern Storage Engines', 'article', NULL, '18 min read', 'Choosing between Log-Structured Merge (LSM) trees (RocksDB, Cassandra) and traditional B+Trees (InnoDB, PostgreSQL) dictates write amplification and read amplification. We examine memtable flushes, write-ahead logs (WAL), Bloom filter tuning, and tiered compaction strategies under sustained write pressures.', NULL, 2, 0, 1, 0),
+                                (1005, 103, 'Transactional Outbox Pattern & CDC Stream Pipelines', 'article', NULL, '16 min read', 'Dual-write operations between a relational database and a message broker are vulnerable to split-second failures that cause data inconsistency. We implement the Transactional Outbox Pattern using Change Data Capture (CDC) via Debezium and Kafka, guaranteeing at-least-once message delivery with exactly-once consumer semantics.', NULL, 1, 0, 1, 0)");
+                            } else {
+                                self::$pdo->exec("UPDATE lessons SET is_deleted = 0, is_published = 1 WHERE id IN (1001, 1002, 1003, 1004, 1005)");
+                            }
+
+                            // Ensure Tasks 2001-2003 for Course 1
+                            $t2001 = self::$pdo->query("SELECT id FROM tasks WHERE id = 2001")->fetch();
+                            if (!$t2001) {
+                                self::$pdo->exec("INSERT INTO tasks (id, module_id, title, instructions, task_type, max_score, passing_score, is_mandatory, is_deleted) VALUES
+                                (2001, 101, 'Assignment 1: Ingress Gateway Resiliency & Failover Specification', 'Draft an architectural RFC detailing a dual-region active-active ingress routing plan. Specify: 1) Health check probe frequencies and dead-man switches; 2) State synchronization strategy for TLS session resumption tickets; 3) Circuit breaking rules to prevent cascading brownouts during regional evacuation.', 'text_response', 100, 75, 1, 0),
+                                (2002, 102, 'Assignment 2: Database Partitioning & Benchmark Artifact', 'Submit your benchmark repository link or technical report demonstrating a sharded database cluster with composite partition keys. Include P95/P99 latency measurements under a simulated 20,000 write ops/sec load profile.', 'file_upload', 100, 80, 1, 0),
+                                (2003, 103, 'Assignment 3: Capstone Distributed Architecture Defense', 'Synthesize Modules 1, 2, and 3 into a comprehensive architectural defense. Defend your choice of storage engines, consensus mechanisms, and egress rate limits against an unpredictable 10x traffic spike.', 'text_response', 100, 80, 1, 0)");
+                            } else {
+                                self::$pdo->exec("UPDATE tasks SET is_deleted = 0 WHERE id IN (2001, 2002, 2003)");
+                            }
                         } catch (Exception $colErr) {}
                     }
                 } catch (Exception $initErr) {}
