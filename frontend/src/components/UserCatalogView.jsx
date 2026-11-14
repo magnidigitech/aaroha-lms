@@ -1,9 +1,11 @@
 import React from 'react';
-import { Search, Star, CheckCircle2, ArrowRight, Award, BookOpen } from 'lucide-react';
+import { Search, Star, CheckCircle2, ArrowRight, Award, BookOpen, Sparkles, X } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
+import TechSearchBar from './TechSearchBar';
+import { courseMatchesQuery, POPULAR_TECHNOLOGY_TAGS } from '../techTaxonomy';
 
 export default function UserCatalogView({ 
-  courses, 
+  courses = [], 
   onOpenCourseDetails, 
   searchQuery, 
   setSearchQuery,
@@ -11,22 +13,38 @@ export default function UserCatalogView({
   setSelectedCategory
 }) {
   const dynamicCategories = ['All', ...Array.from(new Set([
-    'Cloud Architecture',
     'Applied AI',
+    'Cloud Architecture',
     'Cybersecurity',
     ...courses.map(c => c.category).filter(Boolean)
   ]))];
 
-  const publishedCourses = courses.filter(c => c.is_published);
+  const publishedCourses = courses.filter(c => c.is_published !== 0 && c.is_published !== false && !c.is_deleted);
 
+  const hasSearch = searchQuery && searchQuery.trim().length > 0;
+
+  // Smart semantic matching using open-source technology taxonomy
   const filteredCourses = publishedCourses.filter(course => {
-    const q = (searchQuery || '').toLowerCase();
-    const matchesSearch = course.title.toLowerCase().includes(q) ||
-                          course.description.toLowerCase().includes(q) ||
-                          (course.skills && course.skills.some(s => s.toLowerCase().includes(q)));
-    const matchesCategory = selectedCategory === 'All' || course.category === selectedCategory;
+    const matchesSearch = hasSearch ? courseMatchesQuery(course, searchQuery) : true;
+    
+    // When a search query is active, prioritize semantic relevance across all programs
+    // so results NEVER get stuck or hidden by previous category selections.
+    const matchesCategory = !hasSearch
+      ? (selectedCategory === 'All' || course.category === selectedCategory)
+      : (selectedCategory === 'All' || course.category === selectedCategory || matchesSearch);
+
     return matchesSearch && matchesCategory;
   });
+
+  const handleSearchSubmit = (q) => {
+    if (setSelectedCategory) setSelectedCategory('All');
+    setTimeout(() => {
+      const target = document.getElementById('browse-courses-section');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
 
   return (
     <div className="space-y-10 pb-24">
@@ -45,6 +63,38 @@ export default function UserCatalogView({
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
             Master state-of-the-art systems architecture through university-calibrated engineering specializations, authenticated video lectures, and faculty-evaluated capstones.
           </p>
+
+          {/* OPEN-SOURCE TECHNOLOGY SEARCH BAR IN HERO */}
+          <div className="pt-2 max-w-2xl space-y-3">
+            <TechSearchBar
+              size="hero"
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSearch={handleSearchSubmit}
+              placeholder="Search technologies, subdomains & systems (e.g. AI, NLP, Raft...)"
+            />
+
+            {/* Quick Open-Source Technology Tags */}
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+              <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-blue-600" />
+                <span>Technologies:</span>
+              </span>
+              {POPULAR_TECHNOLOGY_TAGS.slice(0, 6).map((tag, tIdx) => (
+                <button
+                  key={tIdx}
+                  type="button"
+                  onClick={() => {
+                    if (setSearchQuery) setSearchQuery(tag.query);
+                    handleSearchSubmit(tag.query);
+                  }}
+                  className="px-2.5 py-1 bg-white hover:bg-[#0056D2] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0056D2] rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="pt-2 flex flex-wrap items-center gap-4">
             <button
@@ -82,18 +132,37 @@ export default function UserCatalogView({
             </p>
           </div>
 
-          {/* Search Box on mobile / catalog */}
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
+          {/* Catalog Level Tech Search Box with Open-Source Feed */}
+          <div className="w-full sm:w-80">
+            <TechSearchBar
+              size="normal"
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSearch={handleSearchSubmit}
               placeholder="Filter by keyword or topic..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-[#0056D2] transition-all"
             />
           </div>
         </div>
+
+        {/* Active Search Filter Badge */}
+        {hasSearch && (
+          <div className="flex items-center justify-between bg-blue-50/70 border border-blue-200 rounded-xl px-4 py-2 text-xs text-slate-700">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#0056D2]" />
+              <span>Filtered by technology / subdomain: <strong className="text-[#0056D2]">"{searchQuery}"</strong> ({filteredCourses.length} results)</span>
+            </div>
+            <button
+              onClick={() => {
+                if (setSearchQuery) setSearchQuery('');
+                if (setSelectedCategory) setSelectedCategory('All');
+              }}
+              className="text-xs font-bold text-[#0056D2] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Clear Filter</span>
+            </button>
+          </div>
+        )}
 
         {/* Category Pills (Coursera Style) */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
@@ -101,7 +170,7 @@ export default function UserCatalogView({
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={'px-4 py-2 text-xs font-semibold rounded-full transition-all whitespace-nowrap ' +
+              className={'px-4 py-2 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ' +
                 (selectedCategory === cat
                   ? 'bg-[#0056D2] text-white shadow-xs'
                   : 'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
@@ -136,7 +205,7 @@ export default function UserCatalogView({
             if (course.id === 1) {
               badgeText = 'Recently updated';
               badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
-            } else if (course.id === 2 || course.category === 'Applied AI') {
+            } else if (course.id === 2 || course.category === 'Applied AI' || course.title.toLowerCase().includes('nlp')) {
               badgeText = 'Top AI program';
               badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200/60';
             } else if (course.id === 3) {
@@ -224,15 +293,15 @@ export default function UserCatalogView({
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300 p-8 space-y-3">
           <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
           <h4 className="text-sm font-bold text-slate-800">No programs match your search</h4>
-          <p className="text-xs text-slate-500">Try searching for topics like "Raft", "Anycast", "Quantization", or select All Courses.</p>
+          <p className="text-xs text-slate-500">Try searching for topics like "AI", "NLP", "Raft", "Distributed Systems", or select All Courses.</p>
           <button
             onClick={() => {
               setSearchQuery('');
               setSelectedCategory('All');
             }}
-            className="px-4 py-2 text-xs font-bold text-[#0056D2] bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+            className="px-4 py-2 text-xs font-bold text-[#0056D2] bg-blue-50 hover:bg-blue-100 rounded-md transition-colors cursor-pointer"
           >
-            Clear Filters
+            Clear Filters & View All
           </button>
         </div>
       )}

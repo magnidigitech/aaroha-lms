@@ -11,6 +11,7 @@ require_once __DIR__ . '/controllers/TaskController.php';
 require_once __DIR__ . '/controllers/PlaybackController.php';
 require_once __DIR__ . '/controllers/CertificateController.php';
 require_once __DIR__ . '/controllers/LeaderboardController.php';
+require_once __DIR__ . '/controllers/DegreeController.php';
 
 // 1. Handle CORS Preflight and Headers
 handleCORS();
@@ -216,6 +217,25 @@ try {
     elseif ($requestMethod === 'DELETE' && preg_match('#^/leaderboard/(\d+)$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
         $response = LeaderboardController::deleteRanking((int)$matches[1], $admin);
+    }
+
+    // -------------------------------------------------------------
+    // ACCREDITED DEGREE PROGRAMS (FACULTY GOVERNANCE)
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'GET' && $path === '/degrees') {
+        $response = DegreeController::getDegrees();
+    }
+    elseif ($requestMethod === 'POST' && $path === '/degrees') {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = DegreeController::createDegree($inputData, $admin);
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/degrees/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = DegreeController::updateDegree((int)$matches[1], $inputData, $admin);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/degrees/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = DegreeController::deleteDegree((int)$matches[1], $admin);
     }
 
     // -------------------------------------------------------------

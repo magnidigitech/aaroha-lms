@@ -156,6 +156,99 @@ class Database {
                             @self::$pdo->exec("ALTER TABLE courses MODIFY COLUMN thumbnail_url LONGTEXT NULL");
                             @self::$pdo->exec("ALTER TABLE courses MODIFY COLUMN instructor_avatar LONGTEXT NULL");
 
+                            // Create degrees table
+                            self::$pdo->exec("CREATE TABLE IF NOT EXISTS degrees (
+                                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                                title VARCHAR(255) NOT NULL,
+                                slug VARCHAR(255) NOT NULL UNIQUE,
+                                degree_type VARCHAR(100) NOT NULL,
+                                duration VARCHAR(100) NOT NULL,
+                                level VARCHAR(100) NOT NULL,
+                                accreditation VARCHAR(255) NOT NULL,
+                                course_id INT UNSIGNED NULL,
+                                faculty_name VARCHAR(200) NOT NULL,
+                                faculty_title VARCHAR(200) NULL,
+                                faculty_avatar LONGTEXT NULL,
+                                description TEXT NOT NULL,
+                                modules_count VARCHAR(100) NULL,
+                                evaluated_projects_count VARCHAR(100) NULL,
+                                credential_awarded VARCHAR(255) NULL,
+                                skills LONGTEXT NULL,
+                                highlights LONGTEXT NULL,
+                                is_published TINYINT(1) DEFAULT 1,
+                                is_deleted TINYINT(1) DEFAULT 0,
+                                created_by INT UNSIGNED NULL,
+                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                            )");
+
+                            // Seed Core Degrees 1, 2, 3 if empty
+                            $degCount = (int)self::$pdo->query("SELECT COUNT(*) FROM degrees WHERE is_deleted = 0")->fetchColumn();
+                            if ($degCount === 0) {
+                                $stmtDeg = self::$pdo->prepare("
+                                    INSERT INTO degrees 
+                                    (id, title, slug, degree_type, duration, level, accreditation, course_id, faculty_name, faculty_title, faculty_avatar, description, modules_count, evaluated_projects_count, credential_awarded, skills, highlights, is_published, is_deleted, created_by)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, 1)
+                                ");
+                                $stmtDeg->execute([
+                                    1,
+                                    'Master of Science in Distributed Cloud Architecture & High-Throughput Systems',
+                                    'distributed-cloud-architecture',
+                                    'Master of Science (M.S. Equivalent)',
+                                    '12 Months · 36 ECTS Credits',
+                                    'Graduate / Principal Level',
+                                    'Aaroha Institute of Technology & Systems Directorate',
+                                    1,
+                                    'Faculty Member',
+                                    'Chair of Distributed Infrastructure',
+                                    '/avatars/3d/memo_1.png',
+                                    'An advanced graduate curriculum focused on multi-region consensus engines, kernel-bypass networking, Raft leader election invariants, and LSM-tree storage internals sustaining 100k+ QPS with strict P99 latency budgets.',
+                                    '3 In-Depth Specialization Semesters',
+                                    '3 Production RFC Architectural Defenses',
+                                    'Official Master of Science Degree & Accredited Parchment',
+                                    json_encode(['Raft Consensus Protocol', 'BGP Anycast Edge Routing', 'LSM Storage Compaction (RocksDB)', 'Zero-Trust mTLS Architecture', 'Transactional Outbox & CDC']),
+                                    json_encode(['100% online with asynchronous laboratory benchmarks', 'Mandatory evaluated capstone evaluated by systems faculty', 'Permanent verifiable cryptographic degree credential on graduation'])
+                                ]);
+                                $stmtDeg->execute([
+                                    2,
+                                    'Master of Engineering in Applied Machine Learning & Model Serving Infrastructure',
+                                    'applied-ml-engineering',
+                                    'Master of Engineering (M.Eng. Equivalent)',
+                                    '10 Months · 32 ECTS Credits',
+                                    'Graduate / Staff ML Engineer',
+                                    'Accelerated Computing Directorate, Aaroha Institute',
+                                    2,
+                                    'Faculty Member',
+                                    'ML Systems Engineer & Faculty Chair',
+                                    '/avatars/3d/memo_3.png',
+                                    'Bridging the gap between neural weights and production GPU runtimes. Specialize in low-latency transformer inference, continuous request batching, INT8/AWQ quantization, and Triton model serving.',
+                                    '2 Core Semesters + Accelerated Lab',
+                                    '2 Evaluated GPU Throughput Benchmarks',
+                                    'Master of Engineering in Applied ML Systems',
+                                    json_encode(['vLLM & Continuous Batching', 'AWQ & GPTQ Quantization', 'Triton Multi-Model Inference', 'CUDA Memory Bounds', 'Concept Drift Telemetry']),
+                                    json_encode(['Hands-on profiling with production GPU execution graphs', 'Faculty evaluation of sub-50ms P99 inference SLAs', 'Dual-accreditation with industry systems laboratories'])
+                                ]);
+                                $stmtDeg->execute([
+                                    3,
+                                    'Post-Graduate Diploma in Enterprise Cyber Defense & Zero-Trust Architecture',
+                                    'enterprise-cyber-defense',
+                                    'Post-Graduate Diploma (P.G. Dip)',
+                                    '8 Months · 24 ECTS Credits',
+                                    'Advanced Specialist',
+                                    'Center for Cyber Resilience, Aaroha Institute',
+                                    3,
+                                    'Faculty Member',
+                                    'Security Architect & Red Team Fellow',
+                                    '/avatars/3d/memo_14.png',
+                                    'Master application defense, supply-chain attestation, memory safety transitions, and real-time incident triage using eBPF kernel telemetry, SLSA Level 3 attestations, and STRIDE threat modeling.',
+                                    '2 Specialist Semesters',
+                                    '2 Cryptographic Supply Chain Audits',
+                                    'Accredited Post-Graduate Diploma in Cyber Defense',
+                                    json_encode(['STRIDE Threat Modeling', 'eBPF Kernel Telemetry', 'Sigstore Cosign Attestations', 'mTLS Identity Mesh (SPIFFE)', 'Zero-Day Incident Forensics']),
+                                    json_encode(['Real-world simulated adversary scenarios and red-team defenses', 'Automated admission controller policy authoring (Kyverno)', 'Tamper-evident verification backed by Aaroha Certificate Authority'])
+                                ]);
+                            }
+
                             // Ensure Core Course 1 (Distributed Cloud Architecture) is active and provisioned
                             $c1 = self::$pdo->query("SELECT id, is_deleted, is_published FROM courses WHERE id = 1")->fetch();
                             if (!$c1) {

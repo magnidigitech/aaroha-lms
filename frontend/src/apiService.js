@@ -207,6 +207,23 @@ export const api = {
 
   deleteLeaderboardRanking: (rankingId) => request(`/leaderboard/${rankingId}`, {
     method: 'DELETE'
+  }),
+
+  // Accredited Degree Programs (Faculty Authority)
+  getDegrees: () => request('/degrees'),
+
+  createDegree: (data) => request('/degrees', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  updateDegree: (degreeId, data) => request(`/degrees/${degreeId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  deleteDegree: (degreeId) => request(`/degrees/${degreeId}`, {
+    method: 'DELETE'
   })
 };
 

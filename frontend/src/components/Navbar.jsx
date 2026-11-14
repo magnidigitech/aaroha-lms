@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ChevronDown, UserPlus, LogOut, GraduationCap, Shield, Compass, Menu, X, Award, ShieldCheck, ArrowRight } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
+import TechSearchBar from './TechSearchBar';
 
 export default function Navbar({
   currentUser,
@@ -28,6 +29,18 @@ export default function Navbar({
       ...(courses?.map(c => c.category).filter(Boolean) || [])
     ]))
   ];
+
+  const handleNavbarSearch = (query) => {
+    if (setSearchQuery) setSearchQuery(query);
+    if (onSelectCategory) onSelectCategory('All');
+    if (activeView !== 'catalog') setActiveView('catalog');
+    setTimeout(() => {
+      const target = document.getElementById('browse-courses-section');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 120);
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-2xs">
@@ -98,27 +111,15 @@ export default function Navbar({
             </div>
           </div>
 
-          {/* Center: Coursera Global Search Bar (Desktop) */}
+          {/* Center: Open-Source Technology Search Bar (Desktop) */}
           <div className="hidden xl:flex flex-1 max-w-md mx-4">
-            <div className="relative w-full">
-              <input
-                type="text"
-                placeholder="What do you want to learn? (e.g. Raft, mTLS, AWQ...)"
-                value={searchQuery || ''}
-                onChange={(e) => {
-                  if (setSearchQuery) setSearchQuery(e.target.value);
-                  if (activeView !== 'catalog') setActiveView('catalog');
-                }}
-                className="w-full pl-4 pr-11 py-2 text-xs bg-slate-50 border border-slate-300 rounded-full focus:bg-white focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-[#0056D2] transition-all"
-              />
-              <button 
-                onClick={() => setActiveView('catalog')}
-                className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0056D2] text-white flex items-center justify-center hover:bg-[#00419e] transition-colors cursor-pointer"
-                aria-label="Search curriculum"
-              >
-                <Search className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            <TechSearchBar
+              size="normal"
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSearch={handleNavbarSearch}
+              placeholder="What do you want to learn? (e.g. AI, NLP, Raft...)"
+            />
           </div>
 
           {/* Right Navigation & User Surface */}
@@ -333,17 +334,16 @@ export default function Navbar({
           <div className="md:hidden border-t border-slate-200 py-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
             {/* Mobile Search */}
             <div className="relative px-1">
-              <input
-                type="text"
-                placeholder="Search programs (e.g. Raft, mTLS)..."
-                value={searchQuery || ''}
-                onChange={(e) => {
-                  if (setSearchQuery) setSearchQuery(e.target.value);
-                  if (activeView !== 'catalog') setActiveView('catalog');
+              <TechSearchBar
+                size="normal"
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                onSearch={(q) => {
+                  handleNavbarSearch(q);
+                  setIsMobileMenuOpen(false);
                 }}
-                className="w-full pl-3 pr-9 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:border-blue-600"
+                placeholder="Search technologies (e.g. AI, NLP)..."
               />
-              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
             {/* Mobile Nav Links */}
