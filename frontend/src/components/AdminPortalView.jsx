@@ -10,13 +10,18 @@ import LectureModal from './admin/LectureModal';
 import AssignmentModal from './admin/AssignmentModal';
 import DeleteConfirmModal from './admin/DeleteConfirmModal';
 import IssueCertificateModal from './admin/IssueCertificateModal';
+import DegreeModal from './admin/DegreeModal';
 
 export default function AdminPortalView({
   courses = [],
   taskSubmissions = [],
+  degrees = [],
   onAddCourse,
   onUpdateCourse,
   onDeleteCourse,
+  onAddDegree,
+  onUpdateDegree,
+  onDeleteDegree,
   onAddModule,
   onUpdateModule,
   onDeleteModule,
@@ -32,10 +37,11 @@ export default function AdminPortalView({
   currentUser,
   enrolledStudents = []
 }) {
-  const [activeTab, setActiveTab] = useState('courses'); // 'courses' | 'grading'
+  const [activeTab, setActiveTab] = useState('courses'); // 'courses' | 'degrees' | 'grading'
 
   // Modal dialog states
   const [courseModal, setCourseModal] = useState({ isOpen: false, initialData: null, initialTab: 'syllabus' });
+  const [degreeModal, setDegreeModal] = useState({ isOpen: false, initialData: null });
   const [moduleModal, setModuleModal] = useState({ isOpen: false, courseId: null, initialData: null });
   const [lectureModal, setLectureModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
   const [assignmentModal, setAssignmentModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
@@ -84,6 +90,21 @@ export default function AdminPortalView({
       confirmButtonText: 'Archive Program',
       onConfirm: async () => {
         if (onDeleteCourse) await onDeleteCourse(course.id);
+      }
+    });
+  };
+
+  const triggerDeleteDegree = (degree) => {
+    setDeleteModal({
+      isOpen: true,
+      title: 'Archive Accredited Degree Program',
+      itemName: degree.title,
+      itemType: 'Degree Program',
+      affectedChildren: 'This will archive the degree program from public accreditation listings.',
+      studentImpact: 'Existing enrolled learners and issued digital parchment credentials remain permanently valid and verifiable.',
+      confirmButtonText: 'Archive Degree Program',
+      onConfirm: async () => {
+        if (onDeleteDegree) await onDeleteDegree(degree.id);
       }
     });
   };
@@ -210,11 +231,17 @@ export default function AdminPortalView({
             </button>
           )}
           <button
-            onClick={() => setCourseModal({ isOpen: true, initialData: null, initialTab: 'syllabus' })}
+            onClick={() => {
+              if (activeTab === 'degrees') {
+                setDegreeModal({ isOpen: true, initialData: null });
+              } else {
+                setCourseModal({ isOpen: true, initialData: null, initialTab: 'syllabus' });
+              }
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-97 cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
-            <span>Author Program</span>
+            <span>{activeTab === 'degrees' ? 'Author Degree Track' : 'Author Program'}</span>
           </button>
         </div>
       </div>
@@ -231,6 +258,18 @@ export default function AdminPortalView({
         >
           <BookOpen className="w-4 h-4" />
           <span>Curriculum Directory ({courses.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('degrees')}
+          className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-2 shrink-0 ${
+            activeTab === 'degrees'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Award className="w-4 h-4" />
+          <span>Accredited Degrees ({degrees.length})</span>
         </button>
 
         <button
@@ -781,6 +820,152 @@ export default function AdminPortalView({
         </div>
       )}
 
+      {/* TAB: ACCREDITED DEGREES & SPECIALIZATIONS */}
+      {activeTab === 'degrees' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold uppercase tracking-wider">
+                  Academic Governance
+                </span>
+                <span className="text-xs text-slate-400 font-medium">•</span>
+                <span className="text-xs text-slate-500 font-medium">University Accreditation</span>
+              </div>
+              <h2 className="text-lg font-black text-slate-900 tracking-tight mt-1">
+                Accredited Degrees & Programs ({degrees.length})
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Author graduate-equivalent degree tracks, define ECTS credits, assign faculty leads, and manage program credentials.
+              </p>
+            </div>
+            <button
+              onClick={() => setDegreeModal({ isOpen: true, initialData: null })}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Author Degree Track</span>
+            </button>
+          </div>
+
+          {degrees.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200">
+              <GraduationCap className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-800">No accredited degree programs found</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-4">
+                Establish university-grade credentials by authoring your first master's or specialization track.
+              </p>
+              <button
+                onClick={() => setDegreeModal({ isOpen: true, initialData: null })}
+                className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-blue-700 cursor-pointer"
+              >
+                Author First Degree Program
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {degrees.map((degree) => {
+                const facName = degree.faculty_name || degree.faculty?.name || 'Faculty Member';
+                const facTitle = degree.faculty_title || degree.faculty?.title || 'Academic Faculty';
+                const facAvatar = degree.faculty_avatar || degree.faculty?.avatar || '/avatars/3d/memo_1.png';
+                const linkedCourse = courses.find(c => c.id === degree.courseId || c.id === degree.course_id);
+
+                return (
+                  <div key={degree.id} className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden transition-all hover:border-slate-300 p-6 space-y-5">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                      <div className="space-y-2 max-w-3xl">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-1 rounded-full bg-blue-50 text-[#0056D2] text-[11px] font-extrabold uppercase tracking-wider border border-blue-200">
+                            {degree.degreeType || degree.degree_type}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">
+                            {degree.duration}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 flex items-center gap-1">
+                            <Award className="w-3.5 h-3.5 text-amber-600" />
+                            <span>{degree.accreditation}</span>
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                            degree.is_published ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            {degree.is_published ? 'Published & Active' : 'Draft'}
+                          </span>
+                        </div>
+
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                          {degree.title}
+                        </h3>
+
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          {degree.description}
+                        </p>
+                      </div>
+
+                      {/* Faculty Chair Badge */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex items-center gap-3 shrink-0 md:w-64">
+                        <img
+                          src={facAvatar}
+                          alt={facName}
+                          onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
+                          className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-xs"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 leading-tight truncate">
+                            {facName}
+                          </div>
+                          <div className="text-[11px] text-slate-500 leading-tight mt-0.5 line-clamp-2">
+                            {facTitle}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Metadata & Controls */}
+                    <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold flex-wrap">
+                        <span className="flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-[#0056D2]" />
+                          <span>{degree.modulesCount || degree.modules_count || 'Core Semesters'}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-amber-600" />
+                          <span>{degree.evaluatedProjectsCount || degree.evaluated_projects_count || 'Evaluated Capstones'}</span>
+                        </span>
+                        {linkedCourse && (
+                          <span className="text-slate-400">
+                            Linked LMS Course: <strong className="text-slate-700">{linkedCourse.title}</strong>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                        <button
+                          onClick={() => setDegreeModal({ isOpen: true, initialData: degree })}
+                          className="px-3.5 py-1.5 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          title="Edit Degree Program specifications"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Edit Program</span>
+                        </button>
+
+                        <button
+                          onClick={() => triggerDeleteDegree(degree)}
+                          className="px-2.5 py-1.5 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-slate-600 hover:text-red-700 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                          title="Archive Degree Program"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                          <span className="hidden sm:inline">Archive</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* TAB 2: EVALUATION QUEUE */}
       {activeTab === 'grading' && (
         <div className="space-y-6">
@@ -1003,6 +1188,23 @@ export default function AdminPortalView({
           </div>
         </div>
       )}
+
+      {/* Degree Authoring / Editing Modal */}
+      <DegreeModal
+        isOpen={degreeModal.isOpen}
+        onClose={() => setDegreeModal({ isOpen: false, initialData: null })}
+        initialData={degreeModal.initialData}
+        courses={courses}
+        currentUser={currentUser}
+        onSave={async (payload) => {
+          if (degreeModal.initialData?.id) {
+            if (onUpdateDegree) await onUpdateDegree(degreeModal.initialData.id, payload);
+          } else {
+            if (onAddDegree) await onAddDegree(payload);
+          }
+          setDegreeModal({ isOpen: false, initialData: null });
+        }}
+      />
     </div>
   );
 }

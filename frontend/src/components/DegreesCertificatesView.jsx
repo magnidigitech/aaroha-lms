@@ -3,16 +3,21 @@ import {
   GraduationCap, Award, ShieldCheck, CheckCircle2, 
   ArrowRight, Search, BookOpen, 
   FileText, Copy, Check, Layers,
-  CheckCircle
+  CheckCircle, Plus, Edit3, Trash2, Sparkles
 } from 'lucide-react';
+import DegreeModal from './admin/DegreeModal';
 
 export default function DegreesCertificatesView({
   courses = [],
   certificates = [],
+  degrees = [],
   currentUser = null,
   onOpenCourseDetails,
   onViewCertificate,
   onExploreCatalog,
+  onAddDegree,
+  onUpdateDegree,
+  onDeleteDegree,
   initialTab = 'degrees'
 }) {
   const [activeTab, setActiveTab] = useState(initialTab); // 'degrees' | 'certifications' | 'verify' | 'my_certs'
@@ -20,6 +25,16 @@ export default function DegreesCertificatesView({
   const [verificationResult, setVerificationResult] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+
+  // Faculty governance authority
+  const isFaculty = currentUser && (
+    currentUser.role === 'admin' || 
+    currentUser.role === 'faculty' || 
+    currentUser.role === 'instructor'
+  );
+
+  // Authoring / Editing Modal State
+  const [degreeModal, setDegreeModal] = useState({ isOpen: false, initialData: null });
 
   // Student's issued certificates
   const studentCertificates = certificates.filter(c => 
@@ -333,6 +348,31 @@ export default function DegreesCertificatesView({
       {/* 3. TAB 1: Academic Degrees (Master's Specializations) */}
       {activeTab === 'degrees' && (
         <div className="space-y-8 animate-in fade-in duration-200">
+          {/* Faculty Academic Governance Action Bar */}
+          {isFaculty && (
+            <div className="bg-gradient-to-r from-slate-900 via-[#0B1A2F] to-blue-950 border border-blue-500/40 rounded-3xl p-5 sm:p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold uppercase tracking-wider border border-blue-400/30">
+                  <GraduationCap className="w-3.5 h-3.5 text-blue-300" />
+                  <span>Faculty Academic Authority</span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+                  Accredited Degrees Directorate & Curricular Governance
+                </h3>
+                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                  As verified faculty, you have direct stewardship over degree tracks, ECTS credit weights, syllabus requirements, and institutional accreditations.
+                </p>
+              </div>
+              <button
+                onClick={() => setDegreeModal({ isOpen: true, initialData: null })}
+                className="bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Author Degree Track</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
@@ -343,25 +383,31 @@ export default function DegreesCertificatesView({
               </p>
             </div>
             <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg shrink-0 self-start sm:self-auto">
-              3 Specialized Tracks Available
+              {((Array.isArray(degrees) && degrees.length > 0) ? degrees : degreePrograms).length} Specialized Tracks Available
             </span>
           </div>
 
           <div className="grid grid-cols-1 gap-8">
-            {degreePrograms.map((program) => {
-              const matchedCourse = courses.find(c => c.id === program.courseId || c.slug === program.courseSlug) || 
-                                    courses.find(c => c.category === program.title.split(' ')[0]) || 
+            {((Array.isArray(degrees) && degrees.length > 0) ? degrees : degreePrograms).map((program) => {
+              const matchedCourse = courses.find(c => c.id === program.courseId || c.course_id === program.courseId || c.slug === program.courseSlug) || 
+                                    courses.find(c => c.category === (program.title || '').split(' ')[0]) || 
                                     courses[0];
+              const facultyName = program.faculty_name || program.faculty?.name || 'Faculty Member';
+              const facultyTitle = program.faculty_title || program.faculty?.title || 'Academic Faculty';
+              const facultyAvatar = program.faculty_avatar || program.faculty?.avatar || '/avatars/3d/memo_1.png';
+              const skillsList = Array.isArray(program.skills) ? program.skills : [];
+              const highlightsList = Array.isArray(program.highlights) ? program.highlights : [];
+
               return (
                 <div
-                  key={program.id}
+                  key={program.id || program.slug}
                   className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 p-6 sm:p-8 space-y-6"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
                     <div className="space-y-3 max-w-3xl">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="px-3 py-1 rounded-full bg-blue-50 text-[#0056D2] text-[11px] font-extrabold uppercase tracking-wider border border-blue-200">
-                          {program.degreeType}
+                          {program.degreeType || program.degree_type}
                         </span>
                         <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">
                           {program.duration}
@@ -370,6 +416,11 @@ export default function DegreesCertificatesView({
                           <Award className="w-3.5 h-3.5 text-amber-600" />
                           <span>{program.accreditation}</span>
                         </span>
+                        {isFaculty && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                            Faculty Managed
+                          </span>
+                        )}
                       </div>
 
                       <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
@@ -384,16 +435,17 @@ export default function DegreesCertificatesView({
                     {/* Faculty Badge */}
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3 shrink-0 lg:w-72">
                       <img
-                        src={program.faculty.avatar}
-                        alt={program.faculty.name}
+                        src={facultyAvatar}
+                        alt={facultyName}
+                        onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-xs"
                       />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 leading-tight">
-                          {program.faculty.name}
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 leading-tight truncate">
+                          {facultyName}
                         </div>
                         <div className="text-[11px] text-slate-500 leading-tight mt-0.5 line-clamp-2">
-                          {program.faculty.title}
+                          {facultyTitle}
                         </div>
                       </div>
                     </div>
@@ -407,7 +459,7 @@ export default function DegreesCertificatesView({
                         <span>Core Specialization Invariants</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {program.skills.map((skill, idx) => (
+                        {skillsList.map((skill, idx) => (
                           <span
                             key={idx}
                             className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium rounded-md transition-colors"
@@ -424,7 +476,7 @@ export default function DegreesCertificatesView({
                         <span>Curriculum Guarantees</span>
                       </div>
                       <ul className="space-y-1 text-xs text-slate-600">
-                        {program.highlights.map((h, i) => (
+                        {highlightsList.map((h, i) => (
                           <li key={i} className="flex items-start gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#0056D2] mt-1.5 shrink-0" />
                             <span>{h}</span>
@@ -439,15 +491,41 @@ export default function DegreesCertificatesView({
                     <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold">
                       <span className="flex items-center gap-1.5">
                         <BookOpen className="w-3.5 h-3.5 text-[#0056D2]" />
-                        <span>{program.modulesCount}</span>
+                        <span>{program.modulesCount || program.modules_count || 'Curriculum Modules'}</span>
                       </span>
                       <span className="flex items-center gap-1.5">
                         <FileText className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{program.evaluatedProjectsCount}</span>
+                        <span>{program.evaluatedProjectsCount || program.evaluated_projects_count || 'Evaluated Capstones'}</span>
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      {isFaculty && (
+                        <>
+                          <button
+                            onClick={() => setDegreeModal({ isOpen: true, initialData: program })}
+                            className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                            title="Edit Degree Program specifications"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Edit Track</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Archive accredited degree track: "${program.title}"?`)) {
+                                if (onDeleteDegree) onDeleteDegree(program.id);
+                              }
+                            }}
+                            className="px-3 py-2.5 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-slate-600 hover:text-red-700 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                            title="Archive Degree Program"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            <span className="hidden sm:inline">Archive</span>
+                          </button>
+                        </>
+                      )}
+
                       <button
                         onClick={() => matchedCourse && onOpenCourseDetails(matchedCourse)}
                         className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
@@ -768,6 +846,25 @@ export default function DegreesCertificatesView({
             </div>
           )}
         </div>
+      )}
+
+      {/* Faculty Degree Authoring / Editing Modal */}
+      {isFaculty && (
+        <DegreeModal
+          isOpen={degreeModal.isOpen}
+          onClose={() => setDegreeModal({ isOpen: false, initialData: null })}
+          initialData={degreeModal.initialData}
+          courses={courses}
+          currentUser={currentUser}
+          onSave={async (payload) => {
+            if (degreeModal.initialData?.id) {
+              if (onUpdateDegree) await onUpdateDegree(degreeModal.initialData.id, payload);
+            } else {
+              if (onAddDegree) await onAddDegree(payload);
+            }
+            setDegreeModal({ isOpen: false, initialData: null });
+          }}
+        />
       )}
     </div>
   );

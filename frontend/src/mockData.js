@@ -577,3 +577,105 @@ export const initialCertificates = [
     issued_at: '2026-11-13T12:00:00Z'
   }
 ];
+
+export const initialDegrees = [
+  {
+    id: 1,
+    title: 'Master of Science in Distributed Cloud Architecture & High-Throughput Systems',
+    slug: 'distributed-cloud-architecture',
+    degreeType: 'Master of Science (M.S. Equivalent)',
+    duration: '12 Months · 36 ECTS Credits',
+    level: 'Graduate / Principal Level',
+    accreditation: 'Aaroha Institute of Technology & Systems Directorate',
+    courseId: 1,
+    courseSlug: 'distributed-cloud-architecture',
+    faculty: {
+      name: 'Dr. Aris Thorne',
+      title: 'Chair of Distributed Infrastructure',
+      avatar: '/avatars/3d/memo_1.png'
+    },
+    description: 'An advanced graduate curriculum focused on multi-region consensus engines, kernel-bypass networking, Raft leader election invariants, and LSM-tree storage internals sustaining 100k+ QPS with strict P99 latency budgets.',
+    modulesCount: '3 In-Depth Specialization Semesters',
+    evaluatedProjectsCount: '3 Production RFC Architectural Defenses',
+    credentialAwarded: 'Official Master of Science Degree & Accredited Parchment',
+    skills: [
+      'Raft Consensus Protocol',
+      'BGP Anycast Edge Routing',
+      'LSM Storage Compaction (RocksDB)',
+      'Zero-Trust mTLS Architecture',
+      'Transactional Outbox & CDC'
+    ],
+    highlights: [
+      '100% online with asynchronous laboratory benchmarks',
+      'Mandatory evaluated capstone evaluated by systems faculty',
+      'Permanent verifiable cryptographic degree credential on graduation'
+    ],
+    is_published: 1
+  },
+  {
+    id: 2,
+    title: 'Master of Engineering in Applied Machine Learning & Model Serving Infrastructure',
+    slug: 'applied-ml-engineering',
+    degreeType: 'Master of Engineering (M.Eng. Equivalent)',
+    duration: '10 Months · 32 ECTS Credits',
+    level: 'Graduate / Staff ML Engineer',
+    accreditation: 'Accelerated Computing Directorate, Aaroha Institute',
+    courseId: 2,
+    courseSlug: 'applied-ml-engineering',
+    faculty: {
+      name: 'Dr. Marcus Vance',
+      title: 'Distinguished ML Systems Engineer & Faculty Chair',
+      avatar: '/avatars/3d/memo_3.png'
+    },
+    description: 'Bridging the gap between neural weights and production GPU runtimes. Specialize in low-latency transformer inference, continuous request batching, INT8/AWQ quantization, and Triton model serving.',
+    modulesCount: '2 Core Semesters + Accelerated Lab',
+    evaluatedProjectsCount: '2 Evaluated GPU Throughput Benchmarks',
+    credentialAwarded: 'Master of Engineering in Applied ML Systems',
+    skills: [
+      'vLLM & Continuous Batching',
+      'AWQ & GPTQ Quantization',
+      'Triton Multi-Model Inference',
+      'CUDA Memory Bounds',
+      'Concept Drift Telemetry'
+    ],
+    highlights: [
+      'Hands-on profiling with production GPU execution graphs',
+      'Faculty evaluation of sub-50ms P99 inference SLAs',
+      'Dual-accreditation with industry systems laboratories'
+    ],
+    is_published: 1
+  },
+  {
+    id: 3,
+    title: 'Post-Graduate Diploma in Enterprise Cyber Defense & Zero-Trust Architecture',
+    slug: 'enterprise-cyber-defense',
+    degreeType: 'Post-Graduate Diploma (P.G. Dip)',
+    duration: '8 Months · 24 ECTS Credits',
+    level: 'Advanced Specialist',
+    accreditation: 'Center for Cyber Resilience, Aaroha Institute',
+    courseId: 3,
+    courseSlug: 'enterprise-cyber-defense',
+    faculty: {
+      name: 'Katarina Wolf',
+      title: 'Principal Security Architect & Red Team Fellow',
+      avatar: '/avatars/3d/memo_14.png'
+    },
+    description: 'Master application defense, supply-chain attestation, memory safety transitions, and real-time incident triage using eBPF kernel telemetry, SLSA Level 3 attestations, and STRIDE threat modeling.',
+    modulesCount: '2 Specialist Semesters',
+    evaluatedProjectsCount: '2 Cryptographic Supply Chain Audits',
+    credentialAwarded: 'Accredited Post-Graduate Diploma in Cyber Defense',
+    skills: [
+      'STRIDE Threat Modeling',
+      'eBPF Kernel Telemetry',
+      'Sigstore Cosign Attestations',
+      'mTLS Identity Mesh (SPIFFE)',
+      'Zero-Day Incident Forensics'
+    ],
+    highlights: [
+      'Real-world simulated adversary scenarios and red-team defenses',
+      'Automated admission controller policy authoring (Kyverno)',
+      'Tamper-evident verification backed by Aaroha Certificate Authority'
+    ],
+    is_published: 1
+  }
+];

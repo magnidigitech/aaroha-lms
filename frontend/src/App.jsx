@@ -11,7 +11,7 @@ import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
 import LeaderboardToggle from './components/LeaderboardToggle';
 import LeaderboardDrawer from './components/LeaderboardDrawer';
-import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions, initialCertificates } from './mockData';
+import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions, initialCertificates, initialDegrees } from './mockData';
 import { CheckCircle2 } from 'lucide-react';
 import aarohaLogo from './assets/aaroha_logo.webp';
 import { api } from './apiService';
@@ -125,6 +125,15 @@ export default function App() {
       return initialCertificates;
     }
   });
+
+  const [degrees, setDegrees] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aaroha_degrees');
+      return saved ? JSON.parse(saved) : initialDegrees;
+    } catch (e) {
+      return initialDegrees;
+    }
+  });
   
   const [selectedCourse, setSelectedCourse] = useState(() => {
     try {
@@ -214,6 +223,12 @@ export default function App() {
       localStorage.setItem('aaroha_certificates', JSON.stringify(certificates));
     } catch (e) {}
   }, [certificates]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('aaroha_degrees', JSON.stringify(degrees));
+    } catch (e) {}
+  }, [degrees]);
 
   // Track active view and course in storage
   useEffect(() => {
@@ -333,6 +348,15 @@ export default function App() {
       .catch(err => {
         console.warn('API unreachable, using local curriculum store:', err.message);
       });
+
+    // 3. Load accredited degree programs from API with fallback
+    api.getDegrees()
+      .then(res => {
+        if (res && res.degrees && res.degrees.length > 0) {
+          setDegrees(res.degrees);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const showToast = (msg) => {
@@ -1310,6 +1334,55 @@ export default function App() {
     return issued;
   };
 
+  const handleAddDegree = async (degreeData) => {
+    let created = null;
+    try {
+      const res = await api.createDegree(degreeData);
+      if (res && res.degree) {
+        created = res.degree;
+      }
+    } catch (err) {
+      console.warn('Backend API degree creation notice:', err.message);
+    }
+
+    const newDeg = created || {
+      ...degreeData,
+      id: Date.now()
+    };
+
+    setDegrees(prev => [newDeg, ...prev]);
+    showToast('Accredited degree track authored successfully!');
+    return newDeg;
+  };
+
+  const handleUpdateDegree = async (degreeId, degreeData) => {
+    let updated = null;
+    try {
+      const res = await api.updateDegree(degreeId, degreeData);
+      if (res && res.degree) {
+        updated = res.degree;
+      }
+    } catch (err) {
+      console.warn('Backend API degree update notice:', err.message);
+    }
+
+    const resolved = updated || { ...degreeData, id: degreeId };
+    setDegrees(prev => prev.map(d => d.id === degreeId ? { ...d, ...resolved } : d));
+    showToast('Accredited degree specifications updated!');
+    return resolved;
+  };
+
+  const handleDeleteDegree = async (degreeId) => {
+    try {
+      await api.deleteDegree(degreeId);
+    } catch (err) {
+      console.warn('Backend API degree deletion notice:', err.message);
+    }
+
+    setDegrees(prev => prev.filter(d => d.id !== degreeId));
+    showToast('Accredited degree track archived.');
+  };
+
   const pendingCount = taskSubmissions.filter(s => s.status === 'under_review').length;
   const enrolledCount = currentUser 
     ? enrollments.filter(e => 
@@ -1392,11 +1465,15 @@ export default function App() {
           <DegreesCertificatesView
             courses={courses}
             certificates={certificates}
+            degrees={degrees}
             currentUser={currentUser}
             onOpenCourseDetails={handleOpenCourseDetails}
             onViewCertificate={(cert) => setViewingCertificate(cert)}
             onExploreCatalog={() => setActiveView('catalog')}
             onOpenAuth={(tab) => handleOpenAuth(tab, null)}
+            onAddDegree={handleAddDegree}
+            onUpdateDegree={handleUpdateDegree}
+            onDeleteDegree={handleDeleteDegree}
           />
         )}
 
@@ -1474,9 +1551,13 @@ export default function App() {
           <AdminPortalView
             courses={courses}
             taskSubmissions={taskSubmissions}
+            degrees={degrees}
             onAddCourse={handleAddCourse}
             onUpdateCourse={handleUpdateCourse}
             onDeleteCourse={handleDeleteCourse}
+            onAddDegree={handleAddDegree}
+            onUpdateDegree={handleUpdateDegree}
+            onDeleteDegree={handleDeleteDegree}
             onAddModule={handleAddModule}
             onUpdateModule={handleUpdateModule}
             onDeleteModule={handleDeleteModule}
