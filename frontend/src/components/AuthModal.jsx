@@ -314,8 +314,8 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                           }}
                         />
                         {isSelected && (
-                          <div className="absolute inset-0 bg-[#0056D2]/40 flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white stroke-[3]" />
+                          <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-[#0056D2] text-white rounded-full flex items-center justify-center shadow-xs">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
                           </div>
                         )}
                       </button>

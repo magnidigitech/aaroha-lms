@@ -315,7 +315,7 @@ export default function ProfileModal({
                       categoryFilter === 'male' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    Male
+                    Male ({AVATAR_PRESETS.filter(p => p.gender === 'male').length})
                   </button>
                   <button
                     type="button"
@@ -324,7 +324,7 @@ export default function ProfileModal({
                       categoryFilter === 'female' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    Female
+                    Female ({AVATAR_PRESETS.filter(p => p.gender === 'female').length})
                   </button>
                 </div>
               )}
@@ -364,10 +364,10 @@ export default function ProfileModal({
                               }
                             }}
                           />
-                          {/* Active Checkmark Badge */}
+                          {/* Active Corner Checkmark Badge */}
                           {isSelected && (
-                            <div className="absolute inset-0 bg-[#0056D2]/40 backdrop-blur-[1px] flex items-center justify-center text-white">
-                              <Check className="w-5 h-5 stroke-[3]" />
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-[#0056D2] text-white rounded-full flex items-center justify-center shadow-xs">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </div>
                           )}
                         </div>
