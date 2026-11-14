@@ -1,10 +1,9 @@
 import React from 'react';
-import { Search, Star, Clock, BarChart3, CheckCircle2, Play, FileText, ArrowRight, ShieldCheck, Award, Users, BookOpen } from 'lucide-react';
+import { Search, Star, CheckCircle2, ArrowRight, Award, BookOpen } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 
 export default function UserCatalogView({ 
   courses, 
-  onEnroll, 
   onOpenCourseDetails, 
   searchQuery, 
   setSearchQuery,
@@ -30,89 +29,43 @@ export default function UserCatalogView({
   });
 
   return (
-    <div className="space-y-12 pb-24">
-      {/* Coursera-style Hero Section */}
-      <section className="bg-gradient-to-r from-blue-50/70 via-white to-blue-50/40 rounded-3xl border border-blue-100/80 p-8 sm:p-14 relative overflow-hidden shadow-2xs">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-8 space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-[#0056D2] text-xs font-bold uppercase tracking-wider">
-              <Award className="w-3.5 h-3.5 text-[#0056D2]" />
-              <span>Aaroha Institute of Technology</span>
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
-              Learn Without Limits.
-            </h1>
-
-            <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-              Build production-grade skills with specialized engineering courses, interactive lecture previews, and faculty-evaluated projects from Aaroha Institute of Technology.
-            </p>
-
-            <div className="pt-2 flex flex-wrap items-center gap-4">
-              <button
-                onClick={() => {
-                  const target = document.getElementById('browse-courses-section');
-                  if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                  } else {
-                    window.scrollTo({ top: 500, behavior: 'smooth' });
-                  }
-                }}
-                className="px-6 py-3 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs sm:text-sm font-bold rounded-md shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <span>Explore Courses</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold px-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>100% Online · Free Previews · Shareable Certificates</span>
-              </div>
-            </div>
+    <div className="space-y-10 pb-24">
+      {/* Executive Hero Banner */}
+      <section className="bg-gradient-to-r from-blue-50/70 via-white to-blue-50/40 rounded-3xl border border-blue-100/80 p-8 sm:p-12 relative overflow-hidden shadow-2xs">
+        <div className="max-w-3xl space-y-5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-[#0056D2] text-xs font-bold uppercase tracking-wider">
+            <Award className="w-3.5 h-3.5 text-[#0056D2]" />
+            <span>Aaroha Institute of Technology · Executive Academy</span>
           </div>
 
-          {/* Right Hero Badge Card */}
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-              <img
-                src={aarohaLogo}
-                alt="Aaroha Technologies"
-                className="h-7 w-auto object-contain"
-              />
-              <span className="text-[10px] font-bold text-[#0056D2] uppercase tracking-widest pl-2">
-                Accredited
-              </span>
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+            Production Systems Engineering Curricula
+          </h1>
+
+          <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
+            Master state-of-the-art systems architecture through university-calibrated engineering specializations, authenticated video lectures, and faculty-evaluated capstones.
+          </p>
+
+          <div className="pt-2 flex flex-wrap items-center gap-4">
+            <button
+              onClick={() => {
+                const target = document.getElementById('browse-courses-section');
+                if (target) {
+                  target.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                  window.scrollTo({ top: 500, behavior: 'smooth' });
+                }
+              }}
+              className="px-6 py-3 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <span>Explore Programs</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold px-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span>100% Online · Free Previews · Accredited Digital Certificates</span>
             </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Every specialization includes sequential video lectures, reference implementations, and mandatory evaluated assignments graded by systems faculty.
-            </p>
-
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-700">
-              <span className="flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-[#0056D2]" />
-                <span>45,000+ Enrolled</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                <span>4.9 / 5.0 Average</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Coursera Partner Institutions Banner */}
-      <section className="border-y border-slate-200/80 py-6 bg-white rounded-2xl px-6">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider text-center sm:text-left">
-            Collaborating Engineering Groups & Labs:
-          </span>
-          <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 text-slate-700 font-semibold text-xs">
-            <span className="hover:text-[#0056D2] transition-colors cursor-default">Aaroha Systems Lab</span>
-            <span className="hover:text-[#0056D2] transition-colors cursor-default">Cloud Native Consortium</span>
-            <span className="hover:text-[#0056D2] transition-colors cursor-default">Distributed Consensus Group</span>
-            <span className="hover:text-[#0056D2] transition-colors cursor-default">Center for Cyber Resilience</span>
           </div>
         </div>
       </section>

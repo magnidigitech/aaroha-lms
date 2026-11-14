@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { 
-  GraduationCap, Award, ShieldCheck, CheckCircle2, Clock, 
-  ArrowRight, Search, Sparkles, Users, Star, BookOpen, 
-  FileText, ExternalLink, Copy, Check, ChevronRight, Layers,
-  Shield, CheckCircle
+  GraduationCap, Award, ShieldCheck, CheckCircle2, 
+  ArrowRight, Search, BookOpen, 
+  FileText, Copy, Check, Layers,
+  CheckCircle
 } from 'lucide-react';
-import aarohaLogo from '../assets/aaroha_logo.webp';
 
 export default function DegreesCertificatesView({
   courses = [],
@@ -14,7 +13,6 @@ export default function DegreesCertificatesView({
   onOpenCourseDetails,
   onViewCertificate,
   onExploreCatalog,
-  onOpenAuth,
   initialTab = 'degrees'
 }) {
   const [activeTab, setActiveTab] = useState(initialTab); // 'degrees' | 'certifications' | 'verify' | 'my_certs'

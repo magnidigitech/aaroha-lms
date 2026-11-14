@@ -1332,7 +1332,6 @@ export default function App() {
         {activeView === 'catalog' && (
           <UserCatalogView
             courses={courses}
-            onEnroll={handleEnroll}
             onOpenCourseDetails={handleOpenCourseDetails}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}

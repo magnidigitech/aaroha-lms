@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, Bell, LogIn, UserPlus, LogOut, GraduationCap, Shield, BookOpen, Compass, Menu, X, Award, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Search, ChevronDown, UserPlus, LogOut, GraduationCap, Shield, Compass, Menu, X, Award, ShieldCheck, ArrowRight } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 
 export default function Navbar({

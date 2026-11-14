@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { 
   GraduationCap, BookOpen, CheckCircle2, Play, Clock, Award, 
-  ArrowRight, Search, ChevronRight, TrendingUp, Layers, Sparkles,
-  User, Edit3
+  ArrowRight, Search, Edit3
 } from 'lucide-react';
 import CertificateModal from './CertificateModal';
 

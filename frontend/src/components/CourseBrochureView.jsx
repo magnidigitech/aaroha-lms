@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  ArrowLeft, Play, FileText, CheckCircle2, Lock, ArrowRight, BookOpen, Clock, 
-  ListTodo, Star, Award, Check, Users, Globe, Calendar, ChevronDown, ChevronUp, 
-  Share2, ExternalLink, ShieldCheck, Sparkles
+  ArrowLeft, Play, Lock, ArrowRight, BookOpen, 
+  ListTodo, Star, Award, Globe, Calendar, ChevronDown, ChevronUp
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 
@@ -291,7 +290,7 @@ export default function CourseBrochureView({
                         <div
                           key={lesson.id || lIdx}
                           onClick={() => {
-                            if (isEnrolled) {
+                            if (isEnrolled || lesson.is_free_preview) {
                               onOpenClassroom(course);
                             } else {
                               onEnroll(course);
@@ -320,6 +319,11 @@ export default function CourseBrochureView({
                               <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
                                 <Play className="w-3 h-3 fill-current" />
                                 <span>Unlocked</span>
+                              </span>
+                            ) : lesson.is_free_preview ? (
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md flex items-center gap-1 shadow-2xs">
+                                <Play className="w-3 h-3 fill-current" />
+                                <span>Free Preview</span>
                               </span>
                             ) : (
                               <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">

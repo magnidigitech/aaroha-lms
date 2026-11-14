@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Award, Printer, Copy, Check, ShieldCheck, ExternalLink, Sparkles } from 'lucide-react';
+import { Award, Printer, Copy, Check, ShieldCheck, Sparkles } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 
 /**
  * High-Fidelity Accredited Digital Certificate Document
  * Calibrated for Academic Rigor, Official Print & PDF Export
  */
-export default function CertificateDocument({ certificate, onClose }) {
+export default function CertificateDocument({ certificate }) {
   const [copied, setCopied] = useState(false);
 
   if (!certificate) return null;
@@ -23,17 +23,14 @@ export default function CertificateDocument({ certificate, onClose }) {
     window.print();
   };
 
-  const formattedDate = certificate.issued_at 
-    ? new Date(certificate.issued_at).toLocaleDateString('en-US', {
+  const dateToFormat = certificate.issued_at ? new Date(certificate.issued_at) : null;
+  const formattedDate = dateToFormat
+    ? dateToFormat.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       })
-    : new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+    : 'November 14, 2026';
 
   return (
     <div className="space-y-6">
