@@ -8,6 +8,8 @@ hostinger_deploy/
 hostinger_deploy.zip
 deploy-package/
 *.zip
+*.pdf
+build_summary_pdf_*.py
 
 # Sensitive Production Config (DO NOT COMMIT DATABASE PASSWORDS)
 backend/config/env.php

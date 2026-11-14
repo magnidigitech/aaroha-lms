@@ -76,6 +76,17 @@ export const api = {
 
   getMe: () => request('/auth/me'),
 
+  updateProfile: async (profileData) => {
+    const res = await request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    });
+    if (res && res.token) {
+      localStorage.setItem('aaroha_token', res.token);
+    }
+    return res;
+  },
+
   // Courses (Public & Enrolled)
   getCourses: () => request('/courses'),
   getCourseDetails: (idOrSlug) => request(`/courses/${idOrSlug}`),

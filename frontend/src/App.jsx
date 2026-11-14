@@ -6,6 +6,7 @@ import CourseClassroomView from './components/CourseClassroomView';
 import StudentPortalView from './components/StudentPortalView';
 import AdminPortalView from './components/AdminPortalView';
 import AuthModal from './components/AuthModal';
+import ProfileModal from './components/ProfileModal';
 import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions, initialCertificates } from './mockData';
 import { CheckCircle2 } from 'lucide-react';
 import aarohaLogo from './assets/aaroha_logo.webp';
@@ -57,6 +58,8 @@ export default function App() {
     tab: 'login',
     intendedCourse: null
   });
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const [deletedCourseIds, setDeletedCourseIds] = useState(() => {
     try {
@@ -440,7 +443,8 @@ export default function App() {
       if (res && res.user) {
         const registeredUser = {
           ...res.user,
-          avatar: res.user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
+          avatar: res.user.avatar || userData.avatar || (isFacultyRole(res.user.role) ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&h=256&q=80' : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&h=256&q=80'),
+          title: res.user.title || userData.title || (isFacultyRole(res.user.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
         };
         setCurrentUser(registeredUser);
         localStorage.setItem('aaroha_user', JSON.stringify(registeredUser));
@@ -472,7 +476,8 @@ export default function App() {
       email: userData.email,
       password: userData.password,
       role: userData.role,
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'
+      avatar: userData.avatar || (isFacultyRole(userData.role) ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&h=256&q=80' : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&h=256&q=80'),
+      title: userData.title || (isFacultyRole(userData.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
     };
 
     setUsers([...users, newUser]);
@@ -491,6 +496,40 @@ export default function App() {
         localStorage.setItem('aaroha_view', 'student');
       }
       showToast('Account registered successfully. Welcome, ' + newUser.full_name);
+    }
+  };
+
+  const handleUpdateProfile = async (profileData) => {
+    try {
+      const res = await api.updateProfile(profileData);
+      const updatedUser = (res && res.user) ? res.user : {
+        ...currentUser,
+        ...profileData
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('aaroha_user', JSON.stringify(updatedUser));
+      
+      // Update in cached users list
+      setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+      try {
+        const savedUsers = JSON.parse(localStorage.getItem('aaroha_all_users') || '[]');
+        const updatedUsers = savedUsers.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u);
+        localStorage.setItem('aaroha_all_users', JSON.stringify(updatedUsers));
+      } catch (e) {}
+
+      showToast('Profile and avatar updated successfully!');
+      return updatedUser;
+    } catch (err) {
+      console.warn('Backend profile update failed or offline, updating locally:', err.message);
+      const updatedUser = {
+        ...currentUser,
+        ...profileData
+      };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('aaroha_user', JSON.stringify(updatedUser));
+      setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+      showToast('Profile and avatar saved locally.');
+      return updatedUser;
     }
   };
 
@@ -1253,6 +1292,7 @@ export default function App() {
           setActiveView={setActiveView}
           onOpenAuth={(tab) => handleOpenAuth(tab, null)}
           onLogout={handleLogout}
+          onOpenProfile={() => setIsProfileModalOpen(true)}
           stats={{
             enrolledCount: enrolledCount,
             pendingReviews: pendingCount
@@ -1293,6 +1333,7 @@ export default function App() {
               setActiveView('course-classroom');
             }}
             onExploreCatalog={() => setActiveView('catalog')}
+            onOpenProfile={() => setIsProfileModalOpen(true)}
             currentUser={currentUser}
           />
         )}
@@ -1353,6 +1394,7 @@ export default function App() {
             onSubmitTask={handleSubmitTask}
             allCourses={courses}
             onSelectCourse={(c) => setSelectedCourse(c)}
+            onOpenProfile={() => setIsProfileModalOpen(true)}
           />
         )}
 
@@ -1375,6 +1417,7 @@ export default function App() {
             onDeleteTask={handleDeleteTask}
             onGradeSubmission={handleGradeSubmission}
             onIssueCertificate={handleIssueCertificate}
+            onOpenProfile={() => setIsProfileModalOpen(true)}
             currentUser={currentUser}
             enrolledStudents={users.filter(u => u.role === 'student')}
           />
@@ -1389,6 +1432,15 @@ export default function App() {
         onRegister={handleRegister}
         initialTab={authModal.tab}
         intendedCourseTitle={authModal.intendedCourse?.title}
+      />
+
+      {/* User Profile & Avatar Customization Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onSaveProfile={handleUpdateProfile}
+        onLogout={handleLogout}
       />
 
       {/* Coursera-Style Multi-Column Footer (Hidden only in focused classroom view) */}

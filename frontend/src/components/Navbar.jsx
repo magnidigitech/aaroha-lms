@@ -8,6 +8,7 @@ export default function Navbar({
   setActiveView,
   onOpenAuth,
   onLogout,
+  onOpenProfile,
   stats,
   searchQuery,
   setSearchQuery,
@@ -170,21 +171,29 @@ export default function Navbar({
             {/* User Avatar & Logout (Desktop) */}
             {currentUser ? (
               <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-slate-200">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.full_name}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 shrink-0"
-                  />
+                <button
+                  type="button"
+                  onClick={onOpenProfile}
+                  title="Click to view & edit your profile and avatar"
+                  className="flex items-center gap-2.5 p-1 -m-1 rounded-xl hover:bg-slate-100 transition-all cursor-pointer group text-left border border-transparent hover:border-slate-200/80"
+                >
+                  <div className="relative">
+                    <img
+                      src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
+                      alt={currentUser.full_name}
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] group-hover:scale-105 transition-all shrink-0"
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+                  </div>
                   <div className="hidden lg:block text-left">
-                    <div className="text-xs font-bold text-slate-900 leading-tight">
-                      {currentUser.full_name}
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors leading-tight flex items-center gap-1">
+                      <span>{currentUser.full_name}</span>
                     </div>
-                    <div className="text-[10px] text-slate-500 capitalize">
-                      {currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty Director' : 'Learner'}
+                    <div className="text-[10px] text-slate-500 truncate max-w-[130px]">
+                      {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty Director' : 'Learner')}
                     </div>
                   </div>
-                </div>
+                </button>
 
                 <button
                   onClick={onLogout}
@@ -306,24 +315,33 @@ export default function Navbar({
             {/* Mobile Auth Controls */}
             <div className="pt-2 border-t border-slate-100 px-1">
               {currentUser ? (
-                <div className="flex items-center justify-between px-2 py-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center justify-between px-2 py-1.5 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onOpenProfile) onOpenProfile();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 min-w-0 p-1.5 -m-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left flex-1 cursor-pointer"
+                  >
                     <img
-                      src={currentUser.avatar}
+                      src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
                       alt={currentUser.full_name}
-                      className="w-7 h-7 rounded-full object-cover ring-1 ring-blue-500/30 shrink-0"
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0"
                     />
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
-                      <div className="text-[10px] text-slate-500 capitalize">{currentUser.role}</div>
+                      <div className="text-[10px] text-slate-500 truncate">
+                        {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty Director' : 'Learner')}
+                      </div>
                     </div>
-                  </div>
+                  </button>
                   <button
                     onClick={() => {
                       onLogout();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-lg flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Sign Out</span>

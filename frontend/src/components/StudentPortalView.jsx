@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   GraduationCap, BookOpen, CheckCircle2, Play, Clock, Award, 
-  ArrowRight, Search, ChevronRight, TrendingUp, Layers, Sparkles
+  ArrowRight, Search, ChevronRight, TrendingUp, Layers, Sparkles,
+  User, Edit3
 } from 'lucide-react';
 import CertificateModal from './CertificateModal';
 
@@ -13,6 +14,7 @@ export default function StudentPortalView({
   certificates = [],
   onOpenCourse,
   onExploreCatalog,
+  onOpenProfile,
   currentUser
 }) {
   const [filter, setFilter] = useState('all'); // 'all' | 'in_progress' | 'completed'
@@ -132,26 +134,58 @@ export default function StudentPortalView({
       {/* Dashboard Welcome & Header */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 bg-blue-50 text-[#0056D2] px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Learner Workspace</span>
+          <div className="flex items-center gap-4">
+            {currentUser && (
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                title="Click to customize your profile, designation and avatar"
+                className="relative group cursor-pointer shrink-0 focus:outline-none"
+              >
+                <img
+                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
+                  alt={currentUser.full_name}
+                  className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] shadow-md group-hover:scale-105 transition-all bg-slate-100"
+                />
+                <div className="absolute -bottom-1 -right-1 bg-[#0056D2] text-white p-1.5 rounded-xl shadow-xs group-hover:bg-blue-700 transition-colors">
+                  <Edit3 className="w-3 h-3" />
+                </div>
+              </button>
+            )}
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 bg-blue-50 text-[#0056D2] px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Learner Workspace</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {currentUser?.full_name ? `Welcome back, ${currentUser.full_name}` : 'My Learning'}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+                {currentUser?.title 
+                  ? `${currentUser.title} • Track your enrolled curricula, monitor completion progress, and resume coursework.`
+                  : 'Track your enrolled curricula, monitor completion progress, and resume coursework where you left off.'}
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              My Learning
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
-              Track your enrolled curricula, monitor completion progress, and resume coursework where you left off.
-            </p>
           </div>
 
-          <button
-            onClick={onExploreCatalog}
-            className="self-start md:self-auto bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-300 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-          >
-            <BookOpen className="w-4 h-4 text-[#0056D2]" />
-            <span>Browse Full Catalog</span>
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+            {onOpenProfile && (
+              <button
+                onClick={onOpenProfile}
+                className="bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-[#0056D2]" />
+                <span>Edit Profile & Avatar</span>
+              </button>
+            )}
+            <button
+              onClick={onExploreCatalog}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-300 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+            >
+              <BookOpen className="w-4 h-4 text-[#0056D2]" />
+              <span>Browse Catalog</span>
+            </button>
+          </div>
         </div>
 
         {/* Learner Performance KPI Metric Tiles */}

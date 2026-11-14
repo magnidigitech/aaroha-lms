@@ -9,6 +9,8 @@ class AuthController {
         $email = strtolower(trim($data['email'] ?? ''));
         $password = $data['password'] ?? '';
         $role = $data['role'] ?? 'student';
+        $title = !empty($data['title']) ? trim($data['title']) : null;
+        $avatar = !empty($data['avatar']) ? trim($data['avatar']) : null;
 
         if (empty($fullName) || empty($email) || empty($password)) {
             http_response_code(400);
@@ -43,10 +45,10 @@ class AuthController {
         $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
         $insertStmt = $pdo->prepare("
-            INSERT INTO users (full_name, email, password_hash, role, created_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO users (full_name, email, password_hash, role, title, avatar, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ");
-        $insertStmt->execute([$fullName, $email, $passwordHash, $role]);
+        $insertStmt->execute([$fullName, $email, $passwordHash, $role, $title, $avatar]);
         $userId = (int)$pdo->lastInsertId();
 
         $tokenPayload = [
@@ -67,7 +69,9 @@ class AuthController {
                 'id' => $userId,
                 'full_name' => $fullName,
                 'email' => $email,
-                'role' => $role
+                'role' => $role,
+                'title' => $title,
+                'avatar' => $avatar
             ]
         ];
     }
@@ -82,7 +86,7 @@ class AuthController {
         }
 
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT id, full_name, email, password_hash, role FROM users WHERE email = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, full_name, email, password_hash, role, title, avatar FROM users WHERE email = ? LIMIT 1");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
@@ -115,14 +119,16 @@ class AuthController {
                 'id' => (int)$user['id'],
                 'full_name' => $user['full_name'],
                 'email' => $user['email'],
-                'role' => $user['role']
+                'role' => $user['role'],
+                'title' => $user['title'] ?? null,
+                'avatar' => $user['avatar'] ?? null
             ]
         ];
     }
 
     public static function me($authPayload) {
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT id, full_name, email, role, created_at FROM users WHERE id = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, full_name, email, role, title, avatar, created_at FROM users WHERE id = ? LIMIT 1");
         $stmt->execute([$authPayload['id']]);
         $user = $stmt->fetch();
 
@@ -132,6 +138,80 @@ class AuthController {
         }
 
         return ['success' => true, 'user' => $user];
+    }
+
+    public static function updateProfile(int $userId, array $data) {
+        $pdo = Database::getConnection();
+        
+        $fullName = isset($data['full_name']) ? trim($data['full_name']) : null;
+        $title = isset($data['title']) ? trim($data['title']) : null;
+        $avatar = isset($data['avatar']) ? trim($data['avatar']) : null;
+        
+        $fields = [];
+        $params = [];
+        
+        if ($fullName !== null && !empty($fullName)) {
+            $fields[] = "full_name = ?";
+            $params[] = $fullName;
+        }
+        if ($title !== null) {
+            $fields[] = "title = ?";
+            $params[] = $title;
+        }
+        if ($avatar !== null && !empty($avatar)) {
+            $fields[] = "avatar = ?";
+            $params[] = $avatar;
+        }
+        
+        if (empty($fields)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'No profile fields provided for update'];
+        }
+        
+        $params[] = $userId;
+        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
+        
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+        } catch (PDOException $e) {
+            // Self-heal: in case avatar or title columns are missing, add them
+            try {
+                @$pdo->exec("ALTER TABLE users ADD COLUMN title VARCHAR(150) NULL");
+            } catch (Exception $ex) {}
+            try {
+                @$pdo->exec("ALTER TABLE users ADD COLUMN avatar VARCHAR(500) NULL");
+            } catch (Exception $ex) {}
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+        }
+        
+        // Fetch updated user
+        $fetchStmt = $pdo->prepare("SELECT id, full_name, email, role, title, avatar FROM users WHERE id = ? LIMIT 1");
+        $fetchStmt->execute([$userId]);
+        $updatedUser = $fetchStmt->fetch();
+        
+        $newToken = JWT::generate([
+            'id' => (int)$updatedUser['id'],
+            'full_name' => $updatedUser['full_name'],
+            'email' => $updatedUser['email'],
+            'role' => $updatedUser['role']
+        ]);
+        
+        return [
+            'success' => true,
+            'message' => 'Profile updated successfully',
+            'token' => $newToken,
+            'user' => [
+                'id' => (int)$updatedUser['id'],
+                'full_name' => $updatedUser['full_name'],
+                'email' => $updatedUser['email'],
+                'role' => $updatedUser['role'],
+                'title' => $updatedUser['title'] ?? null,
+                'avatar' => $updatedUser['avatar'] ?? null
+            ]
+        ];
     }
 }
 

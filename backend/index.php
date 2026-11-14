@@ -57,6 +57,10 @@ try {
         $user = AuthMiddleware::requireAuth();
         $response = AuthController::me($user);
     }
+    elseif ($requestMethod === 'PUT' && $path === '/auth/profile') {
+        $user = AuthMiddleware::requireAuth();
+        $response = AuthController::updateProfile((int)$user['id'], $inputData);
+    }
 
     // -------------------------------------------------------------
     // COURSE CATALOG & DETAILS (PUBLIC & GUEST)

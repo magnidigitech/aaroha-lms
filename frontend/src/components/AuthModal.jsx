@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User, Shield, GraduationCap, ArrowRight, ShieldCheck, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { X, Lock, Mail, User, Shield, GraduationCap, ArrowRight, ShieldCheck, CheckCircle2, Eye, EyeOff, Sparkles, Check } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
+import { AVATAR_PRESETS } from '../avatarPresets';
 
 export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initialTab = 'login', intendedCourseTitle }) {
   const [activeTab, setActiveTab] = useState(initialTab); // 'login' | 'register'
@@ -16,6 +17,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
   const [registerPassword, setRegisterPassword] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [registerRole, setRegisterRole] = useState('student'); // 'student' | 'admin'
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[12].url);
 
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -41,10 +43,12 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
     }
 
     onRegister({
-      full_name: registerName,
-      email: registerEmail,
+      full_name: registerName.trim(),
+      email: registerEmail.trim(),
       password: registerPassword,
-      role: registerRole
+      role: registerRole,
+      avatar: selectedAvatar,
+      title: registerRole === 'admin' ? 'Faculty Director' : 'Learner / Systems Fellow'
     });
     onClose();
   };
@@ -253,8 +257,13 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setRegisterRole('student')}
-                    className={'p-2 rounded-xl border text-center transition-all ' +
+                    onClick={() => {
+                      setRegisterRole('student');
+                      if (!selectedAvatar || selectedAvatar.includes('1573496359142') || selectedAvatar.includes('1507003211169')) {
+                        setSelectedAvatar(AVATAR_PRESETS[12].url);
+                      }
+                    }}
+                    className={'p-2 rounded-xl border text-center transition-all cursor-pointer ' +
                       (registerRole === 'student'
                         ? 'bg-[#0056D2] text-white font-bold border-[#0056D2]'
                         : 'bg-slate-50 border-slate-200 text-slate-600')}
@@ -265,8 +274,13 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
 
                   <button
                     type="button"
-                    onClick={() => setRegisterRole('admin')}
-                    className={'p-2 rounded-xl border text-center transition-all ' +
+                    onClick={() => {
+                      setRegisterRole('admin');
+                      if (!selectedAvatar || selectedAvatar.includes('1580489944761') || selectedAvatar.includes('1539571696357')) {
+                        setSelectedAvatar(AVATAR_PRESETS[4].url);
+                      }
+                    }}
+                    className={'p-2 rounded-xl border text-center transition-all cursor-pointer ' +
                       (registerRole === 'admin'
                         ? 'bg-[#0056D2] text-white font-bold border-[#0056D2]'
                         : 'bg-slate-50 border-slate-200 text-slate-600')}
@@ -274,6 +288,40 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                     <Shield className="w-4 h-4 mx-auto mb-0.5" />
                     <span>Faculty Director</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Preset Avatar Selection */}
+              <div>
+                <label className="font-semibold text-slate-700 flex items-center justify-between mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Choose Preset Avatar</span>
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-normal">Male & Female Variations</span>
+                </label>
+                <div className="grid grid-cols-8 gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200">
+                  {AVATAR_PRESETS.filter(p => registerRole === 'admin' ? p.role === 'faculty' : p.role === 'student').map((preset) => {
+                    const isSelected = selectedAvatar === preset.url;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setSelectedAvatar(preset.url)}
+                        title={`${preset.name} • ${preset.gender} • ${preset.title}`}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                          isSelected ? 'border-[#0056D2] ring-2 ring-blue-500/30 scale-105' : 'border-transparent hover:opacity-80'
+                        }`}
+                      >
+                        <img src={preset.url} alt={preset.name} className="w-full h-full object-cover" />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-[#0056D2]/40 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white stroke-[3]" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
