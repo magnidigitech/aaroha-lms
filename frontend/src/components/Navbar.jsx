@@ -123,7 +123,7 @@ export default function Navbar({
             {/* Direct Navigation: Certificates & Verification */}
             <button
               onClick={() => setActiveView('degrees')}
-              className={'text-xs font-bold transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer hidden lg:flex ' + 
+              className={'text-xs font-bold transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer hidden md:flex ' + 
                 (activeView === 'degrees' 
                   ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200' 
                   : 'text-slate-700 hover:text-[#0A7CB3] hover:bg-slate-50')}
