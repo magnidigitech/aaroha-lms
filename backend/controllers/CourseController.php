@@ -189,8 +189,8 @@ class CourseController {
         $sql = "
             SELECT 
                 c.*,
-                COALESCE(u.full_name, 'Faculty Member') AS default_instructor_name,
-                COALESCE(u.title, 'Curriculum Director') AS default_instructor_title,
+                COALESCE(u.full_name, 'Faculty') AS default_instructor_name,
+                COALESCE(u.title, '') AS default_instructor_title,
                 COALESCE(u.avatar, '') AS default_instructor_avatar,
                 COUNT(DISTINCT m.id) AS module_count,
                 COUNT(DISTINCT l.id) AS lesson_count,
@@ -219,7 +219,7 @@ class CourseController {
                 'title' => !empty($course['instructor_title']) ? $course['instructor_title'] : $course['default_instructor_title'],
                 'department' => !empty($course['instructor_department']) ? $course['instructor_department'] : 'Aaroha Institute of Technology',
                 'avatar' => !empty($course['instructor_avatar']) ? $course['instructor_avatar'] : $course['default_instructor_avatar'],
-                'bio' => !empty($course['instructor_bio']) ? $course['instructor_bio'] : 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+                'bio' => !empty($course['instructor_bio']) ? $course['instructor_bio'] : '',
                 'rating' => 4.94,
                 'students' => '25,000+'
             ];
@@ -284,8 +284,8 @@ class CourseController {
         $course['about'] = !empty($course['about']) ? $course['about'] : ($course['description'] ?? '');
         $course['prerequisites'] = !empty($course['prerequisites']) ? $course['prerequisites'] : 'Distributed Systems Foundations & Linux';
         $course['instructor'] = [
-            'name' => !empty($course['instructor_name']) ? $course['instructor_name'] : ($course['default_instructor_name'] ?: 'Faculty Member'),
-            'title' => !empty($course['instructor_title']) ? $course['instructor_title'] : ($course['default_instructor_title'] ?: 'Faculty Member'),
+            'name' => !empty($course['instructor_name']) ? $course['instructor_name'] : ($course['default_instructor_name'] ?: 'Faculty'),
+            'title' => !empty($course['instructor_title']) ? $course['instructor_title'] : ($course['default_instructor_title'] ?: ''),
             'department' => !empty($course['instructor_department']) ? $course['instructor_department'] : 'Aaroha Institute of Technology',
             'avatar' => !empty($course['instructor_avatar']) ? $course['instructor_avatar'] : ($course['default_instructor_avatar'] ?: ''),
             'bio' => !empty($course['instructor_bio']) ? $course['instructor_bio'] : '',
@@ -458,8 +458,8 @@ class CourseController {
             'instructor_bio' => $instructorBio,
             'instructor_avatar' => $instructorAvatar,
             'instructor' => [
-                'name' => $instructorName ?: 'Faculty Member',
-                'title' => $instructorTitle ?: 'Curriculum Director',
+                'name' => $instructorName ?: 'Faculty',
+                'title' => $instructorTitle ?: '',
                 'department' => $instructorDepartment ?: 'Aaroha Institute of Technology',
                 'avatar' => $instructorAvatar ?: '',
                 'bio' => $instructorBio ?: '',
@@ -560,8 +560,8 @@ class CourseController {
                 'instructor_bio' => $instructorBio,
                 'instructor_avatar' => $instructorAvatar,
                 'instructor' => [
-                    'name' => $instructorName ?: ($existing['instructor_name'] ?? 'Faculty Member'),
-                    'title' => $instructorTitle ?: ($existing['instructor_title'] ?? 'Faculty Member'),
+                    'name' => $instructorName ?: ($existing['instructor_name'] ?? 'Faculty'),
+                    'title' => $instructorTitle ?: ($existing['instructor_title'] ?? ''),
                     'department' => $instructorDepartment ?: 'Aaroha Institute of Technology',
                     'avatar' => $instructorAvatar ?: ($existing['instructor_avatar'] ?? ''),
                     'bio' => $instructorBio ?: ($existing['instructor_bio'] ?? ''),

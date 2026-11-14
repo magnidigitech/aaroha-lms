@@ -477,7 +477,7 @@ export default function CourseBrochureView({
       {/* Tab 4: Faculty & Instructors */}
       {activeTab === 'instructors' && course.instructor && (
         <section className="bg-white rounded-3xl border border-slate-200 p-8 space-y-6 shadow-xs">
-          <h3 className="text-lg font-bold text-slate-900">Faculty Director & Instructors</h3>
+          <h3 className="text-lg font-bold text-slate-900">Faculty & Instructors</h3>
           
           <div className="flex flex-col sm:flex-row items-start gap-6">
             <img

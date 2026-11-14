@@ -283,7 +283,7 @@ export default function Navbar({
                       <span>{currentUser.full_name}</span>
                     </div>
                     <div className="text-[10px] text-slate-500 truncate max-w-[130px]">
-                      {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty Director' : 'Learner')}
+                      {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty' : 'Learner')}
                     </div>
                   </div>
                 </button>
@@ -427,7 +427,7 @@ export default function Navbar({
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
                       <div className="text-[10px] text-slate-500 truncate">
-                        {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty Director' : 'Learner')}
+                        {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty' : 'Learner')}
                       </div>
                     </div>
                   </button>

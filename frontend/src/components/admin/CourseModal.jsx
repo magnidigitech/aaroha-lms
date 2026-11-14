@@ -277,8 +277,8 @@ export default function CourseModal({
       what_you_will_learn: parsedLearn,
       about: formData.about.trim() || formData.description.trim(),
       prerequisites: formData.prerequisites.trim(),
-      instructor_name: formData.instructor_name.trim() || currentUser?.full_name || 'Faculty Member',
-      instructor_title: formData.instructor_title.trim() || currentUser?.title || 'Curriculum Director',
+      instructor_name: formData.instructor_name.trim() || currentUser?.full_name || 'Faculty',
+      instructor_title: formData.instructor_title.trim() || currentUser?.title || '',
       instructor_department: formData.instructor_department.trim() || currentUser?.department || 'Aaroha Institute of Technology',
       instructor_bio: formData.instructor_bio.trim() || currentUser?.bio || '',
       instructor_avatar: formData.instructor_avatar.trim() || currentUser?.avatar || '',
@@ -781,11 +781,13 @@ export default function CourseModal({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-slate-900 text-xs sm:text-sm truncate">
-                    {formData.instructor_name || currentUser?.full_name || 'Faculty Member'}
+                    {formData.instructor_name || currentUser?.full_name || 'Faculty'}
                   </div>
-                  <div className="text-[#0056D2] font-semibold text-[11px] truncate mt-0.5">
-                    {formData.instructor_title || currentUser?.title || 'Curriculum Director'}
-                  </div>
+                  {(formData.instructor_title || currentUser?.title) ? (
+                    <div className="text-[#0056D2] font-semibold text-[11px] truncate mt-0.5">
+                      {formData.instructor_title || currentUser?.title}
+                    </div>
+                  ) : null}
                   <div className="text-slate-500 text-[10px] truncate">
                     {formData.instructor_department || currentUser?.department || 'Aaroha Institute of Technology'}
                   </div>
@@ -798,7 +800,7 @@ export default function CourseModal({
                       setFormData(prev => ({
                         ...prev,
                         instructor_name: currentUser.full_name || '',
-                        instructor_title: currentUser.title || 'Curriculum Director',
+                        instructor_title: currentUser.title || '',
                         instructor_department: currentUser.department || 'Aaroha Institute of Technology',
                         instructor_avatar: currentUser.avatar || '',
                         instructor_bio: currentUser.bio || ''

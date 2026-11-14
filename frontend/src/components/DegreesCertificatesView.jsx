@@ -381,7 +381,7 @@ export default function DegreesCertificatesView({
                       </p>
                     </div>
 
-                    {/* Faculty Director Badge */}
+                    {/* Faculty Badge */}
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3 shrink-0 lg:w-72">
                       <img
                         src={program.faculty.avatar}
@@ -646,10 +646,10 @@ export default function DegreesCertificatesView({
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issuing Directorate</span>
                       <div className="font-extrabold text-slate-900 text-xs">
-                        {verificationResult.issuer_name || 'Faculty Director'}
+                        {verificationResult.issuer_name || 'Faculty'}
                       </div>
                       <div className="text-slate-500 text-[11px]">
-                        {verificationResult.issuer_title || 'Chair of Distributed Systems'}
+                        {verificationResult.issuer_title || ''}
                       </div>
                     </div>
                   </div>

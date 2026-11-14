@@ -167,7 +167,7 @@ export default function AdminPortalView({
             <button
               type="button"
               onClick={onOpenProfile}
-              title="Click to customize faculty director profile and avatar"
+              title="Click to customize faculty profile and avatar"
               className="relative group cursor-pointer shrink-0 focus:outline-none"
             >
               <img
@@ -721,7 +721,7 @@ export default function AdminPortalView({
                           <div className="p-4 sm:p-6 space-y-5 animate-in fade-in duration-150">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                               <div>
-                                <h4 className="text-xs sm:text-sm font-bold text-slate-800">Faculty Director & Instructional Team</h4>
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-800">Faculty & Instructional Team</h4>
                                 <p className="text-[11px] text-slate-500">
                                   Curriculum leadership and instructor credentials presented to enrolled candidates.
                                 </p>
@@ -737,17 +737,17 @@ export default function AdminPortalView({
 
                             <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs flex flex-col sm:flex-row items-start gap-5">
                               <img 
-                                src={instructor.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'} 
+                                src={instructor.avatar || '/avatars/3d/memo_1.png'} 
                                 alt={instructor.name}
                                 className="w-20 h-20 rounded-full object-cover ring-4 ring-blue-50 shrink-0 border border-slate-200 shadow-2xs"
-                                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'; }}
+                                onError={(e) => { e.target.src = '/avatars/3d/memo_1.png'; }}
                               />
                               <div className="min-w-0 flex-1 space-y-2">
                                 <div>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <h4 className="text-base font-bold text-slate-900">{instructor.name}</h4>
                                     <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/60 rounded text-[10px] font-bold">
-                                      Faculty Director
+                                      Faculty
                                     </span>
                                   </div>
                                   <p className="text-xs font-semibold text-[#0056D2]">{instructor.title}</p>

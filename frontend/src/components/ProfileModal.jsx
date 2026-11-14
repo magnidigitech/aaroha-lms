@@ -221,12 +221,12 @@ export default function ProfileModal({
                 {isFaculty ? (
                   <>
                     <Shield className="w-3 h-3 text-blue-400" />
-                    <span>Faculty Director</span>
+                    <span>Faculty</span>
                   </>
                 ) : (
                   <>
                     <GraduationCap className="w-3 h-3 text-emerald-400" />
-                    <span>Learner / Engineering Fellow</span>
+                    <span>Learner</span>
                   </>
                 )}
               </div>
@@ -240,9 +240,11 @@ export default function ProfileModal({
                 <span className="truncate">{currentUser.email}</span>
               </p>
 
-              <p className="text-[11px] text-blue-300 font-medium mt-1 truncate">
-                {title || (isFaculty ? 'Distributed Systems Faculty Chair' : 'Candidate & Systems Fellow')}
-              </p>
+              {title ? (
+                <p className="text-[11px] text-blue-300 font-medium mt-1 truncate">
+                  {title}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -490,7 +492,7 @@ export default function ProfileModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={isFaculty ? 'e.g. Chair of Cloud & Kernel Architecture' : 'e.g. Senior Distributed Systems Fellow'}
+                placeholder={isFaculty ? 'e.g. Professor of Systems Engineering' : 'e.g. Cloud & Systems Engineer'}
                 className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-medium"
               />
             </div>

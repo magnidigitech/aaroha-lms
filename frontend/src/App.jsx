@@ -398,9 +398,7 @@ export default function App() {
       if (res && res.user) {
         const loggedUser = {
           ...res.user,
-          avatar: res.user.avatar || (res.user.role === 'admin'
-            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
-            : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80')
+          avatar: res.user.avatar || '/avatars/3d/memo_13.png'
         };
         setCurrentUser(loggedUser);
         localStorage.setItem('aaroha_user', JSON.stringify(loggedUser));
@@ -409,7 +407,7 @@ export default function App() {
         if (isFacultyRole(loggedUser.role)) {
           setActiveView('admin');
           localStorage.setItem('aaroha_view', 'admin');
-          showToast('Signed in as Faculty Director: ' + loggedUser.full_name);
+          showToast('Signed in as Faculty: ' + loggedUser.full_name);
           api.getPendingSubmissions()
             .then(subRes => {
               if (subRes && subRes.submissions) setTaskSubmissions(subRes.submissions);
@@ -450,7 +448,7 @@ export default function App() {
       if (isFacultyRole(foundUser.role)) {
         setActiveView('admin');
         localStorage.setItem('aaroha_view', 'admin');
-        showToast('Signed in as Faculty Director: ' + foundUser.full_name);
+        showToast('Signed in as Faculty: ' + foundUser.full_name);
       } else {
         if (authModal.intendedCourse) {
           executeEnrollment(foundUser.id, authModal.intendedCourse.id);
@@ -473,7 +471,7 @@ export default function App() {
         const registeredUser = {
           ...res.user,
           avatar: res.user.avatar || userData.avatar || '/avatars/3d/memo_13.png',
-          title: res.user.title || userData.title || (isFacultyRole(res.user.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
+          title: res.user.title || userData.title || ''
         };
         setCurrentUser(registeredUser);
         localStorage.setItem('aaroha_user', JSON.stringify(registeredUser));
@@ -506,7 +504,7 @@ export default function App() {
       password: userData.password,
       role: userData.role,
       avatar: userData.avatar || '/avatars/3d/memo_13.png',
-      title: userData.title || (isFacultyRole(userData.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
+      title: userData.title || ''
     };
 
     setUsers([...users, newUser]);
@@ -1290,8 +1288,8 @@ export default function App() {
         recipient_name: certData.recipient_name,
         recipient_email: certData.recipient_email,
         issuer_id: currentUser?.id || 1,
-        issuer_name: certData.issuer_name || currentUser?.full_name || 'Faculty Director',
-        issuer_title: certData.issuer_title || currentUser?.title || 'Director of Curriculum & Distributed Systems Faculty',
+        issuer_name: certData.issuer_name || currentUser?.full_name || 'Faculty',
+        issuer_title: certData.issuer_title || currentUser?.title || '',
         grade: certData.grade || 'Executive Distinction (Verified Peer Reviewed)',
         issued_at: certData.issued_at || new Date().toISOString()
       };
@@ -1588,7 +1586,7 @@ export default function App() {
               <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Community & Research</h4>
               <ul className="space-y-1.5 text-[11px]">
                 <li className="hover:text-[#0056D2] cursor-pointer">Aaroha Systems Lab</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Faculty Directorate</li>
+                <li className="hover:text-[#0056D2] cursor-pointer">Faculty Portal</li>
                 <li className="hover:text-[#0056D2] cursor-pointer">RFC Technical Artifacts</li>
                 <li 
                   onClick={() => {

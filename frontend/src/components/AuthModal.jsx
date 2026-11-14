@@ -48,7 +48,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
       password: registerPassword,
       role: registerRole,
       avatar: selectedAvatar,
-      title: registerRole === 'admin' ? 'Faculty Director' : 'Learner / Systems Fellow'
+      title: ''
     });
     onClose();
   };
@@ -276,7 +276,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                         : 'bg-slate-50 border-slate-200 text-slate-600')}
                   >
                     <Shield className="w-4 h-4 mx-auto mb-0.5" />
-                    <span>Faculty Director</span>
+                    <span>Faculty</span>
                   </button>
                 </div>
               </div>
