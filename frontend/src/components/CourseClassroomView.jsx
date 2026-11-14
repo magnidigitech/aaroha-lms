@@ -5,7 +5,7 @@ import {
   Send, AlertCircle, User, GraduationCap
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
-import { isBunnyStreamVideo, getVideoThumbnail } from '../videoUtils';
+import { isBunnyStreamVideo, getVideoThumbnail, isDirectVideoFile, getEmbedVideoUrl } from '../videoUtils';
 import BunnyStreamPlayer from './BunnyStreamPlayer';
 import { api } from '../apiService';
 
