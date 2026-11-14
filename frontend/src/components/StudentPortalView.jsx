@@ -145,6 +145,7 @@ export default function StudentPortalView({
                 <img
                   src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                   alt={currentUser.full_name}
+                  onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
                   className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] shadow-md group-hover:scale-105 transition-all bg-slate-100"
                 />
                 <div className="absolute -bottom-1 -right-1 bg-[#0056D2] text-white p-1.5 rounded-xl shadow-xs group-hover:bg-blue-700 transition-colors">

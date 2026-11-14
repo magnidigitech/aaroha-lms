@@ -173,6 +173,7 @@ export default function AdminPortalView({
               <img
                 src={currentUser.avatar || '/avatars/3d/memo_1.png'}
                 alt={currentUser.full_name}
+                onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ring-blue-500/30 group-hover:ring-blue-600 shadow-md group-hover:scale-105 transition-all bg-slate-100"
               />
               <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1 rounded-xl shadow-xs group-hover:bg-blue-700 transition-colors">

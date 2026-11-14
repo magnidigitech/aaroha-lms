@@ -181,6 +181,7 @@ export default function Navbar({
                     <img
                       src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                       alt={currentUser.full_name}
+                      onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] group-hover:scale-105 transition-all shrink-0 bg-slate-100"
                     />
                     <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
@@ -327,6 +328,7 @@ export default function Navbar({
                     <img
                       src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                       alt={currentUser.full_name}
+                      onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
                     />
                     <div className="min-w-0">

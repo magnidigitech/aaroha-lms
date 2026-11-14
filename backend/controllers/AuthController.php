@@ -172,6 +172,13 @@ class AuthController {
             http_response_code(400);
             return ['success' => false, 'error' => 'No profile fields provided for update'];
         }
+
+        // Proactively ensure avatar column is LONGTEXT for custom base64 uploads
+        if ($avatar !== null) {
+            try {
+                @$pdo->exec("ALTER TABLE users MODIFY COLUMN avatar LONGTEXT NULL");
+            } catch (Exception $migEx) {}
+        }
         
         $params[] = $userId;
         $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";

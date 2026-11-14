@@ -322,6 +322,7 @@ export default function CourseClassroomView({
               <img
                 src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                 alt={currentUser.full_name}
+                onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
                 className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50 group-hover:ring-blue-400 group-hover:scale-105 transition-all shrink-0 bg-slate-100"
               />
               <span className="text-xs font-semibold text-slate-200 group-hover:text-white hidden md:inline">
