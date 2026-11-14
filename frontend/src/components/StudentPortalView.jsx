@@ -399,8 +399,8 @@ export default function StudentPortalView({
                     >
                       {analytics.isCompleted ? (
                         <>
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Course Completed</span>
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Rewatch Lectures</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </>
                       ) : (

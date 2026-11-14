@@ -300,7 +300,11 @@ export default function CourseClassroomView({
           {isEnrolled ? (
             <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-700 px-3 py-1.5 rounded-xl text-xs text-emerald-300 font-semibold shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="hidden sm:inline">Enrolled Candidate</span>
+              <span className="hidden sm:inline">
+                {completedCount >= totalLessonsCount && totalLessonsCount > 0 
+                  ? 'Completed • Unlimited Rewatch' 
+                  : 'Enrolled Candidate'}
+              </span>
             </div>
           ) : (
             <button
@@ -573,7 +577,7 @@ export default function CourseClassroomView({
                     title="All modules completed. Return to student dashboard."
                   >
                     <GraduationCap className="w-4 h-4" />
-                    <span className="hidden sm:inline">Course Completed • Dashboard</span>
+                    <span className="hidden sm:inline">Return to Dashboard</span>
                     <span className="sm:hidden">Dashboard</span>
                   </button>
                 )}

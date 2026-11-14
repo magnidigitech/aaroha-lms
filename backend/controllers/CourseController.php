@@ -297,15 +297,20 @@ class CourseController {
         $enrollmentId = null;
         if ($currentUserId) {
             $enrollStmt = $pdo->prepare("
-                SELECT id, status FROM enrollments 
-                WHERE user_id = ? AND course_id = ? AND status = 'active'
+                SELECT id, status, enrolled_at, expires_at FROM enrollments 
+                WHERE user_id = ? AND course_id = ? AND status IN ('active', 'completed')
+                ORDER BY id DESC
                 LIMIT 1
             ");
             $enrollStmt->execute([$currentUserId, $courseId]);
             $enrollment = $enrollStmt->fetch();
             if ($enrollment) {
-                $isEnrolled = true;
-                $enrollmentId = (int)$enrollment['id'];
+                $enrolledTime = !empty($enrollment['enrolled_at']) ? strtotime($enrollment['enrolled_at']) : time();
+                $expiresTime = !empty($enrollment['expires_at']) ? strtotime($enrollment['expires_at']) : strtotime('+6 months', $enrolledTime);
+                if ($expiresTime === false || $expiresTime >= time()) {
+                    $isEnrolled = true;
+                    $enrollmentId = (int)$enrollment['id'];
+                }
             }
         }
 

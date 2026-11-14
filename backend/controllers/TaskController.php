@@ -17,11 +17,11 @@ class TaskController {
 
         // 1. Find enrollment for the course containing this task
         $stmt = $pdo->prepare("
-            SELECT e.id AS enrollment_id
+            SELECT e.id AS enrollment_id, e.enrolled_at, e.expires_at
             FROM tasks t
             JOIN modules m ON t.module_id = m.id
             JOIN enrollments e ON m.course_id = e.course_id
-            WHERE t.id = ? AND e.user_id = ? AND e.status = 'active'
+            WHERE t.id = ? AND e.user_id = ? AND e.status IN ('active', 'completed')
             LIMIT 1
         ");
         $stmt->execute([$taskId, $userId]);
@@ -30,6 +30,13 @@ class TaskController {
         if (!$enrollment) {
             http_response_code(403);
             return ['success' => false, 'error' => 'Active enrollment required to submit deliverables for this program'];
+        }
+
+        $enrolledTime = !empty($enrollment['enrolled_at']) ? strtotime($enrollment['enrolled_at']) : time();
+        $expiresTime = !empty($enrollment['expires_at']) ? strtotime($enrollment['expires_at']) : strtotime('+6 months', $enrolledTime);
+        if ($expiresTime !== false && $expiresTime < time()) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Course enrollment validity period has expired'];
         }
 
         $enrollmentId = (int)$enrollment['enrollment_id'];

@@ -113,9 +113,9 @@ class PlaybackController {
         if ($isAuthorizedFaculty) {
             $isAuthorized = true;
         } else {
-            // Verify active enrollment strictly in this parent course
+            // Verify active or completed enrollment strictly in this parent course
             $enrStmt = $pdo->prepare("
-                SELECT id, status, expires_at 
+                SELECT id, status, enrolled_at, expires_at 
                 FROM enrollments 
                 WHERE user_id = ? AND course_id = ?
                 ORDER BY id DESC
@@ -126,14 +126,16 @@ class PlaybackController {
 
             if ($enrollment) {
                 $status = (string)$enrollment['status'];
+                $enrolledAt = $enrollment['enrolled_at'] ?? null;
                 $expiresAt = $enrollment['expires_at'] ?? null;
                 $isExpired = false;
 
-                if (!empty($expiresAt)) {
-                    $expTime = strtotime($expiresAt);
-                    if ($expTime !== false && $expTime < time()) {
-                        $isExpired = true;
-                    }
+                // Assigned course duration window: explicit expires_at, or default 6-month validity period from enrollment
+                $enrolledTime = !empty($enrolledAt) ? strtotime($enrolledAt) : time();
+                $expiresTime = !empty($expiresAt) ? strtotime($expiresAt) : strtotime('+6 months', $enrolledTime);
+
+                if ($expiresTime !== false && $expiresTime < time()) {
+                    $isExpired = true;
                 }
 
                 if ($isExpired || $status === 'expired') {
@@ -158,7 +160,8 @@ class PlaybackController {
                     ];
                 }
 
-                if ($status === 'active') {
+                // Both active learners and completed learners have unlimited rewatch access until the assigned course duration expires
+                if ($status === 'active' || $status === 'completed') {
                     $isAuthorized = true;
                 }
             } elseif ($isFreePreview) {

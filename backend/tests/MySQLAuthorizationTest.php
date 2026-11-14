@@ -196,6 +196,15 @@ if ($forbiddenTokenKey !== 'PLACEHOLDER_FORBIDDEN_TOKEN_KEY') {
 echo "9. Audited response body for secret key leakage:\n";
 echo "   ✓ PASSED: No signing keys or API keys present in response body.\n";
 
+// 10. Completed Enrollment Unlimited Rewatch Access
+echo "10. Checking completed course enrollment rewatch access (Elena on Course 1 with status = 'completed')...\n";
+$pdo->prepare("UPDATE enrollments SET status = 'completed', completed_at = NOW() WHERE user_id = 2 AND course_id = 1")->execute();
+$res10 = requestApi('/lessons/1003/playback', 'GET', null, $tokenElena);
+assert($res10['status'] === 200, "Completed course learner must be authorized to rewatch lesson (Got status {$res10['status']})");
+assert($res10['json']['success'] === true, 'Response success must be true for completed course rewatch');
+assert(!empty($res10['json']['playback']), 'Playback session must be returned for completed course rewatch');
+echo "   ✓ PASSED: Completed course learner authorized to rewatch lecture (HTTP 200 OK).\n";
+
 echo "\n============================================================\n";
-echo "  ✅ ALL 9 MYSQL AUTHORIZATION & EDGE CHECKS PASSED PERFECTLY!\n";
+echo "  ✅ ALL 10 MYSQL AUTHORIZATION & EDGE CHECKS PASSED PERFECTLY!\n";
 echo "============================================================\n";
