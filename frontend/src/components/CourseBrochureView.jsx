@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Play, Lock, ArrowRight, BookOpen, 
-  ListTodo, Star, Award, Globe, Calendar, ChevronDown, ChevronUp
+  ListTodo, Star, Award, Globe, Calendar, ChevronDown, ChevronUp, CheckCircle2
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 

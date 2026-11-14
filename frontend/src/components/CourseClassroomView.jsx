@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Play, FileText, CheckCircle2, Lock, ArrowRight, BookOpen, Clock, 
   ChevronDown, ChevronUp, ChevronRight, Award, Check, 
-  Send, AlertCircle, User, GraduationCap
+  Send, AlertCircle, User, GraduationCap, RefreshCw
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import { isBunnyStreamVideo, getVideoThumbnail, isDirectVideoFile, getEmbedVideoUrl } from '../videoUtils';

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User, Shield, GraduationCap, ArrowRight, CheckCircle2, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { X, Lock, Mail, User, Shield, GraduationCap, ArrowRight, CheckCircle2, Eye, EyeOff, Sparkles, Check } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import { AVATAR_PRESETS } from '../avatarPresets';
 
