@@ -1460,20 +1460,16 @@ export default function App() {
           />
         )}
 
-        {/* 3. Academic Degrees & Accredited Certifications Portal */}
+        {/* 3. Certificates & Credential Verification Portal */}
         {activeView === 'degrees' && (
           <DegreesCertificatesView
             courses={courses}
             certificates={certificates}
-            degrees={degrees}
             currentUser={currentUser}
             onOpenCourseDetails={handleOpenCourseDetails}
             onViewCertificate={(cert) => setViewingCertificate(cert)}
             onExploreCatalog={() => setActiveView('catalog')}
-            onOpenAuth={(tab) => handleOpenAuth(tab, null)}
-            onAddDegree={handleAddDegree}
-            onUpdateDegree={handleUpdateDegree}
-            onDeleteDegree={handleDeleteDegree}
+            initialTab="verify"
           />
         )}
 
@@ -1551,13 +1547,9 @@ export default function App() {
           <AdminPortalView
             courses={courses}
             taskSubmissions={taskSubmissions}
-            degrees={degrees}
             onAddCourse={handleAddCourse}
             onUpdateCourse={handleUpdateCourse}
             onDeleteCourse={handleDeleteCourse}
-            onAddDegree={handleAddDegree}
-            onUpdateDegree={handleUpdateDegree}
-            onDeleteDegree={handleDeleteDegree}
             onAddModule={handleAddModule}
             onUpdateModule={handleUpdateModule}
             onDeleteModule={handleDeleteModule}
@@ -1650,13 +1642,13 @@ export default function App() {
                 }}
                 className="font-bold text-slate-900 text-xs uppercase tracking-wider hover:text-[#0A7CB3] cursor-pointer"
               >
-                Curricula & Degrees
+                Certificates & Verification
               </h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Cloud Architecture (M.S.)</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Applied AI & Model Serving (M.Eng.)</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Enterprise Cyber Defense (P.G. Dip)</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Explore All Master's Tracks</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Verify Credential by ID</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Accredited Course Certificates</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Student Issued Credentials</li>
+                <li onClick={() => { setActiveView('catalog'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Browse All Curricula</li>
               </ul>
             </div>
 

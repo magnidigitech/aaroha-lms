@@ -1,40 +1,24 @@
 import React, { useState } from 'react';
 import { 
-  GraduationCap, Award, ShieldCheck, CheckCircle2, 
+  Award, ShieldCheck, CheckCircle2, 
   ArrowRight, Search, BookOpen, 
-  FileText, Copy, Check, Layers,
-  CheckCircle, Plus, Edit3, Trash2, Sparkles
+  Copy, Check, Layers, Sparkles, CheckCircle, Video, FileText
 } from 'lucide-react';
-import DegreeModal from './admin/DegreeModal';
 
 export default function DegreesCertificatesView({
   courses = [],
   certificates = [],
-  degrees = [],
   currentUser = null,
   onOpenCourseDetails,
   onViewCertificate,
   onExploreCatalog,
-  onAddDegree,
-  onUpdateDegree,
-  onDeleteDegree,
-  initialTab = 'degrees'
+  initialTab = 'verify'
 }) {
-  const [activeTab, setActiveTab] = useState(initialTab); // 'degrees' | 'certifications' | 'verify' | 'my_certs'
+  const [activeTab, setActiveTab] = useState(initialTab); // 'verify' | 'courses' | 'my_certs'
   const [searchCode, setSearchCode] = useState('');
   const [verificationResult, setVerificationResult] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-
-  // Faculty governance authority
-  const isFaculty = currentUser && (
-    currentUser.role === 'admin' || 
-    currentUser.role === 'faculty' || 
-    currentUser.role === 'instructor'
-  );
-
-  // Authoring / Editing Modal State
-  const [degreeModal, setDegreeModal] = useState({ isOpen: false, initialData: null });
 
   // Student's issued certificates
   const studentCertificates = certificates.filter(c => 
@@ -44,181 +28,34 @@ export default function DegreesCertificatesView({
     )
   );
 
-  // Pre-configured Academic Degree Tracks mapped to Aaroha Curriculum
-  const degreePrograms = [
-    {
-      id: 'deg-1',
-      title: 'Master of Science in Distributed Cloud Architecture & High-Throughput Systems',
-      degreeType: 'Master of Science (M.S. Equivalent)',
-      duration: '12 Months · 36 ECTS Credits',
-      level: 'Graduate / Principal Level',
-      accreditation: 'Aaroha Institute of Technology & Systems Directorate',
-      courseId: 1,
-      courseSlug: 'distributed-cloud-architecture',
-      faculty: {
-        name: 'Dr. Aris Thorne',
-        title: 'Director of Curriculum & Chair of Distributed Infrastructure',
-        avatar: '/avatars/3d/memo_1.png'
-      },
-      description: 'An advanced graduate curriculum focused on multi-region consensus engines, kernel-bypass networking, Raft leader election invariants, and LSM-tree storage internals sustaining 100k+ QPS with strict P99 latency budgets.',
-      modulesCount: '3 In-Depth Specialization Semesters',
-      evaluatedProjectsCount: '3 Production RFC Architectural Defenses',
-      credentialAwarded: 'Official Master of Science Degree & Accredited Parchment',
-      skills: [
-        'Raft Consensus Protocol',
-        'BGP Anycast Edge Routing',
-        'LSM Storage Compaction (RocksDB)',
-        'Zero-Trust mTLS Architecture',
-        'Transactional Outbox & CDC'
-      ],
-      highlights: [
-        '100% online with asynchronous laboratory benchmarks',
-        'Mandatory evaluated capstone evaluated by systems faculty',
-        'Permanent verifiable cryptographic degree credential on graduation'
-      ]
-    },
-    {
-      id: 'deg-2',
-      title: 'Master of Engineering in Applied Machine Learning & Model Serving Infrastructure',
-      degreeType: 'Master of Engineering (M.Eng. Equivalent)',
-      duration: '10 Months · 32 ECTS Credits',
-      level: 'Graduate / Staff ML Engineer',
-      accreditation: 'Accelerated Computing Directorate, Aaroha Institute',
-      courseId: 2,
-      courseSlug: 'applied-ml-engineering',
-      faculty: {
-        name: 'Dr. Marcus Vance',
-        title: 'Distinguished ML Systems Engineer & Faculty Chair',
-        avatar: '/avatars/3d/memo_3.png'
-      },
-      description: 'Bridging the gap between neural weights and production GPU runtimes. Specialize in low-latency transformer inference, continuous request batching, INT8/AWQ quantization, and Triton model serving.',
-      modulesCount: '2 Core Semesters + Accelerated Lab',
-      evaluatedProjectsCount: '2 Evaluated GPU Throughput Benchmarks',
-      credentialAwarded: 'Master of Engineering in Applied ML Systems',
-      skills: [
-        'vLLM & Continuous Batching',
-        'AWQ & GPTQ Quantization',
-        'Triton Multi-Model Inference',
-        'CUDA Memory Bounds',
-        'Concept Drift Telemetry'
-      ],
-      highlights: [
-        'Hands-on profiling with production GPU execution graphs',
-        'Faculty evaluation of sub-50ms P99 inference SLAs',
-        'Dual-accreditation with industry systems laboratories'
-      ]
-    },
-    {
-      id: 'deg-3',
-      title: 'Post-Graduate Diploma in Enterprise Cyber Defense & Zero-Trust Architecture',
-      degreeType: 'Post-Graduate Diploma (P.G. Dip)',
-      duration: '8 Months · 24 ECTS Credits',
-      level: 'Advanced Specialist',
-      accreditation: 'Center for Cyber Resilience, Aaroha Institute',
-      courseId: 3,
-      courseSlug: 'enterprise-cyber-defense',
-      faculty: {
-        name: 'Katarina Wolf',
-        title: 'Principal Security Architect & Red Team Fellow',
-        avatar: '/avatars/3d/memo_14.png'
-      },
-      description: 'Master application defense, supply-chain attestation, memory safety transitions, and real-time incident triage using eBPF kernel telemetry, SLSA Level 3 attestations, and STRIDE threat modeling.',
-      modulesCount: '2 Specialist Semesters',
-      evaluatedProjectsCount: '2 Cryptographic Supply Chain Audits',
-      credentialAwarded: 'Accredited Post-Graduate Diploma in Cyber Defense',
-      skills: [
-        'STRIDE Threat Modeling',
-        'eBPF Kernel Telemetry',
-        'Sigstore Cosign Attestations',
-        'mTLS Identity Mesh (SPIFFE)',
-        'Zero-Day Incident Forensics'
-      ],
-      highlights: [
-        'Real-world simulated adversary scenarios and red-team defenses',
-        'Automated admission controller policy authoring (Kyverno)',
-        'Tamper-evident verification backed by Aaroha Certificate Authority'
-      ]
-    }
-  ];
-
-  // Professional Certifications Breakdown
-  const professionalCerts = [
-    {
-      code: 'ACDSA',
-      title: 'Aaroha Certified Distributed Systems Architect (ACDSA)',
-      authority: 'Systems Engineering Laboratory',
-      validity: '3 Years · Verifiable Online Credential',
-      level: 'Tier-1 Principal Engineer Benchmark',
-      courseId: 1,
-      courseSlug: 'distributed-cloud-architecture',
-      description: 'Validates mastery of high-throughput distributed protocols, Raft split-brain mitigation, and multi-region fault domains.',
-      requirements: [
-        '100% completion of Distributed Cloud Architecture modules',
-        'Achieve >= 80% on all 3 faculty-evaluated RFC capstone assignments',
-        'Successful defense of distributed storage benchmarking report'
-      ],
-      badgeColor: 'from-blue-600 to-indigo-700'
-    },
-    {
-      code: 'ACME',
-      title: 'Aaroha Certified Production MLOps Specialist (ACME)',
-      authority: 'Applied Intelligence Directorate',
-      validity: '3 Years · Verifiable Online Credential',
-      level: 'Staff Systems / ML Infrastructure',
-      courseId: 2,
-      courseSlug: 'applied-ml-engineering',
-      description: 'Validates production readiness for deploying large-scale neural network models, dynamic batching, and GPU acceleration.',
-      requirements: [
-        '100% completion of Applied ML Engineering modules',
-        'Pass 4-bit AWQ vs FP16 perplexity calibration benchmark',
-        'Deploy Triton inference pipeline with < 80ms P99 latency SLA'
-      ],
-      badgeColor: 'from-purple-600 to-violet-700'
-    },
-    {
-      code: 'ACZE',
-      title: 'Aaroha Certified Zero-Trust Security Engineer (ACZE)',
-      authority: 'Center for Cyber Resilience',
-      validity: '3 Years · Verifiable Online Credential',
-      level: 'Senior Security Architect',
-      courseId: 3,
-      courseSlug: 'enterprise-cyber-defense',
-      description: 'Validates expertise in cryptographic supply-chain security, SLSA Level 3 compliance, and eBPF kernel observability.',
-      requirements: [
-        '100% completion of Enterprise Cyber Defense modules',
-        'Author verified Kyverno admission controller security policy',
-        'Complete end-to-end STRIDE threat model defense'
-      ],
-      badgeColor: 'from-emerald-600 to-teal-700'
-    }
-  ];
-
-  // Certificate Verification Logic
-  const handleVerify = (codeToTest) => {
-    const raw = (codeToTest || searchCode).trim();
-    if (!raw) return;
-
+  const handleVerify = (codeOverride) => {
+    const rawTarget = codeOverride || searchCode;
+    const target = rawTarget ? rawTarget.trim().toUpperCase() : '';
     setHasSearched(true);
-    const normalized = raw.toUpperCase().replace(/\s+/g, '');
 
-    // Search certificates array (combines database and mock state)
-    const match = certificates.find(c => {
-      const cCode = String(c.certificate_code || '').toUpperCase().replace(/\s+/g, '');
-      return cCode === normalized || cCode.includes(normalized);
-    });
+    if (!target) {
+      setVerificationResult(null);
+      return;
+    }
+
+    // Check against real certificates in system
+    const match = certificates.find(c => 
+      c.certificate_code && c.certificate_code.toUpperCase() === target
+    );
 
     if (match) {
       setVerificationResult(match);
     } else {
-      // Fallback check against known demo certificate Elena Rostova
-      if (normalized.includes('AAROHA-CERT-2026-9E4F-8812') || normalized.includes('9E4F') || normalized.includes('ROSTOVA')) {
-        const demoMatch = certificates[0] || {
+      // Demo fallback certificate code check
+      if (target.includes('9E4F') || target === 'AAROHA-CERT-2026-9E4F-8812') {
+        const demoMatch = {
+          id: 'demo-1',
           certificate_code: 'AAROHA-CERT-2026-9E4F-8812',
-          course_title: 'Distributed Cloud Architecture & High-Throughput Systems',
           recipient_name: 'Elena Rostova',
-          recipient_email: 'elena.rostova@enterprise.io',
-          issuer_name: 'Dr. Aris Thorne',
-          issuer_title: 'Director of Curriculum & Distributed Systems Faculty',
+          recipient_email: 'elena.rostova@aaroha.systems',
+          course_title: 'Distributed Cloud Architecture & High-Throughput Systems',
+          issuer_name: 'Faculty Directorate',
+          issuer_title: 'Director of Curriculum & Distributed Systems',
           grade: 'Executive Distinction (98% Pass · Verified Peer Reviewed)',
           issued_at: '2026-11-13T12:00:00Z'
         };
@@ -237,73 +74,49 @@ export default function DegreesCertificatesView({
   };
 
   return (
-    <div className="space-y-10 pb-24">
+    <div className="space-y-10 pb-24 max-w-7xl mx-auto">
       {/* 1. Official Header & Hero Banner */}
-      <section className="bg-gradient-to-r from-slate-900 via-[#0B1A2F] to-[#0A7CB3]/80 text-white rounded-3xl p-8 sm:p-14 relative overflow-hidden shadow-xl border border-slate-800">
+      <section className="bg-gradient-to-r from-slate-900 via-[#0B1A2F] to-[#0A7CB3] text-white rounded-3xl p-8 sm:p-12 relative overflow-hidden shadow-xl border border-slate-800">
         <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="max-w-4xl space-y-6 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-blue-200 text-xs font-bold uppercase tracking-wider">
+        <div className="max-w-4xl space-y-5 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-sky-200 text-xs font-bold uppercase tracking-wider">
             <Award className="w-4 h-4 text-amber-400" />
-            <span>Aaroha Institute of Technology · Directorate of Academic Accreditation</span>
+            <span>Aaroha Technologies · Credential & Verification Directorate</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            Academic Degrees & Accredited Certifications
+            Certificates & Credential Verification
           </h1>
 
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-            Master state-of-the-art engineering through rigorous university-accredited degree equivalents, professional specializations, and cryptographically verifiable digital credentials evaluated by systems faculty.
+          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl font-normal">
+            Validate issued course credentials with our real-time cryptographic verification engine, inspect authentic course completion standards, and access your verified digital certificates.
           </p>
 
-          {/* Core Institutional Value Pillars */}
+          {/* Institutional Quality Pillars */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/10 text-xs">
             <div className="space-y-1">
-              <div className="font-extrabold text-white text-base">100% Online</div>
-              <div className="text-slate-400 text-[11px]">Asynchronous & Flexible</div>
-            </div>
-            <div className="space-y-1">
-              <div className="font-extrabold text-amber-400 text-base">Faculty Graded</div>
-              <div className="text-slate-400 text-[11px]">Evaluated RFC Defense</div>
-            </div>
-            <div className="space-y-1">
-              <div className="font-extrabold text-emerald-400 text-base">Cryptographic</div>
+              <div className="font-extrabold text-white text-base">Cryptographic</div>
               <div className="text-slate-400 text-[11px]">Tamper-Proof Verification</div>
             </div>
             <div className="space-y-1">
-              <div className="font-extrabold text-blue-300 text-base">45,000+</div>
-              <div className="text-slate-400 text-[11px]">Enrolled Engineers</div>
+              <div className="font-extrabold text-amber-400 text-base">Faculty Graded</div>
+              <div className="text-slate-400 text-[11px]">Evaluated Capstones</div>
+            </div>
+            <div className="space-y-1">
+              <div className="font-extrabold text-emerald-400 text-base">100% Online</div>
+              <div className="text-slate-400 text-[11px]">Asynchronous & Flexible</div>
+            </div>
+            <div className="space-y-1">
+              <div className="font-extrabold text-sky-300 text-base">Instant Delivery</div>
+              <div className="text-slate-400 text-[11px]">Digital Parchment & PDF</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. Interactive Navigation Tabs */}
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-4 overflow-x-auto">
+      {/* 2. Navigation Tabs */}
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3 overflow-x-auto">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveTab('degrees')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'degrees'
-                ? 'bg-[#0A7CB3] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <GraduationCap className="w-4 h-4" />
-            <span>Academic Degrees & Master's</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('certifications')}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'certifications'
-                ? 'bg-[#0A7CB3] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            <span>Professional Certifications</span>
-          </button>
-
           <button
             onClick={() => setActiveTab('verify')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
@@ -312,28 +125,38 @@ export default function DegreesCertificatesView({
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
             <span>Verify a Credential</span>
           </button>
 
-          {currentUser && (
-            <button
-              onClick={() => setActiveTab('my_certs')}
-              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === 'my_certs'
-                  ? 'bg-[#0A7CB3] text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <BookOpen className="w-4 h-4 text-amber-500" />
-              <span>My Issued Certificates</span>
-              {studentCertificates.length > 0 && (
-                <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-black">
-                  {studentCertificates.length}
-                </span>
-              )}
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('courses')}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'courses'
+                ? 'bg-[#0A7CB3] text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Award className="w-4 h-4 text-amber-500" />
+            <span>Accredited Course Certificates ({courses.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('my_certs')}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'my_certs'
+                ? 'bg-[#0A7CB3] text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 text-sky-500" />
+            <span>My Issued Certificates</span>
+            {studentCertificates.length > 0 && (
+              <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                {studentCertificates.length}
+              </span>
+            )}
+          </button>
         </div>
 
         <button
@@ -345,274 +168,7 @@ export default function DegreesCertificatesView({
         </button>
       </div>
 
-      {/* 3. TAB 1: Academic Degrees (Master's Specializations) */}
-      {activeTab === 'degrees' && (
-        <div className="space-y-8 animate-in fade-in duration-200">
-          {/* Faculty Academic Governance Action Bar */}
-          {isFaculty && (
-            <div className="bg-gradient-to-r from-slate-900 via-[#0B1A2F] to-blue-950 border border-blue-500/40 rounded-3xl p-5 sm:p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
-              <div className="space-y-1.5">
-                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold uppercase tracking-wider border border-blue-400/30">
-                  <GraduationCap className="w-3.5 h-3.5 text-blue-300" />
-                  <span>Faculty Academic Authority</span>
-                </div>
-                <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
-                  Accredited Degrees Directorate & Curricular Governance
-                </h3>
-                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                  As verified faculty, you have direct stewardship over degree tracks, ECTS credit weights, syllabus requirements, and institutional accreditations.
-                </p>
-              </div>
-              <button
-                onClick={() => setDegreeModal({ isOpen: true, initialData: null })}
-                className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Author Degree Track</span>
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Aaroha University-Calibrated Master's Programs
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                Rigorous degree tracks authored and evaluated by principal engineering chairs and research fellows.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg shrink-0 self-start sm:self-auto">
-              {((Array.isArray(degrees) && degrees.length > 0) ? degrees : degreePrograms).length} Specialized Tracks Available
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8">
-            {((Array.isArray(degrees) && degrees.length > 0) ? degrees : degreePrograms).map((program) => {
-              const matchedCourse = courses.find(c => c.id === program.courseId || c.course_id === program.courseId || c.slug === program.courseSlug) || 
-                                    courses.find(c => c.category === (program.title || '').split(' ')[0]) || 
-                                    courses[0];
-              const facultyName = program.faculty_name || program.faculty?.name || 'Faculty Member';
-              const facultyTitle = program.faculty_title || program.faculty?.title || 'Academic Faculty';
-              const facultyAvatar = program.faculty_avatar || program.faculty?.avatar || '/avatars/3d/memo_1.png';
-              const skillsList = Array.isArray(program.skills) ? program.skills : [];
-              const highlightsList = Array.isArray(program.highlights) ? program.highlights : [];
-
-              return (
-                <div
-                  key={program.id || program.slug}
-                  className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 p-6 sm:p-8 space-y-6"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-                    <div className="space-y-3 max-w-3xl">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-3 py-1 rounded-full bg-blue-50 text-[#0A7CB3] text-[11px] font-extrabold uppercase tracking-wider border border-blue-200">
-                          {program.degreeType || program.degree_type}
-                        </span>
-                        <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">
-                          {program.duration}
-                        </span>
-                        <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold border border-amber-200 flex items-center gap-1">
-                          <Award className="w-3.5 h-3.5 text-amber-600" />
-                          <span>{program.accreditation}</span>
-                        </span>
-                        {isFaculty && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                            Faculty Managed
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
-                        {program.title}
-                      </h3>
-
-                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                        {program.description}
-                      </p>
-                    </div>
-
-                    {/* Faculty Badge */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3 shrink-0 lg:w-72">
-                      <img
-                        src={facultyAvatar}
-                        alt={facultyName}
-                        onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-xs"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 leading-tight truncate">
-                          {facultyName}
-                        </div>
-                        <div className="text-[11px] text-slate-500 leading-tight mt-0.5 line-clamp-2">
-                          {facultyTitle}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Program Highlights & Skills */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-[#0A7CB3]" />
-                        <span>Core Specialization Invariants</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {skillsList.map((skill, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-medium rounded-md transition-colors"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Curriculum Guarantees</span>
-                      </div>
-                      <ul className="space-y-1 text-xs text-slate-600">
-                        {highlightsList.map((h, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0A7CB3] mt-1.5 shrink-0" />
-                            <span>{h}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Actions Bar */}
-                  <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5 text-[#0A7CB3]" />
-                        <span>{program.modulesCount || program.modules_count || 'Curriculum Modules'}</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{program.evaluatedProjectsCount || program.evaluated_projects_count || 'Evaluated Capstones'}</span>
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      {isFaculty && (
-                        <>
-                          <button
-                            onClick={() => setDegreeModal({ isOpen: true, initialData: program })}
-                            className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                            title="Edit Degree Program specifications"
-                          >
-                            <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Edit Track</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Archive accredited degree track: "${program.title}"?`)) {
-                                if (onDeleteDegree) onDeleteDegree(program.id);
-                              }
-                            }}
-                            className="px-3 py-2.5 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 text-slate-600 hover:text-red-700 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
-                            title="Archive Degree Program"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                            <span className="hidden sm:inline">Archive</span>
-                          </button>
-                        </>
-                      )}
-
-                      <button
-                        onClick={() => matchedCourse && onOpenCourseDetails(matchedCourse)}
-                        className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-                      >
-                        <span>View Curriculum & Enroll</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 4. TAB 2: Professional Certifications */}
-      {activeTab === 'certifications' && (
-        <div className="space-y-8 animate-in fade-in duration-200">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Aaroha Accredited Professional Certifications
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 mt-1">
-              Industry-recognized credentials certifying operational mastery of mission-critical engineering systems.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {professionalCerts.map((cert) => (
-              <div
-                key={cert.code}
-                className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all p-6 flex flex-col justify-between space-y-6"
-              >
-                <div className="space-y-4">
-                  {/* Badge Crest */}
-                  <div className="flex items-center justify-between">
-                    <div className={`px-3 py-1.5 rounded-xl bg-gradient-to-r ${cert.badgeColor} text-white font-mono font-extrabold text-xs shadow-xs tracking-wider`}>
-                      {cert.code}
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      {cert.validity}
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-extrabold text-slate-900 leading-snug">
-                    {cert.title}
-                  </h3>
-
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {cert.description}
-                  </p>
-
-                  <div className="pt-3 border-t border-slate-100 space-y-2">
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                      Mandatory Requirements
-                    </div>
-                    <ul className="space-y-1.5 text-xs text-slate-600">
-                      {cert.requirements.map((req, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                          <span className="text-[11px] leading-tight">{req}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-100">
-                  <button
-                    onClick={() => {
-                      const matched = courses.find(c => c.id === cert.courseId || c.slug === cert.courseSlug) || courses[0];
-                      if (matched) onOpenCourseDetails(matched);
-                    }}
-                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl text-center transition-colors shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <span>View Certification Syllabus</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 5. TAB 3: Official Credential Verification Tool */}
+      {/* 3. TAB 1: Cryptographic Credential Verification */}
       {activeTab === 'verify' && (
         <div className="space-y-8 animate-in fade-in duration-200">
           <div className="max-w-3xl space-y-2">
@@ -620,7 +176,7 @@ export default function DegreesCertificatesView({
               Cryptographic Credential Verification Engine
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Every certificate issued by Aaroha Institute of Technology is encoded with a tamper-evident 16-character alphanumeric cryptographic identifier. Enter the certificate code below to authenticate the recipient, honors, and faculty signature.
+              Every certificate issued by Aaroha Technologies is encoded with a tamper-evident cryptographic identifier. Enter the certificate code below to authenticate the recipient, verified coursework, and faculty approval.
             </p>
           </div>
 
@@ -684,7 +240,7 @@ export default function DegreesCertificatesView({
                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         </div>
                         <div className="text-xs text-slate-500">
-                          Verified against Aaroha Institute Registry
+                          Verified against Aaroha Technologies Registry
                         </div>
                       </div>
                     </div>
@@ -708,56 +264,55 @@ export default function DegreesCertificatesView({
                     </div>
 
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Curriculum / Program</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Course / Curriculum</span>
                       <div className="font-extrabold text-slate-900 text-sm line-clamp-2">
                         {verificationResult.course_title}
                       </div>
                     </div>
 
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Awarded Grade / Honors</span>
-                      <div className="font-extrabold text-blue-700 text-xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Awarded Distinction</span>
+                      <div className="font-extrabold text-[#0A7CB3] text-xs">
                         {verificationResult.grade || 'Pass with Distinction'}
                       </div>
                     </div>
 
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issuing Directorate</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issuing Authority</span>
                       <div className="font-extrabold text-slate-900 text-xs">
-                        {verificationResult.issuer_name || 'Faculty'}
+                        {verificationResult.issuer_name || 'Faculty Lead'}
                       </div>
                       <div className="text-slate-500 text-[11px]">
-                        {verificationResult.issuer_title || ''}
+                        {verificationResult.issuer_title || 'Aaroha Technologies'}
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
                     <button
                       onClick={() => handleCopyCode(verificationResult.certificate_code)}
-                      className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
                     >
                       {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedCode ? 'Copied Code' : 'Copy Credential Code'}</span>
+                      <span>{copiedCode ? 'Code Copied' : 'Copy Credential Code'}</span>
                     </button>
 
                     <button
                       onClick={() => onViewCertificate && onViewCertificate(verificationResult)}
-                      className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                      className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
                     >
-                      <Award className="w-4 h-4 text-amber-400" />
-                      <span>Inspect Official Certificate Document</span>
+                      <Award className="w-4 h-4" />
+                      <span>View Official Digital Parchment</span>
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="bg-amber-50 rounded-3xl border border-amber-200 p-6 sm:p-8 text-amber-900 space-y-3">
-                  <div className="font-extrabold text-sm flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-amber-600" />
-                    <span>No Official Credential Found</span>
+                <div className="bg-red-50/70 border border-red-200 rounded-2xl p-6 text-center space-y-2">
+                  <div className="text-sm font-bold text-red-800">
+                    No verified credential record found
                   </div>
-                  <p className="text-xs text-amber-800 leading-relaxed">
-                    No certificate matching code <code className="font-mono font-bold bg-amber-100 px-1.5 py-0.5 rounded">{searchCode}</code> was found in our accredited registry. Please verify spelling or contact <a href="mailto:registrar@aaroha-inc.com" className="underline font-semibold">registrar@aaroha-inc.com</a> for manual records lookup.
+                  <p className="text-xs text-red-600 max-w-md mx-auto">
+                    Please ensure the 16-character alphanumeric code is entered accurately, including the prefix (e.g. AAROHA-CERT-...).
                   </p>
                 </div>
               )}
@@ -766,105 +321,183 @@ export default function DegreesCertificatesView({
         </div>
       )}
 
-      {/* 6. TAB 4: My Issued Certificates (Logged-in Student) */}
-      {activeTab === 'my_certs' && currentUser && (
-        <div className="space-y-8 animate-in fade-in duration-200">
+      {/* 4. TAB 2: Authentic Course Completion Certificates */}
+      {activeTab === 'courses' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              My Official Accredited Certificates
+              Accredited Course Certificates
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 mt-1">
-              Permanent digital credentials awarded upon completion of evaluated coursework and faculty review.
+              Every course on Aaroha culminates in an official, tamper-evident certificate of completion upon finishing all video modules and passing the faculty capstone evaluation.
             </p>
           </div>
 
-          {studentCertificates.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {studentCertificates.map((cert) => (
-                <div
-                  key={cert.id || cert.certificate_code}
-                  className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all p-6 sm:p-8 space-y-6 flex flex-col justify-between"
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {courses.map((course) => {
+              const modulesCount = course.modules?.length || 0;
+              const totalLessons = (course.modules || []).reduce((acc, m) => acc + (m.lessons?.length || 0), 0);
+
+              return (
+                <div 
+                  key={course.id}
+                  className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
                 >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-600 flex items-center justify-center">
-                          <Award className="w-4 h-4" />
-                        </div>
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-600">
-                          Accredited Credential
+                  <div>
+                    {/* Thumbnail */}
+                    <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                      <img 
+                        src={course.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80'} 
+                        alt={course.title}
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                      />
+                      <div className="absolute top-2.5 left-2.5">
+                        <span className="px-2.5 py-1 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold rounded-md border border-white/20">
+                          {course.category || 'Specialization'}
                         </span>
                       </div>
-                      <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-md">
-                        {cert.certificate_code}
-                      </span>
                     </div>
 
-                    <h3 className="text-lg font-extrabold text-slate-900 leading-snug">
-                      {cert.course_title}
-                    </h3>
+                    {/* Content */}
+                    <div className="p-5 space-y-3">
+                      <h3 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug">
+                        {course.title}
+                      </h3>
 
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
-                      <div className="text-slate-500 text-[11px]">Honors:</div>
-                      <div className="font-bold text-slate-800">{cert.grade || 'Pass with Distinction'}</div>
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                        {course.description || 'Master hands-on systems architecture with verified interactive modules.'}
+                      </p>
+
+                      {/* Course Certificate Specs */}
+                      <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <Award className="w-3.5 h-3.5 text-[#0A7CB3] shrink-0" />
+                          <span className="font-semibold">Award:</span>
+                          <span className="text-slate-600 truncate">Verified Course Certificate</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <Video className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="font-semibold">Curriculum:</span>
+                          <span className="text-slate-600">{modulesCount} Modules · {totalLessons} Lessons</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                          <span className="font-semibold">Requirement:</span>
+                          <span className="text-slate-600">Video Completion + Capstone</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                    <span className="text-[11px] text-slate-400">
-                      Issued {new Date(cert.issued_at || Date.now()).toLocaleDateString()}
-                    </span>
+                  {/* Action Footer */}
+                  <div className="p-5 pt-0">
+                    <button
+                      onClick={() => onOpenCourseDetails && onOpenCourseDetails(course)}
+                      className="w-full py-2.5 px-4 bg-slate-50 hover:bg-[#0A7CB3] text-slate-800 hover:text-white border border-slate-200 hover:border-[#0A7CB3] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <span>Explore Program & Syllabus</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 5. TAB 3: My Issued Certificates */}
+      {activeTab === 'my_certs' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              My Verified Credentials
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 mt-1">
+              Your official credentials awarded upon completing courses, video lectures, and instructor-evaluated capstones.
+            </p>
+          </div>
+
+          {!currentUser ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 max-w-lg mx-auto space-y-4">
+              <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto" />
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-800">Sign in to view your certificates</h3>
+                <p className="text-xs text-slate-500">
+                  Log in to your student account to inspect your earned digital parchments and verification codes.
+                </p>
+              </div>
+            </div>
+          ) : studentCertificates.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 max-w-lg mx-auto space-y-4">
+              <Award className="w-12 h-12 text-slate-300 mx-auto" />
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-800">No certificates awarded yet</h3>
+                <p className="text-xs text-slate-500">
+                  Complete video modules, finish exercises, and submit your capstone deliverable to earn your official verified certificate.
+                </p>
+              </div>
+              <button
+                onClick={onExploreCatalog}
+                className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors inline-flex items-center gap-2 cursor-pointer"
+              >
+                <span>Explore Course Catalog</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {studentCertificates.map((cert) => (
+                <div 
+                  key={cert.id} 
+                  className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-md transition-all p-5 space-y-4 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                        Accredited & Verified
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {new Date(cert.issued_at || Date.now()).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug">
+                      {cert.course_title}
+                    </h3>
+
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Credential ID</div>
+                      <div className="font-mono text-slate-800 font-bold text-xs select-all">
+                        {cert.certificate_code}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => handleCopyCode(cert.certificate_code)}
+                      className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedCode ? 'Copied' : 'Copy ID'}</span>
+                    </button>
 
                     <button
                       onClick={() => onViewCertificate && onViewCertificate(cert)}
-                      className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <Award className="w-3.5 h-3.5" />
-                      <span>View Certificate</span>
+                      <span>View Digital Certificate</span>
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-4 max-w-xl mx-auto">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0A7CB3] flex items-center justify-center mx-auto">
-                <GraduationCap className="w-7 h-7" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">
-                No Certificates Issued Yet
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Complete all required video modules, practical code implementations, and pass mandatory evaluated assignments with 80% or higher to earn your accredited digital certificate.
-              </p>
-              <button
-                onClick={onExploreCatalog}
-                className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
-              >
-                Explore Curricula & Start Learning
-              </button>
-            </div>
           )}
         </div>
-      )}
-
-      {/* Faculty Degree Authoring / Editing Modal */}
-      {isFaculty && (
-        <DegreeModal
-          isOpen={degreeModal.isOpen}
-          onClose={() => setDegreeModal({ isOpen: false, initialData: null })}
-          initialData={degreeModal.initialData}
-          courses={courses}
-          currentUser={currentUser}
-          onSave={async (payload) => {
-            if (degreeModal.initialData?.id) {
-              if (onUpdateDegree) await onUpdateDegree(degreeModal.initialData.id, payload);
-            } else {
-              if (onAddDegree) await onAddDegree(payload);
-            }
-            setDegreeModal({ isOpen: false, initialData: null });
-          }}
-        />
       )}
     </div>
   );

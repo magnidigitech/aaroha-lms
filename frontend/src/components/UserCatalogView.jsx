@@ -10,66 +10,27 @@ import { courseMatchesQuery, POPULAR_TECHNOLOGY_TAGS } from '../techTaxonomy';
 const HERO_TECH_SHOWCASE = [
   {
     id: 'ai',
-    courseId: 2,
-    label: 'AI & ML',
-    domain: 'Applied Artificial Intelligence',
-    title: 'Applied Machine Learning & Low-Latency Model Serving',
-    category: 'Applied AI',
-    rating: '4.9',
-    enrolled: '18,400+ Engineers',
-    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
-    floatingBadges: [
-      { text: 'vLLM Serving', icon: 'Sparkles', pos: 'top-3 left-3', style: 'bg-white/95 text-purple-700 shadow-md border-purple-100', anim: 'animate-float-slow' },
-      { text: 'Sub-50ms P99 SLA', icon: 'Cpu', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-purple-300 shadow-md border-slate-700', anim: 'animate-float-reverse' }
-    ],
-    techTags: ['Transformers', 'AWQ 4-Bit', 'Triton Inference', 'Continuous Batching'],
-    faculty: {
-      name: 'Dr. Marcus Vance',
-      title: 'Distinguished ML Systems Engineer',
-      avatar: '/avatars/3d/memo_3.png'
-    }
+    label: 'Artificial Intelligence',
+    title: 'Applied AI & Neural Systems',
+    subtitle: 'Deep neural networks, LLM acceleration, continuous batching, and scalable GPU execution graphs.',
+    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1000&q=85',
+    tag: 'Next-Gen Computing'
   },
   {
     id: 'cloud',
-    courseId: 1,
-    label: 'Cloud Systems',
-    domain: 'Distributed Cloud Systems',
-    title: 'Distributed Cloud Architecture & High-Throughput Systems',
-    category: 'Cloud Architecture',
-    rating: '4.9',
-    enrolled: '24,200+ Engineers',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
-    floatingBadges: [
-      { text: '120k QPS Sustained', icon: 'Cpu', pos: 'top-3 left-3', style: 'bg-white/95 text-blue-700 shadow-md border-blue-100', anim: 'animate-float-slow' },
-      { text: 'Raft Leader Election', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-blue-300 shadow-md border-slate-700', anim: 'animate-float-reverse' }
-    ],
-    techTags: ['Multi-Region Consensus', 'BGP Anycast', 'RocksDB LSM', 'Zero-Drop Ingress'],
-    faculty: {
-      name: 'Dr. Aris Thorne',
-      title: 'Chair of Distributed Infrastructure',
-      avatar: '/avatars/3d/memo_1.png'
-    }
+    label: 'Cloud Infrastructure',
+    title: 'Distributed Systems & Cloud Architecture',
+    subtitle: 'High-throughput data backbones, multi-region consensus, low-latency streaming, and planetary-scale clusters.',
+    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1000&q=85',
+    tag: 'High-Throughput Engineering'
   },
   {
     id: 'cyber',
-    courseId: 3,
     label: 'Cyber Defense',
-    domain: 'Zero-Trust Cybersecurity',
-    title: 'Enterprise Cyber Defense & Zero-Trust Architecture',
-    category: 'Cybersecurity',
-    rating: '4.9',
-    enrolled: '14,800+ Engineers',
-    image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
-    floatingBadges: [
-      { text: 'eBPF Kernel Tracing', icon: 'ShieldCheck', pos: 'top-3 left-3', style: 'bg-white/95 text-emerald-700 shadow-md border-emerald-100', anim: 'animate-float-slow' },
-      { text: 'Zero-Trust SPIFFE mTLS', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-emerald-300 shadow-md border-slate-700', anim: 'animate-float-reverse' }
-    ],
-    techTags: ['Kyverno Policies', 'Sigstore SLSA L3', 'Memory Safety', 'STRIDE Modeling'],
-    faculty: {
-      name: 'Katarina Wolf',
-      title: 'Principal Security Architect',
-      avatar: '/avatars/3d/memo_14.png'
-    }
+    title: 'Zero-Trust Architecture & Resilient Systems',
+    subtitle: 'Kernel-level observability, proactive threat defense, memory safety, and verifiable cryptographic attestations.',
+    image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1000&q=85',
+    tag: 'Resilience & Security'
   }
 ];
 
@@ -94,13 +55,6 @@ export default function UserCatalogView({
 
   const currentTech = HERO_TECH_SHOWCASE[activeShowcaseIdx];
 
-  const renderBadgeIcon = (name) => {
-    if (name === 'Sparkles') return <Sparkles className="w-3 h-3 shrink-0" />;
-    if (name === 'Cpu') return <Cpu className="w-3 h-3 shrink-0" />;
-    if (name === 'ShieldCheck') return <ShieldCheck className="w-3 h-3 shrink-0" />;
-    if (name === 'Layers') return <Layers className="w-3 h-3 shrink-0" />;
-    return <CheckCircle2 className="w-3 h-3 shrink-0" />;
-  };
   const dynamicCategories = ['All', ...Array.from(new Set([
     'Applied AI',
     'Cloud Architecture',
@@ -260,85 +214,49 @@ export default function UserCatalogView({
               </div>
             </div>
 
-            {/* Showcase Visual Card */}
-            <div 
-              onClick={() => {
-                const matched = courses.find(c => c.id === currentTech.courseId) || courses[0];
-                if (matched && onOpenCourseDetails) onOpenCourseDetails(matched);
-              }}
-              className="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 p-4 sm:p-5 space-y-3.5 group cursor-pointer relative overflow-hidden"
-            >
-              {/* Image Container with Floating Animated Tech Badges */}
-              <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-slate-100 shadow-2xs">
+            {/* Showcase Visual Card - Pure Technology Image Showcase */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-3 sm:p-4 space-y-3 relative overflow-hidden group">
+              {/* Image Container with Gentle Ambient Lighting */}
+              <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
                 <img
                   key={currentTech.id}
                   src={currentTech.image}
-                  alt={currentTech.domain}
-                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-700 animate-in fade-in zoom-in-95 duration-500"
+                  alt={currentTech.title}
+                  className="w-full h-full object-cover transition-all duration-700 animate-in fade-in zoom-in-95 group-hover:scale-105"
                 />
                 
-                {/* Soft gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent pointer-events-none" />
+                {/* Modern Dark Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-black/20 pointer-events-none" />
 
-                {/* Floating Technology Animated Badges */}
-                {currentTech.floatingBadges.map((badge, bIdx) => (
-                  <div
-                    key={bIdx}
-                    className={`absolute ${badge.pos} ${badge.anim} ${badge.style} px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 border transition-all z-20 pointer-events-none shadow-sm`}
-                  >
-                    {renderBadgeIcon(badge.icon)}
-                    <span>{badge.text}</span>
-                  </div>
-                ))}
-
-                {/* Bottom Overlay Label */}
-                <div className="absolute bottom-3 left-3.5 right-3.5 text-white z-20 pointer-events-none space-y-0.5">
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-blue-200">
-                    {currentTech.category} · {currentTech.rating} ★ ({currentTech.enrolled})
-                  </div>
-                  <div className="text-xs sm:text-sm font-black text-white truncate drop-shadow-xs">
-                    {currentTech.title}
-                  </div>
-                </div>
-              </div>
-
-              {/* Invariant Technology Tags */}
-              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                {currentTech.techTags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10.5px] font-semibold border border-slate-200"
-                  >
-                    {tag}
+                {/* Subtle Domain Pill in Top-Left */}
+                <div className="absolute top-3 left-3 z-10">
+                  <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold rounded-full border border-white/20 flex items-center gap-1.5 shadow-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                    <span>{currentTech.tag}</span>
                   </span>
-                ))}
-              </div>
-
-              {/* Faculty & Action Footer */}
-              <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <img
-                    src={currentTech.faculty.avatar}
-                    alt={currentTech.faculty.name}
-                    onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
-                    className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-900 truncate">
-                      {currentTech.faculty.name}
-                    </div>
-                    <div className="text-[11px] text-slate-500 truncate">
-                      {currentTech.faculty.title}
-                    </div>
-                  </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-xs font-bold text-[#0A7CB3] group-hover:text-[#086491] group-hover:translate-x-0.5 transition-all shrink-0">
-                  <span>Explore Track</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                {/* Bottom Overlay Info */}
+                <div className="absolute bottom-3 left-3.5 right-3.5 text-white z-10 space-y-1 pointer-events-none">
+                  <h3 className="text-sm sm:text-base font-bold text-white leading-tight drop-shadow-sm">
+                    {currentTech.title}
+                  </h3>
+                  <p className="text-xs text-slate-200/90 line-clamp-2 leading-relaxed drop-shadow-xs">
+                    {currentTech.subtitle}
+                  </p>
                 </div>
               </div>
 
+              {/* Progress Bar & Status Line */}
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1 pt-0.5">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Accredited Technology Curricula</span>
+                </span>
+                <span className="text-slate-400">
+                  {activeShowcaseIdx + 1} of {HERO_TECH_SHOWCASE.length}
+                </span>
+              </div>
             </div>
           </div>
 
