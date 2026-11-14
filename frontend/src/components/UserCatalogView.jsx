@@ -11,19 +11,18 @@ const HERO_TECH_SHOWCASE = [
   {
     id: 'ai',
     courseId: 2,
+    label: 'AI & ML',
     domain: 'Applied Artificial Intelligence',
     title: 'Applied Machine Learning & Low-Latency Model Serving',
     category: 'Applied AI',
     rating: '4.9',
     enrolled: '18,400+ Engineers',
-    image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Transformer Inference · Triton · AWQ',
+    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
     floatingBadges: [
       { text: 'vLLM Serving', icon: 'Sparkles', pos: 'top-3 left-3', style: 'bg-white/95 text-purple-700 shadow-md border-purple-100', anim: 'animate-float-slow' },
-      { text: 'Sub-50ms P99 SLA', icon: 'Cpu', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-purple-300 shadow-md border-slate-700', anim: 'animate-float-reverse' },
-      { text: 'AWQ 4-Bit Quant', icon: 'CheckCircle2', pos: 'bottom-3 left-3', style: 'bg-white/95 text-slate-800 shadow-md border-slate-200', anim: 'animate-float-reverse' },
-      { text: 'GPU Distributed', icon: 'Layers', pos: 'bottom-3 right-3', style: 'bg-purple-600 text-white shadow-md border-purple-500', anim: 'animate-float-slow' }
+      { text: 'Sub-50ms P99 SLA', icon: 'Cpu', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-purple-300 shadow-md border-slate-700', anim: 'animate-float-reverse' }
     ],
+    techTags: ['Transformers', 'AWQ 4-Bit', 'Triton Inference', 'Continuous Batching'],
     faculty: {
       name: 'Dr. Marcus Vance',
       title: 'Distinguished ML Systems Engineer',
@@ -33,19 +32,18 @@ const HERO_TECH_SHOWCASE = [
   {
     id: 'cloud',
     courseId: 1,
+    label: 'Cloud Systems',
     domain: 'Distributed Cloud Systems',
     title: 'Distributed Cloud Architecture & High-Throughput Systems',
     category: 'Cloud Architecture',
     rating: '4.9',
     enrolled: '24,200+ Engineers',
     image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Raft Consensus · BGP Anycast · RocksDB',
     floatingBadges: [
       { text: '120k QPS Sustained', icon: 'Cpu', pos: 'top-3 left-3', style: 'bg-white/95 text-blue-700 shadow-md border-blue-100', anim: 'animate-float-slow' },
-      { text: 'Raft Consensus Protocol', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-blue-300 shadow-md border-slate-700', anim: 'animate-float-reverse' },
-      { text: 'RocksDB LSM Compaction', icon: 'CheckCircle2', pos: 'bottom-3 left-3', style: 'bg-white/95 text-slate-800 shadow-md border-slate-200', anim: 'animate-float-reverse' },
-      { text: 'BGP Anycast Routing', icon: 'Sparkles', pos: 'bottom-3 right-3', style: 'bg-blue-600 text-white shadow-md border-blue-500', anim: 'animate-float-slow' }
+      { text: 'Raft Leader Election', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-blue-300 shadow-md border-slate-700', anim: 'animate-float-reverse' }
     ],
+    techTags: ['Multi-Region Consensus', 'BGP Anycast', 'RocksDB LSM', 'Zero-Drop Ingress'],
     faculty: {
       name: 'Dr. Aris Thorne',
       title: 'Chair of Distributed Infrastructure',
@@ -55,19 +53,18 @@ const HERO_TECH_SHOWCASE = [
   {
     id: 'cyber',
     courseId: 3,
-    title: 'Enterprise Cyber Defense & Zero-Trust Architecture',
+    label: 'Cyber Defense',
     domain: 'Zero-Trust Cybersecurity',
+    title: 'Enterprise Cyber Defense & Zero-Trust Architecture',
     category: 'Cybersecurity',
     rating: '4.9',
     enrolled: '14,800+ Engineers',
-    image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80',
-    tagline: 'Zero-Trust SPIFFE · eBPF Kernel Telemetry · SLSA L3',
+    image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
     floatingBadges: [
-      { text: 'eBPF Kernel Probes', icon: 'ShieldCheck', pos: 'top-3 left-3', style: 'bg-white/95 text-emerald-700 shadow-md border-emerald-100', anim: 'animate-float-slow' },
-      { text: 'Zero-Trust SPIFFE mTLS', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-emerald-300 shadow-md border-slate-700', anim: 'animate-float-reverse' },
-      { text: 'Sigstore SLSA L3 Attest', icon: 'CheckCircle2', pos: 'bottom-3 left-3', style: 'bg-white/95 text-slate-800 shadow-md border-slate-200', anim: 'animate-float-reverse' },
-      { text: 'Red Team Defense', icon: 'Sparkles', pos: 'bottom-3 right-3', style: 'bg-emerald-600 text-white shadow-md border-emerald-500', anim: 'animate-float-slow' }
+      { text: 'eBPF Kernel Tracing', icon: 'ShieldCheck', pos: 'top-3 left-3', style: 'bg-white/95 text-emerald-700 shadow-md border-emerald-100', anim: 'animate-float-slow' },
+      { text: 'Zero-Trust SPIFFE mTLS', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-emerald-300 shadow-md border-slate-700', anim: 'animate-float-reverse' }
     ],
+    techTags: ['Kyverno Policies', 'Sigstore SLSA L3', 'Memory Safety', 'STRIDE Modeling'],
     faculty: {
       name: 'Katarina Wolf',
       title: 'Principal Security Architect',
@@ -226,7 +223,7 @@ export default function UserCatalogView({
             onMouseLeave={() => setIsPaused(false)}
           >
             {/* Domain Selection Tabs & Progress Dots */}
-            <div className="flex items-center justify-between gap-1 mb-2.5">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
                 {HERO_TECH_SHOWCASE.map((t, idx) => (
                   <button
@@ -235,18 +232,18 @@ export default function UserCatalogView({
                       setActiveShowcaseIdx(idx);
                       setIsPaused(true);
                     }}
-                    className={'px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ' +
+                    className={'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ' +
                       (activeShowcaseIdx === idx
                         ? 'bg-[#0056D2] text-white shadow-xs'
                         : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
                   >
-                    <span>{t.domain.split(' ')[0]} {t.domain.split(' ')[1] || ''}</span>
+                    <span>{t.label}</span>
                   </button>
                 ))}
               </div>
 
               {/* Progress Indicators */}
-              <div className="flex items-center gap-1 shrink-0 px-1">
+              <div className="flex items-center gap-1.5 shrink-0 px-1">
                 {HERO_TECH_SHOWCASE.map((_, idx) => (
                   <button
                     key={idx}
@@ -281,13 +278,13 @@ export default function UserCatalogView({
                 />
                 
                 {/* Soft gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent pointer-events-none" />
 
                 {/* Floating Technology Animated Badges */}
                 {currentTech.floatingBadges.map((badge, bIdx) => (
                   <div
                     key={bIdx}
-                    className={`absolute ${badge.pos} ${badge.anim} ${badge.style} px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 border transition-all z-20 pointer-events-none`}
+                    className={`absolute ${badge.pos} ${badge.anim} ${badge.style} px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 border transition-all z-20 pointer-events-none shadow-sm`}
                   >
                     {renderBadgeIcon(badge.icon)}
                     <span>{badge.text}</span>
@@ -295,7 +292,7 @@ export default function UserCatalogView({
                 ))}
 
                 {/* Bottom Overlay Label */}
-                <div className="absolute bottom-3 left-3.5 right-3.5 text-white z-20 pointer-events-none">
+                <div className="absolute bottom-3 left-3.5 right-3.5 text-white z-20 pointer-events-none space-y-0.5">
                   <div className="text-[10px] font-extrabold uppercase tracking-wider text-blue-200">
                     {currentTech.category} · {currentTech.rating} ★ ({currentTech.enrolled})
                   </div>
@@ -305,8 +302,20 @@ export default function UserCatalogView({
                 </div>
               </div>
 
+              {/* Invariant Technology Tags */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                {currentTech.techTags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10.5px] font-semibold border border-slate-200"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
               {/* Faculty & Action Footer */}
-              <div className="flex items-center justify-between gap-3 pt-0.5">
+              <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-100">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <img
                     src={currentTech.faculty.avatar}
