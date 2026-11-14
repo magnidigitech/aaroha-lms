@@ -5,6 +5,8 @@ import CourseBrochureView from './components/CourseBrochureView';
 import CourseClassroomView from './components/CourseClassroomView';
 import StudentPortalView from './components/StudentPortalView';
 import AdminPortalView from './components/AdminPortalView';
+import DegreesCertificatesView from './components/DegreesCertificatesView';
+import CertificateModal from './components/CertificateModal';
 import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
 import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions, initialCertificates } from './mockData';
@@ -40,7 +42,7 @@ export default function App() {
       const savedUser = localStorage.getItem('aaroha_user');
       if (savedUser) {
         const user = JSON.parse(savedUser);
-        if (savedView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin'].includes(savedView)) {
+        if (savedView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin', 'degrees'].includes(savedView)) {
           if (savedView === 'admin' && !isFacultyRole(user.role)) return 'student';
           if (savedView === 'course-detail') return 'course-brochure';
           return savedView;
@@ -52,6 +54,8 @@ export default function App() {
       return 'catalog';
     }
   });
+
+  const [viewingCertificate, setViewingCertificate] = useState(null);
   
   const [authModal, setAuthModal] = useState({
     isOpen: false,
@@ -330,7 +334,7 @@ export default function App() {
   };
 
   const handleOpenCourseDetails = async (course) => {
-    if (activeView === 'student' || activeView === 'catalog') {
+    if (activeView === 'student' || activeView === 'catalog' || activeView === 'degrees') {
       setReturnView(activeView);
     }
     setSelectedCourse(course);
@@ -1356,6 +1360,19 @@ export default function App() {
           />
         )}
 
+        {/* 3. Academic Degrees & Accredited Certifications Portal */}
+        {activeView === 'degrees' && (
+          <DegreesCertificatesView
+            courses={courses}
+            certificates={certificates}
+            currentUser={currentUser}
+            onOpenCourseDetails={handleOpenCourseDetails}
+            onViewCertificate={(cert) => setViewingCertificate(cert)}
+            onExploreCatalog={() => setActiveView('catalog')}
+            onOpenAuth={(tab) => handleOpenAuth(tab, null)}
+          />
+        )}
+
         {/* 3. Course Brochure (Shown for un-enrolled courses) */}
         {activeView === 'course-brochure' && selectedCourse && (
           <CourseBrochureView
@@ -1461,13 +1478,27 @@ export default function App() {
         onLogout={handleLogout}
       />
 
+      {/* Official Accredited Digital Certificate Viewer Modal */}
+      <CertificateModal
+        isOpen={!!viewingCertificate}
+        onClose={() => setViewingCertificate(null)}
+        certificate={viewingCertificate}
+      />
+
       {/* Coursera-Style Multi-Column Footer (Hidden only in focused classroom view) */}
       {activeView !== 'course-classroom' && (
         <footer className="bg-white border-t border-slate-200 mt-auto pt-14 pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">
             <div className="space-y-3">
-              <div className="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs inline-flex items-center gap-2">
+              <div 
+                className="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs inline-flex items-center gap-2 cursor-pointer hover:border-slate-300"
+                onClick={() => {
+                  setActiveView('catalog');
+                  setSelectedCategory('All');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              >
                 <img
                   src={aarohaLogo}
                   alt="Aaroha Technologies"
@@ -1483,12 +1514,20 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Curricula & Degrees</h4>
+              <h4 
+                onClick={() => {
+                  setActiveView('degrees');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="font-bold text-slate-900 text-xs uppercase tracking-wider hover:text-[#0056D2] cursor-pointer"
+              >
+                Curricula & Degrees
+              </h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li className="hover:text-[#0056D2] cursor-pointer">Cloud Architecture</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Applied AI & Model Serving</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Enterprise Cyber Defense</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Distributed Consensus Systems</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Cloud Architecture (M.S.)</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Applied AI & Model Serving (M.Eng.)</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Enterprise Cyber Defense (P.G. Dip)</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Explore All Master's Tracks</li>
               </ul>
             </div>
 
@@ -1498,7 +1537,15 @@ export default function App() {
                 <li className="hover:text-[#0056D2] cursor-pointer">Aaroha Systems Lab</li>
                 <li className="hover:text-[#0056D2] cursor-pointer">Faculty Directorate</li>
                 <li className="hover:text-[#0056D2] cursor-pointer">RFC Technical Artifacts</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Verified Digital Credentials</li>
+                <li 
+                  onClick={() => {
+                    setActiveView('degrees');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="hover:text-[#0056D2] cursor-pointer font-semibold text-[#0056D2]"
+                >
+                  Verified Digital Credentials
+                </li>
               </ul>
             </div>
 

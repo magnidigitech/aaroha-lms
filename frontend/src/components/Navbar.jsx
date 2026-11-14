@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, Bell, LogIn, UserPlus, LogOut, GraduationCap, Shield, BookOpen, Compass, Menu, X } from 'lucide-react';
+import { Search, ChevronDown, Bell, LogIn, UserPlus, LogOut, GraduationCap, Shield, BookOpen, Compass, Menu, X, Award, ShieldCheck, ArrowRight } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 
 export default function Navbar({
@@ -16,6 +16,7 @@ export default function Navbar({
   courses
 }) {
   const [isExploreOpen, setIsExploreOpen] = useState(false);
+  const [isDegreesOpen, setIsDegreesOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const categories = [
@@ -122,14 +123,105 @@ export default function Navbar({
 
           {/* Right Navigation & User Surface */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Desktop Direct Navigation Links */}
-            <button
-              onClick={() => setActiveView('catalog')}
-              className={'text-xs font-semibold transition-colors hidden lg:inline-block ' + 
-                (activeView === 'catalog' ? 'text-[#0056D2]' : 'text-slate-600 hover:text-slate-900')}
-            >
-              Degrees & Certificates
-            </button>
+            {/* Desktop Direct Navigation: Degrees & Certificates */}
+            <div className="relative hidden lg:block">
+              <button
+                onClick={() => {
+                  setActiveView('degrees');
+                  setIsDegreesOpen(false);
+                }}
+                onMouseEnter={() => setIsDegreesOpen(true)}
+                className={'text-xs font-bold transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer ' + 
+                  (activeView === 'degrees' 
+                    ? 'bg-blue-50 text-[#0056D2] border border-blue-200' 
+                    : 'text-slate-700 hover:text-[#0056D2] hover:bg-slate-50')}
+                aria-label="Degrees and Certificates Portal"
+              >
+                <Award className="w-4 h-4 text-[#0056D2]" />
+                <span>Degrees & Certificates</span>
+                <ChevronDown 
+                  className={'w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ' + (isDegreesOpen ? 'rotate-180 text-[#0056D2]' : '')} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDegreesOpen(!isDegreesOpen);
+                  }}
+                />
+              </button>
+
+              {/* Degrees & Certificates Mega-Dropdown */}
+              {isDegreesOpen && (
+                <div 
+                  className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 py-3 px-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  onMouseLeave={() => setIsDegreesOpen(false)}
+                >
+                  <div className="px-3 pb-2 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Degrees & Accredited Programs
+                    </span>
+                    <span className="text-[10px] font-bold text-[#0056D2] bg-blue-50 px-2 py-0.5 rounded-full">
+                      Aaroha Institute
+                    </span>
+                  </div>
+
+                  <div className="py-2 space-y-1">
+                    <button
+                      onClick={() => {
+                        setActiveView('degrees');
+                        setIsDegreesOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <GraduationCap className="w-4 h-4 text-[#0056D2] shrink-0" />
+                      <div>
+                        <div className="font-bold text-slate-900 leading-tight">Academic Degrees</div>
+                        <div className="text-[11px] text-slate-500">M.S. & M.Eng Specialization Tracks</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveView('degrees');
+                        setIsDegreesOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Award className="w-4 h-4 text-amber-500 shrink-0" />
+                      <div>
+                        <div className="font-bold text-slate-900 leading-tight">Professional Certifications</div>
+                        <div className="text-[11px] text-slate-500">Industry-Calibrated Systems Credentials</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveView('degrees');
+                        setIsDegreesOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <div className="font-bold text-slate-900 leading-tight">Verify a Credential</div>
+                        <div className="text-[11px] text-slate-500">Cryptographic Certificate Validation</div>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 px-2">
+                    <button
+                      onClick={() => {
+                        setActiveView('degrees');
+                        setIsDegreesOpen(false);
+                      }}
+                      className="w-full py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl text-center transition-colors shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <span>Open Degrees & Certificates Hub</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Authenticated Links (Desktop) */}
             {currentUser?.role === 'student' && (
@@ -258,14 +350,15 @@ export default function Navbar({
             <div className="flex flex-col space-y-1 px-1">
               <button
                 onClick={() => {
-                  setActiveView('catalog');
+                  setActiveView('degrees');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
-                  activeView === 'catalog' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
+                className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${
+                  activeView === 'degrees' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                Degrees & Certificates Catalog
+                <Award className="w-4 h-4 text-[#0056D2]" />
+                <span>Degrees & Certificates</span>
               </button>
 
               {currentUser?.role === 'student' && (
