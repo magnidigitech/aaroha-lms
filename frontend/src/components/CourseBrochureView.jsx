@@ -459,9 +459,9 @@ export default function CourseBrochureView({
           
           <div className="flex flex-col sm:flex-row items-start gap-6">
             <img
-              src={course.instructor.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
+              src={course.instructor.avatar || '/avatars/3d/memo_1.png'}
               alt={course.instructor.name}
-              onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'; }}
+              onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
               className="w-20 h-20 rounded-full object-cover ring-4 ring-blue-50 flex-shrink-0"
             />
 
