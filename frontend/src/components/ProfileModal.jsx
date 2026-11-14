@@ -477,7 +477,7 @@ export default function ProfileModal({
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Elena Rostova or Dr. Aris Thorne"
+                placeholder="e.g. Alex Morgan or Elena Rostova"
                 className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-medium"
               />
             </div>

@@ -842,6 +842,7 @@ export default function AdminPortalView({
         onClose={() => setCourseModal({ isOpen: false, initialData: null, initialTab: 'syllabus' })}
         initialData={courseModal.initialData}
         initialTab={courseModal.initialTab}
+        currentUser={currentUser}
         onSave={async (data) => {
           if (courseModal.initialData?.id) {
             if (onUpdateCourse) await onUpdateCourse(courseModal.initialData.id, data);

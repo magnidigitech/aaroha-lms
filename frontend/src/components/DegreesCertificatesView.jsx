@@ -646,7 +646,7 @@ export default function DegreesCertificatesView({
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issuing Directorate</span>
                       <div className="font-extrabold text-slate-900 text-xs">
-                        {verificationResult.issuer_name || 'Dr. Aris Thorne'}
+                        {verificationResult.issuer_name || 'Faculty Director'}
                       </div>
                       <div className="text-slate-500 text-[11px]">
                         {verificationResult.issuer_title || 'Chair of Distributed Systems'}

@@ -191,7 +191,7 @@ class CourseController {
                 c.*,
                 COALESCE(u.full_name, 'Faculty Member') AS default_instructor_name,
                 COALESCE(u.title, 'Curriculum Director') AS default_instructor_title,
-                COALESCE(u.avatar, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80') AS default_instructor_avatar,
+                COALESCE(u.avatar, '') AS default_instructor_avatar,
                 COUNT(DISTINCT m.id) AS module_count,
                 COUNT(DISTINCT l.id) AS lesson_count,
                 COUNT(DISTINCT t.id) AS task_count
@@ -287,8 +287,8 @@ class CourseController {
             'name' => !empty($course['instructor_name']) ? $course['instructor_name'] : ($course['default_instructor_name'] ?: 'Faculty Member'),
             'title' => !empty($course['instructor_title']) ? $course['instructor_title'] : ($course['default_instructor_title'] ?: 'Faculty Member'),
             'department' => !empty($course['instructor_department']) ? $course['instructor_department'] : 'Aaroha Institute of Technology',
-            'avatar' => !empty($course['instructor_avatar']) ? $course['instructor_avatar'] : ($course['default_instructor_avatar'] ?: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'),
-            'bio' => !empty($course['instructor_bio']) ? $course['instructor_bio'] : 'Experienced systems educator and architect delivering enterprise-grade engineering programs.',
+            'avatar' => !empty($course['instructor_avatar']) ? $course['instructor_avatar'] : ($course['default_instructor_avatar'] ?: ''),
+            'bio' => !empty($course['instructor_bio']) ? $course['instructor_bio'] : '',
             'rating' => 4.94,
             'students' => '25,000+'
         ];
@@ -380,21 +380,34 @@ class CourseController {
 
         $title = trim($data['title'] ?? '');
         $description = trim($data['description'] ?? '');
-        $thumbnailUrl = trim($data['thumbnail_url'] ?? 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80');
+        $thumbnailUrl = trim($data['thumbnail_url'] ?? '');
         $category = trim($data['category'] ?? 'Cloud Architecture');
         $level = trim($data['level'] ?? 'Advanced Level');
-        $duration = trim($data['duration'] ?? '8 Weeks');
+        $duration = trim($data['duration'] ?? '');
         $partnerType = trim($data['partner_type'] ?? 'Specialization');
-        $badgeText = trim($data['badge_text'] ?? 'New');
-        $skills = is_array($data['skills'] ?? null) ? json_encode($data['skills']) : json_encode(['Cloud Architecture', 'Distributed Systems']);
-        $whatYouWillLearn = is_array($data['what_you_will_learn'] ?? null) ? json_encode($data['what_you_will_learn']) : json_encode(['Master core principles and architectures', 'Complete evaluated deliverable projects']);
-        $prerequisites = trim($data['prerequisites'] ?? 'Distributed Systems Foundations & Linux kernel basics');
+        $badgeText = trim($data['badge_text'] ?? '');
+        $skills = is_array($data['skills'] ?? null) ? json_encode($data['skills']) : json_encode([]);
+        $whatYouWillLearn = is_array($data['what_you_will_learn'] ?? null) ? json_encode($data['what_you_will_learn']) : json_encode([]);
+        $prerequisites = trim($data['prerequisites'] ?? '');
         $about = trim($data['about'] ?? $description);
         $instructorName = trim($data['instructor_name'] ?? '');
         $instructorTitle = trim($data['instructor_title'] ?? '');
         $instructorDepartment = trim($data['instructor_department'] ?? 'Aaroha Institute of Technology');
-        $instructorBio = trim($data['instructor_bio'] ?? 'Experienced faculty member and systems architect delivering industry-calibrated technical education.');
-        $instructorAvatar = trim($data['instructor_avatar'] ?? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80');
+        $instructorBio = trim($data['instructor_bio'] ?? '');
+        $instructorAvatar = trim($data['instructor_avatar'] ?? '');
+
+        // If instructor fields are not supplied, dynamically fall back to the creator user profile
+        if (empty($instructorName) || empty($instructorAvatar) || empty($instructorTitle)) {
+            $pdoInit = Database::getConnection();
+            $uStmt = $pdoInit->prepare("SELECT full_name, title, avatar FROM users WHERE id = ?");
+            $uStmt->execute([$adminId]);
+            $creatorUser = $uStmt->fetch();
+            if ($creatorUser) {
+                if (empty($instructorName)) $instructorName = trim($creatorUser['full_name'] ?? '');
+                if (empty($instructorTitle)) $instructorTitle = trim($creatorUser['title'] ?? '');
+                if (empty($instructorAvatar)) $instructorAvatar = trim($creatorUser['avatar'] ?? '');
+            }
+        }
         $isPublished = isset($data['is_published']) ? (int)(bool)$data['is_published'] : 1;
 
         if (empty($title)) {
@@ -448,8 +461,8 @@ class CourseController {
                 'name' => $instructorName ?: 'Faculty Member',
                 'title' => $instructorTitle ?: 'Curriculum Director',
                 'department' => $instructorDepartment ?: 'Aaroha Institute of Technology',
-                'avatar' => $instructorAvatar ?: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-                'bio' => $instructorBio ?: 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+                'avatar' => $instructorAvatar ?: '',
+                'bio' => $instructorBio ?: '',
                 'rating' => 4.94,
                 'students' => '25,000+'
             ],
@@ -550,8 +563,8 @@ class CourseController {
                     'name' => $instructorName ?: ($existing['instructor_name'] ?? 'Faculty Member'),
                     'title' => $instructorTitle ?: ($existing['instructor_title'] ?? 'Faculty Member'),
                     'department' => $instructorDepartment ?: 'Aaroha Institute of Technology',
-                    'avatar' => $instructorAvatar ?: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-                    'bio' => $instructorBio ?: 'Experienced faculty member and systems architect delivering industry-calibrated technical education.',
+                    'avatar' => $instructorAvatar ?: ($existing['instructor_avatar'] ?? ''),
+                    'bio' => $instructorBio ?: ($existing['instructor_bio'] ?? ''),
                     'rating' => 4.94,
                     'students' => '25,000+'
                 ],

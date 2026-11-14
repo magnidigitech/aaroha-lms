@@ -36,8 +36,8 @@ export default function IssueCertificateModal({
       setIsGenerating(false);
 
       // Default signatory to faculty member or current user
-      const defaultName = currentUser?.full_name || 'Dr. Aris Thorne';
-      const defaultTitle = currentUser?.title || 'Director of Curriculum & Distributed Systems Faculty';
+      const defaultName = currentUser?.full_name || 'Faculty Director';
+      const defaultTitle = currentUser?.title || 'Director of Curriculum & Academic Faculty';
       setIssuerName(defaultName);
       setIssuerTitle(defaultTitle);
 
@@ -81,7 +81,7 @@ export default function IssueCertificateModal({
         user_id: userId,
         course_title: course.title,
         grade: grade,
-        issuer_name: issuerName.trim() || 'Dr. Aris Thorne',
+        issuer_name: issuerName.trim() || currentUser?.full_name || 'Faculty Director',
         issuer_title: issuerTitle.trim() || 'Curriculum Director & Academic Faculty',
         issued_at: new Date().toISOString()
       };

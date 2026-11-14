@@ -152,6 +152,10 @@ class Database {
                                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                             )");
 
+                            // Self-heal: ensure image and avatar columns can hold full base64 data URIs
+                            @self::$pdo->exec("ALTER TABLE courses MODIFY COLUMN thumbnail_url LONGTEXT NULL");
+                            @self::$pdo->exec("ALTER TABLE courses MODIFY COLUMN instructor_avatar LONGTEXT NULL");
+
                             // Ensure Core Course 1 (Distributed Cloud Architecture) is active and provisioned
                             $c1 = self::$pdo->query("SELECT id, is_deleted, is_published FROM courses WHERE id = 1")->fetch();
                             if (!$c1) {

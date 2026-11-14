@@ -1287,7 +1287,7 @@ export default function App() {
         recipient_name: certData.recipient_name,
         recipient_email: certData.recipient_email,
         issuer_id: currentUser?.id || 1,
-        issuer_name: certData.issuer_name || currentUser?.full_name || 'Dr. Aris Thorne',
+        issuer_name: certData.issuer_name || currentUser?.full_name || 'Faculty Director',
         issuer_title: certData.issuer_title || currentUser?.title || 'Director of Curriculum & Distributed Systems Faculty',
         grade: certData.grade || 'Executive Distinction (Verified Peer Reviewed)',
         issued_at: certData.issued_at || new Date().toISOString()

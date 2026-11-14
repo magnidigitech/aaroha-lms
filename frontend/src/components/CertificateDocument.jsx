@@ -175,7 +175,7 @@ export default function CertificateDocument({ certificate }) {
             {/* Faculty Instructor Signatory */}
             <div className="space-y-1 text-center sm:text-left">
               <div className="font-serif italic text-base sm:text-lg text-slate-800 tracking-wide border-b border-slate-400 pb-1 inline-block min-w-[160px]">
-                {certificate.issuer_name || 'Dr. Aris Thorne'}
+                {certificate.issuer_name || 'Faculty Director'}
               </div>
               <div className="text-[11px] font-bold text-slate-900 font-sans">
                 {certificate.issuer_title || 'Director of Curriculum'}
