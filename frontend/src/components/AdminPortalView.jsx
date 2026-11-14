@@ -171,7 +171,7 @@ export default function AdminPortalView({
               className="relative group cursor-pointer shrink-0 focus:outline-none"
             >
               <img
-                src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Marcus&backgroundColor=c0aede'}
+                src={currentUser.avatar || '/avatars/3d/memo_1.png'}
                 alt={currentUser.full_name}
                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ring-blue-500/30 group-hover:ring-blue-600 shadow-md group-hover:scale-105 transition-all bg-slate-100"
               />
@@ -277,6 +277,7 @@ export default function AdminPortalView({
                       <img
                         src={course.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=200&q=80'}
                         alt={course.title}
+                        onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=200&q=80'; }}
                         className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
                       />
                       <div className="min-w-0">

@@ -9,6 +9,37 @@ import { getEmbedVideoUrl, isDirectVideoFile, getVideoThumbnail, isBunnyStreamVi
 import BunnyStreamPlayer from './BunnyStreamPlayer';
 import { api } from '../apiService';
 
+/**
+ * Resilient Lesson Thumbnail Component
+ * Prioritizes explicit lesson thumbnail, falls back to course thumbnail or YouTube,
+ * and gracefully renders an executive cinema play badge on any image error.
+ */
+function LessonThumbnailItem({ lesson, courseThumbnail }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const lessonMedia = lesson?.media_url || lesson?.video_url || lesson?.bunny_video_id || '';
+  const initialThumb = lesson?.thumbnail_url || getVideoThumbnail(lessonMedia, courseThumbnail);
+
+  if (!initialThumb || imgFailed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0F223A] via-[#132d4e] to-[#0A1829] text-blue-400">
+        <div className="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center border border-blue-400/40 shadow-xs">
+          <Play className="w-2.5 h-2.5 text-white fill-current ml-0.5" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={initialThumb}
+      alt=""
+      onError={() => setImgFailed(true)}
+      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+      loading="lazy"
+    />
+  );
+}
+
 export default function CourseClassroomView({ 
   course, 
   onBack, 
@@ -289,7 +320,7 @@ export default function CourseClassroomView({
               className="flex items-center gap-2 pl-2 border-l border-[#1b3d63] hover:opacity-90 transition-all cursor-pointer group text-left"
             >
               <img
-                src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
+                src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                 alt={currentUser.full_name}
                 className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50 group-hover:ring-blue-400 group-hover:scale-105 transition-all shrink-0 bg-slate-100"
               />
@@ -735,8 +766,9 @@ export default function CourseClassroomView({
                   {course.instructor && (
                     <div className="flex items-start gap-4 bg-[#0e213b] p-4 rounded-xl border border-[#1b3d63]">
                       <img
-                        src={course.instructor.avatar}
+                        src={course.instructor.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
                         alt={course.instructor.name}
+                        onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'; }}
                         className="w-14 h-14 rounded-full object-cover ring-2 ring-blue-500/50 flex-shrink-0"
                       />
                       <div className="space-y-1">
@@ -838,7 +870,6 @@ export default function CourseClassroomView({
                           const completed = isLessonCompleted(lesson.id);
                           const locked = !canPlayLesson(lesson);
                           const lessonMedia = lesson.media_url || lesson.video_url || lesson.bunny_video_id || '';
-                          const thumb = getVideoThumbnail(lessonMedia, course.thumbnail_url);
 
                           return (
                             <div
@@ -874,17 +905,10 @@ export default function CourseClassroomView({
 
                               {/* 16:9 Thumbnail Preview */}
                               <div className="relative w-16 h-10 sm:w-20 sm:h-11 rounded-lg overflow-hidden bg-slate-900 border border-[#1b3d63] flex-shrink-0">
-                                {thumb ? (
-                                  <img
-                                    src={thumb}
-                                    alt={lesson.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400">
-                                    <Play className="w-4 h-4" />
-                                  </div>
-                                )}
+                                <LessonThumbnailItem
+                                  lesson={lesson}
+                                  courseThumbnail={course?.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80'}
+                                />
                                 
                                 {locked && (
                                   <div className="absolute inset-0 bg-slate-950/75 flex items-center justify-center text-amber-300">

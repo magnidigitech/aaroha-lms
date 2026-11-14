@@ -17,7 +17,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
   const [registerPassword, setRegisterPassword] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [registerRole, setRegisterRole] = useState('student'); // 'student' | 'admin'
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[10].url); // Elena (Animated)
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[12].url); // Elena 3D (/avatars/3d/memo_13.png)
 
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -281,33 +281,37 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                 </div>
               </div>
 
-              {/* Animated Preset Avatar Selection */}
+              {/* 3D Animated Preset Avatar Selection */}
               <div>
                 <label className="font-semibold text-slate-700 flex items-center justify-between mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Choose Animated Avatar</span>
+                    <span>Choose 3D Character Avatar</span>
                   </span>
-                  <span className="text-[10px] text-slate-500 font-normal">Male, Female & Tech Bots</span>
+                  <span className="text-[10px] text-slate-500 font-normal">Male & Female 3D Characters</span>
                 </label>
                 <div className="grid grid-cols-8 gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200 max-h-36 overflow-y-auto">
                   {AVATAR_PRESETS.map((preset) => {
-                    const isSelected = selectedAvatar === preset.url;
+                    const isSelected = selectedAvatar === preset.url || selectedAvatar === preset.fallbackUrl;
                     return (
                       <button
                         key={preset.id}
                         type="button"
                         onClick={() => setSelectedAvatar(preset.url)}
-                        title={`${preset.name} (${preset.category === 'robot' ? 'Bot' : preset.gender})`}
-                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-slate-100 ${
+                        title={`${preset.name} (${preset.gender})`}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-slate-100 flex items-center justify-center p-0.5 ${
                           isSelected ? 'border-[#0056D2] ring-2 ring-blue-500/30 scale-105 shadow-xs' : 'border-transparent hover:opacity-80'
                         }`}
                       >
                         <img 
                           src={preset.url} 
                           alt={preset.name} 
-                          className="w-full h-full object-cover" 
-                          onError={(e) => { e.target.src = preset.localUrl; }}
+                          className="w-full h-full object-contain" 
+                          onError={(e) => { 
+                            if (e.target.src !== preset.fallbackUrl) {
+                              e.target.src = preset.fallbackUrl;
+                            }
+                          }}
                         />
                         {isSelected && (
                           <div className="absolute inset-0 bg-[#0056D2]/40 flex items-center justify-center">

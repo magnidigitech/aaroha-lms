@@ -143,7 +143,7 @@ export default function StudentPortalView({
                 className="relative group cursor-pointer shrink-0 focus:outline-none"
               >
                 <img
-                  src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
+                  src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                   alt={currentUser.full_name}
                   className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] shadow-md group-hover:scale-105 transition-all bg-slate-100"
                 />
@@ -285,8 +285,9 @@ export default function StudentPortalView({
                 {/* Course Thumbnail with Category Badge */}
                 <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 flex-shrink-0">
                   <img
-                    src={course.thumbnail_url}
+                    src={course.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80'}
                     alt={course.title}
+                    onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80'; }}
                     className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
                   />
                   <div className="absolute top-3 left-3">

@@ -179,7 +179,7 @@ export default function Navbar({
                 >
                   <div className="relative">
                     <img
-                      src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
+                      src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                       alt={currentUser.full_name}
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] group-hover:scale-105 transition-all shrink-0 bg-slate-100"
                     />
@@ -325,7 +325,7 @@ export default function Navbar({
                     className="flex items-center gap-2.5 min-w-0 p-1.5 -m-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left flex-1 cursor-pointer"
                   >
                     <img
-                      src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
+                      src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                       alt={currentUser.full_name}
                       className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
                     />

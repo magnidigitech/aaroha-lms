@@ -210,8 +210,9 @@ export default function UserCatalogView({
               {/* Top Header Image (16:9 Landscape Banner, ~55% of Square) */}
               <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 flex-shrink-0">
                 <img
-                  src={course.thumbnail_url}
+                  src={course.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80'}
                   alt={course.title}
+                  onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80'; }}
                   className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
                 />
               </div>

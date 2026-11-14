@@ -443,7 +443,7 @@ export default function App() {
       if (res && res.user) {
         const registeredUser = {
           ...res.user,
-          avatar: res.user.avatar || userData.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc',
+          avatar: res.user.avatar || userData.avatar || '/avatars/3d/memo_13.png',
           title: res.user.title || userData.title || (isFacultyRole(res.user.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
         };
         setCurrentUser(registeredUser);
@@ -476,7 +476,7 @@ export default function App() {
       email: userData.email,
       password: userData.password,
       role: userData.role,
-      avatar: userData.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc',
+      avatar: userData.avatar || '/avatars/3d/memo_13.png',
       title: userData.title || (isFacultyRole(userData.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
     };
 
@@ -526,7 +526,7 @@ export default function App() {
         localStorage.setItem('aaroha_view', 'student');
       }
 
-      showToast('Profile, role and animated avatar saved!');
+      showToast('Profile and avatar updated successfully!');
       return updatedUser;
     } catch (err) {
       console.warn('Backend profile update failed or offline, updating locally:', err.message);
@@ -546,7 +546,7 @@ export default function App() {
         localStorage.setItem('aaroha_view', 'student');
       }
 
-      showToast('Profile and role saved locally.');
+      showToast('Profile and avatar saved locally.');
       return updatedUser;
     }
   };

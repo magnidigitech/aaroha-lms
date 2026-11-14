@@ -101,8 +101,9 @@ export default function CourseBrochureView({
             {course.instructor && (
               <div className="pt-2 flex items-center gap-3">
                 <img
-                  src={course.instructor.avatar}
+                  src={course.instructor.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
                   alt={course.instructor.name}
+                  onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'; }}
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-500/40"
                 />
                 <div className="text-xs">

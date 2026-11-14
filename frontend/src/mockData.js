@@ -9,7 +9,7 @@ export const initialUsers = [
     password: 'password123',
     role: 'admin',
     title: 'Director of Curriculum & Distributed Systems Faculty',
-    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Marcus&backgroundColor=c0aede'
+    avatar: '/avatars/3d/memo_1.png'
   },
   {
     id: 2,
@@ -18,7 +18,7 @@ export const initialUsers = [
     password: 'password123',
     role: 'student',
     title: 'Senior Systems Architect',
-    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'
+    avatar: '/avatars/3d/memo_13.png'
   }
 ];
 

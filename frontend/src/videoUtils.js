@@ -87,16 +87,19 @@ export function getVideoThumbnail(url, fallback = '') {
   if (!url || typeof url !== 'string') return fallback;
   const trimmed = url.trim();
 
-  if (isBunnyStreamVideo(trimmed)) {
-    const guid = extractBunnyVideoId(trimmed);
-    if (guid) {
-      return `https://${DEFAULT_BUNNY_CDN}/${guid}/thumbnail.jpg`;
-    }
+  // 1. If it's already a direct image file or data URI, return as-is
+  if (/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i.test(trimmed) || trimmed.startsWith('data:image/')) {
+    return trimmed;
   }
 
+  // 2. YouTube thumbnails (100% public, open, reliable CDN)
   const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?/\s]{11})/i);
   if (ytMatch && ytMatch[1]) {
     return `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`;
   }
+
+  // 3. For Bunny Stream or other protected video providers:
+  // Direct Bunny CDN thumbnails require tokenized URL parameters or return 403/404.
+  // We strictly fall back to the course thumbnail.
   return fallback;
 }

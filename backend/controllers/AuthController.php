@@ -180,12 +180,15 @@ class AuthController {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
         } catch (PDOException $e) {
-            // Self-heal: in case avatar or title columns are missing, add them
+            // Self-heal: modify avatar column to LONGTEXT to support custom base64 uploads, and add missing columns
+            try {
+                @$pdo->exec("ALTER TABLE users MODIFY COLUMN avatar LONGTEXT NULL");
+            } catch (Exception $ex) {}
             try {
                 @$pdo->exec("ALTER TABLE users ADD COLUMN title VARCHAR(150) NULL");
             } catch (Exception $ex) {}
             try {
-                @$pdo->exec("ALTER TABLE users ADD COLUMN avatar VARCHAR(500) NULL");
+                @$pdo->exec("ALTER TABLE users ADD COLUMN avatar LONGTEXT NULL");
             } catch (Exception $ex) {}
             
             $stmt = $pdo->prepare($sql);
