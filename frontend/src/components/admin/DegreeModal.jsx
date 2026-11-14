@@ -266,7 +266,7 @@ export default function DegreeModal({
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[78vh] overflow-y-auto text-xs">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[78dvh] overflow-y-auto text-xs thin-scrollbar">
           
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl font-semibold flex items-center gap-2">

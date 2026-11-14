@@ -137,7 +137,7 @@ export default function IssueCertificateModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 sm:p-8 max-h-[80vh] overflow-y-auto">
+        <div className="p-6 sm:p-8 max-h-[80dvh] overflow-y-auto thin-scrollbar">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-800 text-xs">
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />

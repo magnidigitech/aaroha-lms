@@ -250,7 +250,7 @@ export default function ProfileModal({
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[75dvh] overflow-y-auto thin-scrollbar">
           
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">

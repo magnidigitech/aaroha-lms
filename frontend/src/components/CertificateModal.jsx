@@ -46,7 +46,7 @@ export default function CertificateModal({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
+        <div className="p-6 sm:p-8 max-h-[85dvh] overflow-y-auto thin-scrollbar">
           <CertificateDocument
             certificate={certificate}
             onClose={onClose}
