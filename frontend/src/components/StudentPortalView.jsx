@@ -143,7 +143,7 @@ export default function StudentPortalView({
                 className="relative group cursor-pointer shrink-0 focus:outline-none"
               >
                 <img
-                  src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
+                  src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
                   alt={currentUser.full_name}
                   className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] shadow-md group-hover:scale-105 transition-all bg-slate-100"
                 />

@@ -179,9 +179,9 @@ export default function Navbar({
                 >
                   <div className="relative">
                     <img
-                      src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
+                      src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
                       alt={currentUser.full_name}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] group-hover:scale-105 transition-all shrink-0"
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] group-hover:scale-105 transition-all shrink-0 bg-slate-100"
                     />
                     <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
                   </div>
@@ -325,9 +325,9 @@ export default function Navbar({
                     className="flex items-center gap-2.5 min-w-0 p-1.5 -m-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left flex-1 cursor-pointer"
                   >
                     <img
-                      src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
+                      src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
                       alt={currentUser.full_name}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0"
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
                     />
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>

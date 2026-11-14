@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Check, User, Mail, Shield, GraduationCap, Sparkles, 
-  Camera, CheckCircle2, AlertCircle, Edit3, Save, ExternalLink
+  Camera, CheckCircle2, AlertCircle, Edit3, Save, Bot
 } from 'lucide-react';
-import { AVATAR_PRESETS } from '../avatarPresets';
+import { AVATAR_PRESETS, DEFAULT_AVATAR } from '../avatarPresets';
 
 export default function ProfileModal({
   isOpen,
@@ -12,11 +12,11 @@ export default function ProfileModal({
   onSaveProfile,
   onLogout
 }) {
-  const [selectedAvatar, setSelectedAvatar] = useState(currentUser?.avatar || '');
+  const [selectedAvatar, setSelectedAvatar] = useState(currentUser?.avatar || DEFAULT_AVATAR);
   const [fullName, setFullName] = useState(currentUser?.full_name || '');
   const [title, setTitle] = useState(currentUser?.title || '');
-  const [genderFilter, setGenderFilter] = useState('all'); // 'all' | 'male' | 'female'
-  const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'faculty' | 'student'
+  const [userRole, setUserRole] = useState(currentUser?.role || 'student'); // 'student' | 'admin'
+  const [categoryFilter, setCategoryFilter] = useState('all'); // 'all' | 'male' | 'female' | 'robot'
   const [useCustomUrl, setUseCustomUrl] = useState(false);
   const [customAvatarUrl, setCustomAvatarUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -26,9 +26,10 @@ export default function ProfileModal({
   // Sync state when modal opens or user changes
   useEffect(() => {
     if (currentUser) {
-      setSelectedAvatar(currentUser.avatar || '');
+      setSelectedAvatar(currentUser.avatar || DEFAULT_AVATAR);
       setFullName(currentUser.full_name || '');
       setTitle(currentUser.title || '');
+      setUserRole(currentUser.role || 'student');
       setCustomAvatarUrl('');
       setUseCustomUrl(false);
       setSaveSuccess(false);
@@ -49,12 +50,11 @@ export default function ProfileModal({
 
   if (!isOpen || !currentUser) return null;
 
-  const isFaculty = currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor';
+  const isFaculty = userRole === 'admin' || userRole === 'faculty' || userRole === 'instructor';
 
   const filteredPresets = AVATAR_PRESETS.filter(p => {
-    const matchesGender = genderFilter === 'all' || p.gender === genderFilter;
-    const matchesRole = roleFilter === 'all' || p.role === roleFilter;
-    return matchesGender && matchesRole;
+    if (categoryFilter === 'all') return true;
+    return p.category === categoryFilter || p.gender === categoryFilter;
   });
 
   const activeAvatarUrl = useCustomUrl && customAvatarUrl.trim() ? customAvatarUrl.trim() : selectedAvatar;
@@ -74,7 +74,8 @@ export default function ProfileModal({
         await onSaveProfile({
           full_name: fullName.trim(),
           title: title.trim(),
-          avatar: activeAvatarUrl
+          avatar: activeAvatarUrl,
+          role: userRole
         });
       }
       setSaveSuccess(true);
@@ -112,16 +113,16 @@ export default function ProfileModal({
             {/* Live Preview Avatar */}
             <div className="relative shrink-0 group">
               <img
-                src={activeAvatarUrl || (isFaculty ? AVATAR_PRESETS[4].url : AVATAR_PRESETS[12].url)}
+                src={activeAvatarUrl || DEFAULT_AVATAR}
                 alt={fullName || currentUser.full_name}
                 className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl object-cover ring-4 ring-blue-500/40 shadow-xl bg-slate-800"
                 onError={(e) => {
-                  e.target.src = isFaculty ? AVATAR_PRESETS[4].url : AVATAR_PRESETS[12].url;
+                  e.target.src = DEFAULT_AVATAR;
                 }}
               />
               <div 
                 className="absolute -bottom-1.5 -right-1.5 bg-blue-600 text-white p-1 rounded-lg shadow-md border-2 border-[#0B192C]"
-                title="Active Profile Avatar"
+                title="Active Animated Avatar"
               >
                 <Camera className="w-3.5 h-3.5" />
               </div>
@@ -159,7 +160,7 @@ export default function ProfileModal({
           </div>
         </div>
 
-        {/* Modal Form & Avatar Preset Selector */}
+        {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto">
           
           {errorMsg && (
@@ -172,74 +173,131 @@ export default function ProfileModal({
           {saveSuccess && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-              <span>Profile and avatar updated successfully!</span>
+              <span>Profile, role and animated avatar saved successfully!</span>
             </div>
           )}
 
-          {/* Section 1: Preset Avatars Gallery */}
-          <div className="space-y-3">
+          {/* Section 1: User Decides Their Role (Platform Access) */}
+          <div className="space-y-2">
+            <label className="text-xs font-black text-slate-900 tracking-tight uppercase flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-[#0056D2]" />
+                <span>Select Your Role & Access Level</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-normal">Choose your account authority</span>
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Student Role Option */}
+              <button
+                type="button"
+                onClick={() => setUserRole('student')}
+                className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                  userRole === 'student'
+                    ? 'border-[#0056D2] bg-blue-50/60 ring-2 ring-blue-500/20'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`p-2 rounded-xl mt-0.5 ${
+                  userRole === 'student' ? 'bg-[#0056D2] text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  <GraduationCap className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">Learner / Fellow</span>
+                    {userRole === 'student' && <Check className="w-3.5 h-3.5 text-[#0056D2]" />}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+                    Access coursework, lectures, assignment submissions & accredited certificates.
+                  </p>
+                </div>
+              </button>
+
+              {/* Faculty Director Role Option */}
+              <button
+                type="button"
+                onClick={() => setUserRole('admin')}
+                className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                  userRole === 'admin' || userRole === 'faculty' || userRole === 'instructor'
+                    ? 'border-[#0056D2] bg-blue-50/60 ring-2 ring-blue-500/20'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`p-2 rounded-xl mt-0.5 ${
+                  userRole === 'admin' || userRole === 'faculty' || userRole === 'instructor' 
+                    ? 'bg-[#0056D2] text-white' 
+                    : 'bg-slate-100 text-slate-600'
+                }`}>
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">Faculty Director</span>
+                    {(userRole === 'admin' || userRole === 'faculty' || userRole === 'instructor') && (
+                      <Check className="w-3.5 h-3.5 text-[#0056D2]" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+                    Author curricula, configure Bunny Stream videos & grade student deliverables.
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Section 2: Animated Avatars Gallery */}
+          <div className="space-y-3 pt-3 border-t border-slate-100">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <label className="text-xs font-black text-slate-900 tracking-tight uppercase flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span>Choose Your Preset Avatar</span>
+                <span>Choose Animated Avatar</span>
                 <span className="text-[10px] text-slate-400 normal-case font-medium">({filteredPresets.length} available)</span>
               </label>
 
-              {/* Role & Gender Fast Filters */}
-              <div className="flex items-center gap-1 flex-wrap">
-                {/* Gender Filter Buttons */}
-                <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setGenderFilter('all')}
-                    className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${genderFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGenderFilter('male')}
-                    className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${genderFilter === 'male' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Male
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGenderFilter('female')}
-                    className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${genderFilter === 'female' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Female
-                  </button>
-                </div>
-
-                {/* Role Filter Buttons */}
-                <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setRoleFilter('all')}
-                    className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${roleFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Both Roles
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRoleFilter('faculty')}
-                    className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${roleFilter === 'faculty' ? 'bg-white text-[#0056D2] shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Faculty
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRoleFilter('student')}
-                    className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${roleFilter === 'student' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Students
-                  </button>
-                </div>
+              {/* Character Style / Gender Filter Tabs */}
+              <div className="inline-flex bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[11px] self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    categoryFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  All ({AVATAR_PRESETS.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('male')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    categoryFilter === 'male' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Male
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('female')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    categoryFilter === 'female' ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Female
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('robot')}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    categoryFilter === 'robot' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Bot className="w-3 h-3" />
+                  <span>Bots</span>
+                </button>
               </div>
             </div>
 
-            {/* Avatar Grid (Responsive 4-col on mobile, 8-col on sm/md) */}
+            {/* Avatar Grid (Responsive 4-col on mobile, 6-col on sm, 8-col on md) */}
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5 p-3 bg-slate-50 border border-slate-200/80 rounded-2xl max-h-56 overflow-y-auto">
               {filteredPresets.map((preset) => {
                 const isSelected = !useCustomUrl && selectedAvatar === preset.url;
@@ -253,19 +311,19 @@ export default function ProfileModal({
                     }}
                     className={`group relative flex flex-col items-center p-1.5 rounded-xl transition-all cursor-pointer border text-center ${
                       isSelected 
-                        ? 'bg-blue-50/80 border-[#0056D2] ring-2 ring-[#0056D2]/30 shadow-xs' 
+                        ? 'bg-blue-50/90 border-[#0056D2] ring-2 ring-[#0056D2]/30 shadow-xs' 
                         : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-100/60'
                     }`}
-                    title={`${preset.name} - ${preset.title} (${preset.gender}, ${preset.role})`}
+                    title={`${preset.name} (${preset.style})`}
                   >
-                    <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-2xs bg-slate-200">
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-2xs bg-slate-100">
                       <img
                         src={preset.url}
                         alt={preset.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         loading="lazy"
                         onError={(e) => {
-                          e.target.style.display = 'none';
+                          e.target.src = preset.localUrl;
                         }}
                       />
                       {/* Active Checkmark Badge */}
@@ -277,10 +335,10 @@ export default function ProfileModal({
                     </div>
 
                     <span className="text-[10px] font-bold text-slate-800 mt-1 truncate max-w-full leading-tight">
-                      {preset.name.split(' ')[0]}
+                      {preset.name}
                     </span>
-                    <span className="text-[9px] text-slate-600 truncate max-w-full font-medium">
-                      {preset.gender === 'male' ? 'M' : 'F'} · {preset.role === 'faculty' ? 'Fac' : 'Stu'}
+                    <span className="text-[9px] text-slate-500 capitalize truncate max-w-full font-medium">
+                      {preset.category === 'robot' ? 'Bot' : preset.gender}
                     </span>
                   </button>
                 );
@@ -288,7 +346,7 @@ export default function ProfileModal({
             </div>
           </div>
 
-          {/* Section 2: Custom Avatar URL Toggle (Optional) */}
+          {/* Section 3: Custom Avatar URL Toggle (Optional) */}
           <div className="pt-2 border-t border-slate-100">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
@@ -299,14 +357,14 @@ export default function ProfileModal({
                 onClick={() => setUseCustomUrl(!useCustomUrl)}
                 className="text-[11px] font-bold text-[#0056D2] hover:underline cursor-pointer"
               >
-                {useCustomUrl ? 'Use Preset Avatar' : 'Enter URL Manually'}
+                {useCustomUrl ? 'Use Animated Preset' : 'Enter URL Manually'}
               </button>
             </div>
 
             {useCustomUrl && (
               <input
                 type="url"
-                placeholder="https://example.com/avatar.jpg"
+                placeholder="https://example.com/animated-avatar.svg"
                 value={customAvatarUrl}
                 onChange={(e) => setCustomAvatarUrl(e.target.value)}
                 className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
@@ -314,7 +372,7 @@ export default function ProfileModal({
             )}
           </div>
 
-          {/* Section 3: Profile Information Edit */}
+          {/* Section 4: Display Name & Department Title */}
           <div className="pt-3 border-t border-slate-100 space-y-3.5">
             <h4 className="text-xs font-black text-slate-900 tracking-tight uppercase flex items-center gap-1.5">
               <Edit3 className="w-3.5 h-3.5 text-slate-500" />
@@ -330,7 +388,7 @@ export default function ProfileModal({
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Dr. Aris Thorne"
+                placeholder="e.g. Elena Rostova or Dr. Nathan Vance"
                 className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-medium"
               />
             </div>
@@ -343,7 +401,7 @@ export default function ProfileModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={isFaculty ? 'e.g. Chair of Distributed Systems Architecture' : 'e.g. Senior Systems Architect'}
+                placeholder={isFaculty ? 'e.g. Chair of Cloud & Kernel Architecture' : 'e.g. Senior Distributed Systems Fellow'}
                 className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-medium"
               />
             </div>
@@ -391,7 +449,7 @@ export default function ProfileModal({
                 className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer active:scale-98"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>{isSaving ? 'Saving Changes...' : 'Save Profile & Avatar'}</span>
+                <span>{isSaving ? 'Saving Changes...' : 'Save Profile & Role'}</span>
               </button>
             </div>
           </div>

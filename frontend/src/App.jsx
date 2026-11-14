@@ -443,7 +443,7 @@ export default function App() {
       if (res && res.user) {
         const registeredUser = {
           ...res.user,
-          avatar: res.user.avatar || userData.avatar || (isFacultyRole(res.user.role) ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&h=256&q=80' : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&h=256&q=80'),
+          avatar: res.user.avatar || userData.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc',
           title: res.user.title || userData.title || (isFacultyRole(res.user.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
         };
         setCurrentUser(registeredUser);
@@ -476,7 +476,7 @@ export default function App() {
       email: userData.email,
       password: userData.password,
       role: userData.role,
-      avatar: userData.avatar || (isFacultyRole(userData.role) ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&h=256&q=80' : 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&h=256&q=80'),
+      avatar: userData.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc',
       title: userData.title || (isFacultyRole(userData.role) ? 'Faculty Director' : 'Learner / Systems Fellow')
     };
 
@@ -517,7 +517,16 @@ export default function App() {
         localStorage.setItem('aaroha_all_users', JSON.stringify(updatedUsers));
       } catch (e) {}
 
-      showToast('Profile and avatar updated successfully!');
+      // If user switched authority/role, adjust view
+      if (isFacultyRole(updatedUser.role) && activeView === 'student') {
+        setActiveView('admin');
+        localStorage.setItem('aaroha_view', 'admin');
+      } else if (!isFacultyRole(updatedUser.role) && activeView === 'admin') {
+        setActiveView('student');
+        localStorage.setItem('aaroha_view', 'student');
+      }
+
+      showToast('Profile, role and animated avatar saved!');
       return updatedUser;
     } catch (err) {
       console.warn('Backend profile update failed or offline, updating locally:', err.message);
@@ -528,7 +537,16 @@ export default function App() {
       setCurrentUser(updatedUser);
       localStorage.setItem('aaroha_user', JSON.stringify(updatedUser));
       setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
-      showToast('Profile and avatar saved locally.');
+
+      if (isFacultyRole(updatedUser.role) && activeView === 'student') {
+        setActiveView('admin');
+        localStorage.setItem('aaroha_view', 'admin');
+      } else if (!isFacultyRole(updatedUser.role) && activeView === 'admin') {
+        setActiveView('student');
+        localStorage.setItem('aaroha_view', 'student');
+      }
+
+      showToast('Profile and role saved locally.');
       return updatedUser;
     }
   };

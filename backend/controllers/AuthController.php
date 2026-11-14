@@ -146,6 +146,7 @@ class AuthController {
         $fullName = isset($data['full_name']) ? trim($data['full_name']) : null;
         $title = isset($data['title']) ? trim($data['title']) : null;
         $avatar = isset($data['avatar']) ? trim($data['avatar']) : null;
+        $role = isset($data['role']) ? trim($data['role']) : null;
         
         $fields = [];
         $params = [];
@@ -161,6 +162,10 @@ class AuthController {
         if ($avatar !== null && !empty($avatar)) {
             $fields[] = "avatar = ?";
             $params[] = $avatar;
+        }
+        if ($role !== null && in_array($role, ['admin', 'faculty', 'instructor', 'student'])) {
+            $fields[] = "role = ?";
+            $params[] = $role;
         }
         
         if (empty($fields)) {

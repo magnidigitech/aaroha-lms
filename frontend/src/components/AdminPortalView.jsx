@@ -171,7 +171,7 @@ export default function AdminPortalView({
               className="relative group cursor-pointer shrink-0 focus:outline-none"
             >
               <img
-                src={currentUser.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&h=256&q=80'}
+                src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Marcus&backgroundColor=c0aede'}
                 alt={currentUser.full_name}
                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ring-blue-500/30 group-hover:ring-blue-600 shadow-md group-hover:scale-105 transition-all bg-slate-100"
               />

@@ -289,9 +289,9 @@ export default function CourseClassroomView({
               className="flex items-center gap-2 pl-2 border-l border-[#1b3d63] hover:opacity-90 transition-all cursor-pointer group text-left"
             >
               <img
-                src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'}
+                src={currentUser.avatar || 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'}
                 alt={currentUser.full_name}
-                className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50 group-hover:ring-blue-400 group-hover:scale-105 transition-all shrink-0"
+                className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50 group-hover:ring-blue-400 group-hover:scale-105 transition-all shrink-0 bg-slate-100"
               />
               <span className="text-xs font-semibold text-slate-200 group-hover:text-white hidden md:inline">
                 {currentUser.full_name.split(' ')[0]}

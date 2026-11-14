@@ -17,7 +17,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
   const [registerPassword, setRegisterPassword] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [registerRole, setRegisterRole] = useState('student'); // 'student' | 'admin'
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[12].url);
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[10].url); // Elena (Animated)
 
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -257,12 +257,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setRegisterRole('student');
-                      if (!selectedAvatar || selectedAvatar.includes('1573496359142') || selectedAvatar.includes('1507003211169')) {
-                        setSelectedAvatar(AVATAR_PRESETS[12].url);
-                      }
-                    }}
+                    onClick={() => setRegisterRole('student')}
                     className={'p-2 rounded-xl border text-center transition-all cursor-pointer ' +
                       (registerRole === 'student'
                         ? 'bg-[#0056D2] text-white font-bold border-[#0056D2]'
@@ -274,12 +269,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setRegisterRole('admin');
-                      if (!selectedAvatar || selectedAvatar.includes('1580489944761') || selectedAvatar.includes('1539571696357')) {
-                        setSelectedAvatar(AVATAR_PRESETS[4].url);
-                      }
-                    }}
+                    onClick={() => setRegisterRole('admin')}
                     className={'p-2 rounded-xl border text-center transition-all cursor-pointer ' +
                       (registerRole === 'admin'
                         ? 'bg-[#0056D2] text-white font-bold border-[#0056D2]'
@@ -291,29 +281,34 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                 </div>
               </div>
 
-              {/* Preset Avatar Selection */}
+              {/* Animated Preset Avatar Selection */}
               <div>
                 <label className="font-semibold text-slate-700 flex items-center justify-between mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Choose Preset Avatar</span>
+                    <span>Choose Animated Avatar</span>
                   </span>
-                  <span className="text-[10px] text-slate-500 font-normal">Male & Female Variations</span>
+                  <span className="text-[10px] text-slate-500 font-normal">Male, Female & Tech Bots</span>
                 </label>
-                <div className="grid grid-cols-8 gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200">
-                  {AVATAR_PRESETS.filter(p => registerRole === 'admin' ? p.role === 'faculty' : p.role === 'student').map((preset) => {
+                <div className="grid grid-cols-8 gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200 max-h-36 overflow-y-auto">
+                  {AVATAR_PRESETS.map((preset) => {
                     const isSelected = selectedAvatar === preset.url;
                     return (
                       <button
                         key={preset.id}
                         type="button"
                         onClick={() => setSelectedAvatar(preset.url)}
-                        title={`${preset.name} • ${preset.gender} • ${preset.title}`}
-                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-                          isSelected ? 'border-[#0056D2] ring-2 ring-blue-500/30 scale-105' : 'border-transparent hover:opacity-80'
+                        title={`${preset.name} (${preset.category === 'robot' ? 'Bot' : preset.gender})`}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-slate-100 ${
+                          isSelected ? 'border-[#0056D2] ring-2 ring-blue-500/30 scale-105 shadow-xs' : 'border-transparent hover:opacity-80'
                         }`}
                       >
-                        <img src={preset.url} alt={preset.name} className="w-full h-full object-cover" />
+                        <img 
+                          src={preset.url} 
+                          alt={preset.name} 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => { e.target.src = preset.localUrl; }}
+                        />
                         {isSelected && (
                           <div className="absolute inset-0 bg-[#0056D2]/40 flex items-center justify-center">
                             <Check className="w-3 h-3 text-white stroke-[3]" />

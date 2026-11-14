@@ -9,7 +9,7 @@ export const initialUsers = [
     password: 'password123',
     role: 'admin',
     title: 'Director of Curriculum & Distributed Systems Faculty',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Marcus&backgroundColor=c0aede'
   },
   {
     id: 2,
@@ -18,7 +18,7 @@ export const initialUsers = [
     password: 'password123',
     role: 'student',
     title: 'Senior Systems Architect',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80'
+    avatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'
   }
 ];
 

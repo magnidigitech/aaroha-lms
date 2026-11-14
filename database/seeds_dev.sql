@@ -6,9 +6,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- Seed Users (Bcrypt hashed password 'password123')
 INSERT INTO users (id, full_name, email, password_hash, role, title, avatar) VALUES
-(1, 'Dr. Aris Thorne', 'admin@aaroha-inc.com', '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin', 'Director of Curriculum & Distributed Systems Faculty', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'),
-(2, 'Elena Rostova', 'elena.rostova@enterprise.io', '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'student', 'Senior Systems Architect', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80'),
-(3, 'Unenrolled Learner', 'learner@enterprise.io', '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'student', 'Junior Systems Engineer', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80');
+(1, 'Dr. Aris Thorne', 'admin@aaroha-inc.com', '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin', 'Director of Curriculum & Distributed Systems Faculty', 'https://api.dicebear.com/9.x/avataaars/svg?seed=Marcus&backgroundColor=c0aede'),
+(2, 'Elena Rostova', 'elena.rostova@enterprise.io', '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'student', 'Senior Systems Architect', 'https://api.dicebear.com/9.x/avataaars/svg?seed=Elena&backgroundColor=ffd5dc'),
+(3, 'Unenrolled Learner', 'learner@enterprise.io', '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'student', 'Junior Systems Engineer', 'https://api.dicebear.com/9.x/avataaars/svg?seed=Alex&backgroundColor=b6e3f4');
 
 -- Seed Courses
 INSERT INTO courses (id, title, slug, category, level, duration, partner_type, rating, reviews_count, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, created_by) VALUES
