@@ -72,7 +72,7 @@ export default function CertificateDocument({ certificate }) {
 
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
+            className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
             title="Print or Save as PDF"
           >
             <Printer className="w-4 h-4" />
@@ -118,7 +118,7 @@ export default function CertificateDocument({ certificate }) {
               />
             </div>
             
-            <h1 className="text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-[#0056D2] font-sans">
+            <h1 className="text-xs sm:text-sm font-bold uppercase tracking-[0.3em] text-[#0A7CB3] font-sans">
               Aaroha Institute of Technology
             </h1>
             <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 font-sans">
@@ -156,7 +156,7 @@ export default function CertificateDocument({ certificate }) {
             <p className="text-xs sm:text-sm leading-relaxed text-slate-700 font-serif">
               has successfully fulfilled all curriculum requirements, defended specialized project deliverables, and demonstrated verified mastery in
             </p>
-            <div className="text-lg sm:text-2xl font-black text-[#0056D2] leading-snug font-sans px-4 py-1">
+            <div className="text-lg sm:text-2xl font-black text-[#0A7CB3] leading-snug font-sans px-4 py-1">
               {certificate.course_title}
             </div>
           </div>

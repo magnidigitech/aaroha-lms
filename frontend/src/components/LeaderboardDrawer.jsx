@@ -285,7 +285,7 @@ export default function LeaderboardDrawer({
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
-                className="bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
+                className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Student to Board</span>
@@ -404,7 +404,7 @@ export default function LeaderboardDrawer({
                       key={student.id || idx}
                       className={`rounded-2xl p-3.5 sm:p-4 border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                         isSelf
-                          ? 'bg-[#122a4a] border-[#0056D2] shadow-md ring-1 ring-[#0056D2]/50'
+                          ? 'bg-[#122a4a] border-[#0A7CB3] shadow-md ring-1 ring-[#0A7CB3]/50'
                           : isTopOne
                           ? 'bg-[#0f2440] border-amber-400/40 hover:border-amber-400 shadow-xs'
                           : 'bg-[#0c1c33] border-[#1b3d63] hover:border-slate-500/50'
@@ -447,7 +447,7 @@ export default function LeaderboardDrawer({
                               {student.student_name}
                             </span>
                             {isSelf && (
-                              <span className="bg-[#0056D2] text-white px-1.5 py-0.2 rounded text-[10px] font-black tracking-wider uppercase">
+                              <span className="bg-[#0A7CB3] text-white px-1.5 py-0.2 rounded text-[10px] font-black tracking-wider uppercase">
                                 You
                               </span>
                             )}
@@ -652,7 +652,7 @@ export default function LeaderboardDrawer({
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="bg-[#0056D2] hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  className="bg-[#0A7CB3] hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{isSaving ? 'Saving...' : 'Save Ranking Changes'}</span>
@@ -816,7 +816,7 @@ export default function LeaderboardDrawer({
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="bg-[#0056D2] hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  className="bg-[#0A7CB3] hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>{isSaving ? 'Adding...' : 'Add to Board'}</span>

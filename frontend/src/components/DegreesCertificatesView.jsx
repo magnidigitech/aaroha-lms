@@ -239,7 +239,7 @@ export default function DegreesCertificatesView({
   return (
     <div className="space-y-10 pb-24">
       {/* 1. Official Header & Hero Banner */}
-      <section className="bg-gradient-to-r from-slate-900 via-[#0B1A2F] to-[#0056D2]/80 text-white rounded-3xl p-8 sm:p-14 relative overflow-hidden shadow-xl border border-slate-800">
+      <section className="bg-gradient-to-r from-slate-900 via-[#0B1A2F] to-[#0A7CB3]/80 text-white rounded-3xl p-8 sm:p-14 relative overflow-hidden shadow-xl border border-slate-800">
         <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="max-w-4xl space-y-6 relative z-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-blue-200 text-xs font-bold uppercase tracking-wider">
@@ -284,7 +284,7 @@ export default function DegreesCertificatesView({
             onClick={() => setActiveTab('degrees')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'degrees'
-                ? 'bg-[#0056D2] text-white shadow-xs'
+                ? 'bg-[#0A7CB3] text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -296,7 +296,7 @@ export default function DegreesCertificatesView({
             onClick={() => setActiveTab('certifications')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'certifications'
-                ? 'bg-[#0056D2] text-white shadow-xs'
+                ? 'bg-[#0A7CB3] text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -308,7 +308,7 @@ export default function DegreesCertificatesView({
             onClick={() => setActiveTab('verify')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'verify'
-                ? 'bg-[#0056D2] text-white shadow-xs'
+                ? 'bg-[#0A7CB3] text-white shadow-xs'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -321,7 +321,7 @@ export default function DegreesCertificatesView({
               onClick={() => setActiveTab('my_certs')}
               className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'my_certs'
-                  ? 'bg-[#0056D2] text-white shadow-xs'
+                  ? 'bg-[#0A7CB3] text-white shadow-xs'
                   : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -338,7 +338,7 @@ export default function DegreesCertificatesView({
 
         <button
           onClick={onExploreCatalog}
-          className="text-xs font-bold text-[#0056D2] hover:text-[#00419e] flex items-center gap-1 hover:underline cursor-pointer hidden md:flex shrink-0"
+          className="text-xs font-bold text-[#0A7CB3] hover:text-[#086491] flex items-center gap-1 hover:underline cursor-pointer hidden md:flex shrink-0"
         >
           <span>Browse All Courses</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -365,7 +365,7 @@ export default function DegreesCertificatesView({
               </div>
               <button
                 onClick={() => setDegreeModal({ isOpen: true, initialData: null })}
-                className="bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0"
+                className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Author Degree Track</span>
@@ -406,7 +406,7 @@ export default function DegreesCertificatesView({
                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
                     <div className="space-y-3 max-w-3xl">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-3 py-1 rounded-full bg-blue-50 text-[#0056D2] text-[11px] font-extrabold uppercase tracking-wider border border-blue-200">
+                        <span className="px-3 py-1 rounded-full bg-blue-50 text-[#0A7CB3] text-[11px] font-extrabold uppercase tracking-wider border border-blue-200">
                           {program.degreeType || program.degree_type}
                         </span>
                         <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">
@@ -455,7 +455,7 @@ export default function DegreesCertificatesView({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
                     <div className="space-y-2">
                       <div className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-[#0056D2]" />
+                        <Layers className="w-3.5 h-3.5 text-[#0A7CB3]" />
                         <span>Core Specialization Invariants</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -478,7 +478,7 @@ export default function DegreesCertificatesView({
                       <ul className="space-y-1 text-xs text-slate-600">
                         {highlightsList.map((h, i) => (
                           <li key={i} className="flex items-start gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0056D2] mt-1.5 shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#0A7CB3] mt-1.5 shrink-0" />
                             <span>{h}</span>
                           </li>
                         ))}
@@ -490,7 +490,7 @@ export default function DegreesCertificatesView({
                   <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold">
                       <span className="flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5 text-[#0056D2]" />
+                        <BookOpen className="w-3.5 h-3.5 text-[#0A7CB3]" />
                         <span>{program.modulesCount || program.modules_count || 'Curriculum Modules'}</span>
                       </span>
                       <span className="flex items-center gap-1.5">
@@ -528,7 +528,7 @@ export default function DegreesCertificatesView({
 
                       <button
                         onClick={() => matchedCourse && onOpenCourseDetails(matchedCourse)}
-                        className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                        className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
                       >
                         <span>View Curriculum & Enroll</span>
                         <ArrowRight className="w-4 h-4" />
@@ -638,14 +638,14 @@ export default function DegreesCertificatesView({
                   value={searchCode}
                   onChange={(e) => setSearchCode(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
-                  className="w-full pl-4 pr-10 py-3 text-xs sm:text-sm font-mono uppercase bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-[#0056D2] transition-all"
+                  className="w-full pl-4 pr-10 py-3 text-xs sm:text-sm font-mono uppercase bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-[#0A7CB3] transition-all"
                 />
                 <ShieldCheck className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
               <button
                 onClick={() => handleVerify()}
-                className="px-6 py-3 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shrink-0"
+                className="px-6 py-3 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shrink-0"
               >
                 <Search className="w-4 h-4" />
                 <span>Verify Credential</span>
@@ -661,7 +661,7 @@ export default function DegreesCertificatesView({
                   setSearchCode('AAROHA-CERT-2026-9E4F-8812');
                   handleVerify('AAROHA-CERT-2026-9E4F-8812');
                 }}
-                className="px-2.5 py-1 rounded-md bg-blue-50 text-[#0056D2] font-mono font-bold hover:bg-blue-100 transition-colors border border-blue-200 cursor-pointer"
+                className="px-2.5 py-1 rounded-md bg-blue-50 text-[#0A7CB3] font-mono font-bold hover:bg-blue-100 transition-colors border border-blue-200 cursor-pointer"
               >
                 AAROHA-CERT-2026-9E4F-8812 (Elena Rostova)
               </button>
@@ -817,7 +817,7 @@ export default function DegreesCertificatesView({
 
                     <button
                       onClick={() => onViewCertificate && onViewCertificate(cert)}
-                      className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <Award className="w-3.5 h-3.5" />
                       <span>View Certificate</span>
@@ -828,7 +828,7 @@ export default function DegreesCertificatesView({
             </div>
           ) : (
             <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-4 max-w-xl mx-auto">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0056D2] flex items-center justify-center mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0A7CB3] flex items-center justify-center mx-auto">
                 <GraduationCap className="w-7 h-7" />
               </div>
               <h3 className="text-base font-bold text-slate-900">
@@ -839,7 +839,7 @@ export default function DegreesCertificatesView({
               </p>
               <button
                 onClick={onExploreCatalog}
-                className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Explore Curricula & Start Learning
               </button>

@@ -147,8 +147,8 @@ export default function UserCatalogView({
           
           {/* Left Column: Heading, Search & Value Prop (lg:col-span-7) */}
           <div className="lg:col-span-7 space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-[#0056D2] text-xs font-bold uppercase tracking-wider border border-blue-200/60 shadow-2xs">
-              <Award className="w-3.5 h-3.5 text-[#0056D2]" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-[#0A7CB3] text-xs font-bold uppercase tracking-wider border border-blue-200/60 shadow-2xs">
+              <Award className="w-3.5 h-3.5 text-[#0A7CB3]" />
               <span>Aaroha Institute of Technology · Executive Academy</span>
             </div>
 
@@ -184,7 +184,7 @@ export default function UserCatalogView({
                       if (setSearchQuery) setSearchQuery(tag.query);
                       handleSearchSubmit(tag.query);
                     }}
-                    className="px-2.5 py-1 bg-white hover:bg-[#0056D2] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0056D2] rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                    className="px-2.5 py-1 bg-white hover:bg-[#0A7CB3] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0A7CB3] rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
                   >
                     {tag.label}
                   </button>
@@ -203,7 +203,7 @@ export default function UserCatalogView({
                     window.scrollTo({ top: 500, behavior: 'smooth' });
                   }
                 }}
-                className="px-6 py-3 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                className="px-6 py-3 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <span>Explore All Programs</span>
                 <ArrowRight className="w-4 h-4" />
@@ -234,7 +234,7 @@ export default function UserCatalogView({
                     }}
                     className={'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ' +
                       (activeShowcaseIdx === idx
-                        ? 'bg-[#0056D2] text-white shadow-xs'
+                        ? 'bg-[#0A7CB3] text-white shadow-xs'
                         : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
                   >
                     <span>{t.label}</span>
@@ -253,7 +253,7 @@ export default function UserCatalogView({
                     }}
                     aria-label={`Slide ${idx + 1}`}
                     className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                      activeShowcaseIdx === idx ? 'w-5 bg-[#0056D2]' : 'w-1.5 bg-slate-300 hover:bg-slate-400'
+                      activeShowcaseIdx === idx ? 'w-5 bg-[#0A7CB3]' : 'w-1.5 bg-slate-300 hover:bg-slate-400'
                     }`}
                   />
                 ))}
@@ -333,7 +333,7 @@ export default function UserCatalogView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-xs font-bold text-[#0056D2] group-hover:text-[#00419e] group-hover:translate-x-0.5 transition-all shrink-0">
+                <div className="flex items-center gap-1 text-xs font-bold text-[#0A7CB3] group-hover:text-[#086491] group-hover:translate-x-0.5 transition-all shrink-0">
                   <span>Explore Track</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </div>
@@ -373,15 +373,15 @@ export default function UserCatalogView({
         {hasSearch && (
           <div className="flex items-center justify-between bg-blue-50/70 border border-blue-200 rounded-xl px-4 py-2 text-xs text-slate-700">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#0056D2]" />
-              <span>Filtered by technology / subdomain: <strong className="text-[#0056D2]">"{searchQuery}"</strong> ({filteredCourses.length} results)</span>
+              <Sparkles className="w-3.5 h-3.5 text-[#0A7CB3]" />
+              <span>Filtered by technology / subdomain: <strong className="text-[#0A7CB3]">"{searchQuery}"</strong> ({filteredCourses.length} results)</span>
             </div>
             <button
               onClick={() => {
                 if (setSearchQuery) setSearchQuery('');
                 if (setSelectedCategory) setSelectedCategory('All');
               }}
-              className="text-xs font-bold text-[#0056D2] hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-[#0A7CB3] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
               <span>Clear Filter</span>
@@ -397,7 +397,7 @@ export default function UserCatalogView({
               onClick={() => setSelectedCategory(cat)}
               className={'px-4 py-2 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ' +
                 (selectedCategory === cat
-                  ? 'bg-[#0056D2] text-white shadow-xs'
+                  ? 'bg-[#0A7CB3] text-white shadow-xs'
                   : 'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
             >
               {cat === 'All' ? 'All Courses' : cat}
@@ -438,7 +438,7 @@ export default function UserCatalogView({
               badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200/80';
             } else if (course.modules?.some(m => m.lessons?.some(l => l.is_free_preview))) {
               badgeText = 'Free Preview';
-              badgeStyle = 'bg-blue-50 text-[#0056D2] border-blue-200/60';
+              badgeStyle = 'bg-blue-50 text-[#0A7CB3] border-blue-200/60';
             }
           } else {
             if (badgeText.toLowerCase().includes('updated')) {
@@ -482,7 +482,7 @@ export default function UserCatalogView({
                   </div>
 
                   {/* Course Title */}
-                  <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors leading-snug line-clamp-2">
+                  <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-[#0A7CB3] transition-colors leading-snug line-clamp-2">
                     {course.title}
                   </h3>
 
@@ -524,7 +524,7 @@ export default function UserCatalogView({
               setSearchQuery('');
               setSelectedCategory('All');
             }}
-            className="px-4 py-2 text-xs font-bold text-[#0056D2] bg-blue-50 hover:bg-blue-100 rounded-md transition-colors cursor-pointer"
+            className="px-4 py-2 text-xs font-bold text-[#0A7CB3] bg-blue-50 hover:bg-blue-100 rounded-md transition-colors cursor-pointer"
           >
             Clear Filters & View All
           </button>

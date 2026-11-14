@@ -58,15 +58,12 @@ export default function Navbar({
                 setIsMobileMenuOpen(false);
               }}
             >
-              <div className="bg-white hover:bg-slate-50 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2 shadow-xs transition-all duration-200 group-hover:border-slate-300">
+              <div className="bg-white hover:bg-slate-50 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-200 flex items-center shadow-xs transition-all duration-200 group-hover:border-slate-300">
                 <img
                   src={aarohaLogo}
                   alt="Aaroha Technologies"
                   className="h-6 sm:h-8 w-auto object-contain"
                 />
-                <span className="text-[10px] font-black tracking-widest text-[#0056D2] uppercase pl-2 border-l border-slate-200 hidden md:inline">
-                  Academy
-                </span>
               </div>
             </div>
 
@@ -74,7 +71,7 @@ export default function Navbar({
             <div className="relative hidden md:block">
               <button
                 onClick={() => setIsExploreOpen(!isExploreOpen)}
-                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                 aria-expanded={isExploreOpen}
                 aria-label="Explore course categories"
               >
@@ -100,7 +97,7 @@ export default function Navbar({
                         setActiveView('catalog');
                         if (onSelectCategory) onSelectCategory(cat === 'All Courses' ? 'All' : cat);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/60 transition-colors flex items-center justify-between cursor-pointer"
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/60 transition-colors flex items-center justify-between cursor-pointer"
                     >
                       <span>{cat}</span>
                       <ChevronDown className="w-3.5 h-3.5 text-slate-300 -rotate-90" />
@@ -134,14 +131,14 @@ export default function Navbar({
                 onMouseEnter={() => setIsDegreesOpen(true)}
                 className={'text-xs font-bold transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer ' + 
                   (activeView === 'degrees' 
-                    ? 'bg-blue-50 text-[#0056D2] border border-blue-200' 
-                    : 'text-slate-700 hover:text-[#0056D2] hover:bg-slate-50')}
+                    ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200' 
+                    : 'text-slate-700 hover:text-[#0A7CB3] hover:bg-slate-50')}
                 aria-label="Degrees and Certificates Portal"
               >
-                <Award className="w-4 h-4 text-[#0056D2]" />
+                <Award className="w-4 h-4 text-[#0A7CB3]" />
                 <span>Degrees & Certificates</span>
                 <ChevronDown 
-                  className={'w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ' + (isDegreesOpen ? 'rotate-180 text-[#0056D2]' : '')} 
+                  className={'w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ' + (isDegreesOpen ? 'rotate-180 text-[#0A7CB3]' : '')} 
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsDegreesOpen(!isDegreesOpen);
@@ -159,7 +156,7 @@ export default function Navbar({
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       Degrees & Accredited Programs
                     </span>
-                    <span className="text-[10px] font-bold text-[#0056D2] bg-blue-50 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold text-[#0A7CB3] bg-blue-50 px-2 py-0.5 rounded-full">
                       Aaroha Institute
                     </span>
                   </div>
@@ -170,9 +167,9 @@ export default function Navbar({
                         setActiveView('degrees');
                         setIsDegreesOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
                     >
-                      <GraduationCap className="w-4 h-4 text-[#0056D2] shrink-0" />
+                      <GraduationCap className="w-4 h-4 text-[#0A7CB3] shrink-0" />
                       <div>
                         <div className="font-bold text-slate-900 leading-tight">Academic Degrees</div>
                         <div className="text-[11px] text-slate-500">M.S. & M.Eng Specialization Tracks</div>
@@ -184,7 +181,7 @@ export default function Navbar({
                         setActiveView('degrees');
                         setIsDegreesOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
                     >
                       <Award className="w-4 h-4 text-amber-500 shrink-0" />
                       <div>
@@ -198,7 +195,7 @@ export default function Navbar({
                         setActiveView('degrees');
                         setIsDegreesOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0056D2] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/70 transition-colors flex items-center gap-2.5 cursor-pointer"
                     >
                       <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                       <div>
@@ -214,7 +211,7 @@ export default function Navbar({
                         setActiveView('degrees');
                         setIsDegreesOpen(false);
                       }}
-                      className="w-full py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl text-center transition-colors shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl text-center transition-colors shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <span>Open Degrees & Certificates Hub</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -230,13 +227,13 @@ export default function Navbar({
                 onClick={() => setActiveView('student')}
                 className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
                   (activeView === 'student'
-                    ? 'bg-blue-50 text-[#0056D2] border border-blue-200'
-                    : 'text-slate-700 hover:text-[#0056D2]')}
+                    ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200'
+                    : 'text-slate-700 hover:text-[#0A7CB3]')}
               >
-                <GraduationCap className="w-4 h-4 text-[#0056D2]" />
+                <GraduationCap className="w-4 h-4 text-[#0A7CB3]" />
                 <span className="hidden md:inline">My Learning</span>
                 {stats?.enrolledCount > 0 && (
-                  <span className="bg-[#0056D2] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                  <span className="bg-[#0A7CB3] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                     {stats.enrolledCount}
                   </span>
                 )}
@@ -248,10 +245,10 @@ export default function Navbar({
                 onClick={() => setActiveView('admin')}
                 className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
                   (activeView === 'admin'
-                    ? 'bg-blue-50 text-[#0056D2] border border-blue-200'
-                    : 'text-slate-700 hover:text-[#0056D2]')}
+                    ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200'
+                    : 'text-slate-700 hover:text-[#0A7CB3]')}
               >
-                <Shield className="w-4 h-4 text-[#0056D2]" />
+                <Shield className="w-4 h-4 text-[#0A7CB3]" />
                 <span className="hidden md:inline">Faculty Console</span>
                 {stats?.pendingReviews > 0 && (
                   <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
@@ -275,12 +272,12 @@ export default function Navbar({
                       src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                       alt={currentUser.full_name}
                       onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] group-hover:scale-105 transition-all shrink-0 bg-slate-100"
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0A7CB3]/30 group-hover:ring-[#0A7CB3] group-hover:scale-105 transition-all shrink-0 bg-slate-100"
                     />
                     <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
                   </div>
                   <div className="hidden lg:block text-left">
-                    <div className="text-xs font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors leading-tight flex items-center gap-1">
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-[#0A7CB3] transition-colors leading-tight flex items-center gap-1">
                       <span>{currentUser.full_name}</span>
                     </div>
                     <div className="text-[10px] text-slate-500 truncate max-w-[130px]">
@@ -302,14 +299,14 @@ export default function Navbar({
               <div className="hidden md:flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className="text-xs font-bold text-[#0056D2] hover:text-[#00419e] hover:underline px-2 py-1.5 transition-colors cursor-pointer"
+                  className="text-xs font-bold text-[#0A7CB3] hover:text-[#086491] hover:underline px-2 py-1.5 transition-colors cursor-pointer"
                 >
                   Log In
                 </button>
 
                 <button
                   onClick={() => onOpenAuth('register')}
-                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Join Free</span>
@@ -354,10 +351,10 @@ export default function Navbar({
                   setIsMobileMenuOpen(false);
                 }}
                 className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${
-                  activeView === 'degrees' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
+                  activeView === 'degrees' ? 'bg-blue-50 text-[#0A7CB3]' : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <Award className="w-4 h-4 text-[#0056D2]" />
+                <Award className="w-4 h-4 text-[#0A7CB3]" />
                 <span>Degrees & Certificates</span>
               </button>
 
@@ -368,15 +365,15 @@ export default function Navbar({
                     setIsMobileMenuOpen(false);
                   }}
                   className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between ${
-                    activeView === 'student' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
+                    activeView === 'student' ? 'bg-blue-50 text-[#0A7CB3]' : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-[#0056D2]" />
+                    <GraduationCap className="w-4 h-4 text-[#0A7CB3]" />
                     <span>My Learning Dashboard</span>
                   </div>
                   {stats?.enrolledCount > 0 && (
-                    <span className="bg-[#0056D2] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                    <span className="bg-[#0A7CB3] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                       {stats.enrolledCount}
                     </span>
                   )}
@@ -390,11 +387,11 @@ export default function Navbar({
                     setIsMobileMenuOpen(false);
                   }}
                   className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between ${
-                    activeView === 'admin' ? 'bg-blue-50 text-[#0056D2]' : 'text-slate-700 hover:bg-slate-100'
+                    activeView === 'admin' ? 'bg-blue-50 text-[#0A7CB3]' : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-[#0056D2]" />
+                    <Shield className="w-4 h-4 text-[#0A7CB3]" />
                     <span>Faculty Console</span>
                   </div>
                   {stats?.pendingReviews > 0 && (
@@ -458,7 +455,7 @@ export default function Navbar({
                       onOpenAuth('register');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl text-center shadow-xs"
+                    className="w-full py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl text-center shadow-xs"
                   >
                     Join Free
                   </button>

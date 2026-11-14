@@ -1624,7 +1624,7 @@ export default function App() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">
             <div className="space-y-3">
               <div 
-                className="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs inline-flex items-center gap-2 cursor-pointer hover:border-slate-300"
+                className="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs inline-flex items-center cursor-pointer hover:border-slate-300"
                 onClick={() => {
                   setActiveView('catalog');
                   setSelectedCategory('All');
@@ -1636,9 +1636,6 @@ export default function App() {
                   alt="Aaroha Technologies"
                   className="h-6 w-auto object-contain"
                 />
-                <span className="text-[9px] font-bold tracking-widest text-[#0056D2] uppercase pl-2 border-l border-slate-200">
-                  Academy
-                </span>
               </div>
               <p className="text-slate-500 text-[11px] leading-relaxed">
                 Empowering principal engineers and technology leaders with production-calibrated curricula and accredited certifications.
@@ -1651,30 +1648,30 @@ export default function App() {
                   setActiveView('degrees');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="font-bold text-slate-900 text-xs uppercase tracking-wider hover:text-[#0056D2] cursor-pointer"
+                className="font-bold text-slate-900 text-xs uppercase tracking-wider hover:text-[#0A7CB3] cursor-pointer"
               >
                 Curricula & Degrees
               </h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Cloud Architecture (M.S.)</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Applied AI & Model Serving (M.Eng.)</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Enterprise Cyber Defense (P.G. Dip)</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0056D2] cursor-pointer">Explore All Master's Tracks</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Cloud Architecture (M.S.)</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Applied AI & Model Serving (M.Eng.)</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Enterprise Cyber Defense (P.G. Dip)</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Explore All Master's Tracks</li>
               </ul>
             </div>
 
             <div className="space-y-2">
               <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Community & Research</h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li className="hover:text-[#0056D2] cursor-pointer">Aaroha Systems Lab</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Faculty Portal</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">RFC Technical Artifacts</li>
+                <li className="hover:text-[#0A7CB3] cursor-pointer">Aaroha Systems Lab</li>
+                <li className="hover:text-[#0A7CB3] cursor-pointer">Faculty Portal</li>
+                <li className="hover:text-[#0A7CB3] cursor-pointer">RFC Technical Artifacts</li>
                 <li 
                   onClick={() => {
                     setActiveView('degrees');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="hover:text-[#0056D2] cursor-pointer font-semibold text-[#0056D2]"
+                  className="hover:text-[#0A7CB3] cursor-pointer font-semibold text-[#0A7CB3]"
                 >
                   Verified Digital Credentials
                 </li>
@@ -1684,10 +1681,10 @@ export default function App() {
             <div className="space-y-2">
               <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Enterprise & Campus</h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li className="hover:text-[#0056D2] cursor-pointer">Aaroha for Enterprise</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Institutional Accreditation</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Hostinger LAMP Architecture</li>
-                <li className="hover:text-[#0056D2] cursor-pointer">Aaroha Inc. Corporate</li>
+                <li className="hover:text-[#0A7CB3] cursor-pointer">Aaroha for Enterprise</li>
+                <li className="hover:text-[#0A7CB3] cursor-pointer">Institutional Accreditation</li>
+                <li className="hover:text-[#0A7CB3] cursor-pointer">Hostinger LAMP Architecture</li>
+                <li className="hover:text-[#0A7CB3] cursor-pointer">Aaroha Inc. Corporate</li>
               </ul>
             </div>
           </div>

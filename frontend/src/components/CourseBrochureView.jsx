@@ -48,7 +48,7 @@ export default function CourseBrochureView({
       <div className="flex items-center justify-between text-xs text-slate-500">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 font-bold text-[#0056D2] hover:underline cursor-pointer"
+          className="inline-flex items-center gap-1.5 font-bold text-[#0A7CB3] hover:underline cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Catalog</span>
@@ -59,7 +59,7 @@ export default function CourseBrochureView({
         </button>
 
         <div className="hidden sm:flex items-center gap-2">
-          <span className="px-2.5 py-1 bg-blue-50 text-[#0056D2] font-bold rounded text-[11px] border border-blue-100">
+          <span className="px-2.5 py-1 bg-blue-50 text-[#0A7CB3] font-bold rounded text-[11px] border border-blue-100">
             {course.partner_type || 'Specialization'}
           </span>
         </div>
@@ -154,7 +154,7 @@ export default function CourseBrochureView({
               <button
                 type="button"
                 onClick={() => onEnroll(course)}
-                className="w-full py-3.5 bg-[#0056D2] hover:bg-[#00419e] text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className="w-full py-3.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 <Award className="w-4 h-4" />
                 <span>Enroll in Specialization</span>
@@ -164,7 +164,7 @@ export default function CourseBrochureView({
 
             <div className="pt-2 border-t border-slate-100 space-y-2 text-xs text-slate-600">
               <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-[#0056D2]" />
+                <Award className="w-4 h-4 text-[#0A7CB3]" />
                 <span className="font-semibold text-slate-800">Shareable Specialization Certificate</span>
               </div>
               <div className="flex items-center gap-2">
@@ -191,28 +191,28 @@ export default function CourseBrochureView({
           <button
             onClick={() => setActiveTab('syllabus')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'syllabus' ? 'border-[#0056D2] text-[#0056D2]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'syllabus' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
           >
             Modules & Syllabus ({course.modules?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab('outcomes')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'outcomes' ? 'border-[#0056D2] text-[#0056D2]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'outcomes' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
           >
             What You'll Learn
           </button>
           <button
             onClick={() => setActiveTab('about')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'about' ? 'border-[#0056D2] text-[#0056D2]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'about' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
           >
             About & Prerequisites
           </button>
           <button
             onClick={() => setActiveTab('instructors')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'instructors' ? 'border-[#0056D2] text-[#0056D2]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'instructors' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
           >
             Faculty & Instructors
           </button>
@@ -244,7 +244,7 @@ export default function CourseBrochureView({
                 <button
                   type="button"
                   onClick={() => onEnroll(course)}
-                  className="px-4 py-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-xs cursor-pointer"
+                  className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   <Lock className="w-3.5 h-3.5" />
                   <span>Enroll to Unlock Classroom</span>
@@ -278,7 +278,7 @@ export default function CourseBrochureView({
                     className="w-full p-5 sm:p-6 text-left flex items-start sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors cursor-pointer"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-xs font-bold text-[#0056D2] uppercase tracking-wider">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#0A7CB3] uppercase tracking-wider">
                         <span>Module {modIdx + 1}</span>
                         <span>·</span>
                         <span className="text-slate-500 font-semibold">{mod.duration || '5 hours to complete'}</span>
@@ -317,11 +317,11 @@ export default function CourseBrochureView({
                           className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-white transition-colors cursor-pointer group"
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0056D2] group-hover:bg-[#0056D2] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0A7CB3] group-hover:bg-[#0A7CB3] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
                               <Play className="w-3.5 h-3.5 fill-current" />
                             </div>
                             <div className="min-w-0">
-                              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-[#0056D2] transition-colors truncate">
+                              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-[#0A7CB3] transition-colors truncate">
                                 {lesson.title}
                               </h4>
                               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
@@ -364,18 +364,18 @@ export default function CourseBrochureView({
                               onEnroll(course);
                             }
                           }}
-                          className="px-6 py-4 bg-blue-50/30 flex items-center justify-between gap-4 border-l-4 border-[#0056D2] hover:bg-blue-50/60 transition-colors cursor-pointer group"
+                          className="px-6 py-4 bg-blue-50/30 flex items-center justify-between gap-4 border-l-4 border-[#0A7CB3] hover:bg-blue-50/60 transition-colors cursor-pointer group"
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#0056D2] group-hover:bg-[#0056D2] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#0A7CB3] group-hover:bg-[#0A7CB3] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
                               <ListTodo className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors truncate">
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0A7CB3] transition-colors truncate">
                                   {task.title}
                                 </h4>
-                                <span className="text-[10px] bg-blue-100 text-[#0056D2] px-2 py-0.5 rounded font-bold uppercase">
+                                <span className="text-[10px] bg-blue-100 text-[#0A7CB3] px-2 py-0.5 rounded font-bold uppercase">
                                   Evaluated Defense
                                 </span>
                               </div>
@@ -419,7 +419,7 @@ export default function CourseBrochureView({
                 'Eliminate distributed state anomalies with Change Data Capture and transactional outbox pipelines'
               ]).map((item, idx) => (
                 <div key={idx} className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-[#0056D2] flex-shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-5 h-5 text-[#0A7CB3] flex-shrink-0 mt-0.5" />
                   <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
                     {item}
                   </p>
@@ -491,7 +491,7 @@ export default function CourseBrochureView({
               <h4 className="text-base font-bold text-slate-900">
                 {course.instructor.name}
               </h4>
-              <p className="text-xs font-semibold text-[#0056D2]">{course.instructor.title}</p>
+              <p className="text-xs font-semibold text-[#0A7CB3]">{course.instructor.title}</p>
               <p className="text-xs text-slate-500">{course.instructor.department}</p>
               <p className="text-xs text-slate-600 leading-relaxed pt-2">
                 Faculty Fellow at Aaroha Institute of Technology leading distributed reliability and high-throughput systems research.

@@ -10,7 +10,7 @@ export default function LeaderboardToggle({ onToggle, isOpen }) {
       onClick={onToggle}
       title="Open Student Ranking Leaderboard"
       aria-label="Open Student Ranking Leaderboard"
-      className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-[#0B1A2F]/95 hover:bg-[#0056D2] border-l-2 border-y border-[#0056D2] hover:border-[#38bdf8] text-white shadow-2xl shadow-blue-950/60 rounded-l-2xl py-3 px-2 sm:px-2.5 flex flex-col items-center gap-2 cursor-pointer transition-all duration-300 group hover:-translate-x-1 focus:outline-none select-none backdrop-blur-md"
+      className="fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-[#0B1A2F]/95 hover:bg-[#0A7CB3] border-l-2 border-y border-[#0A7CB3] hover:border-[#38bdf8] text-white shadow-2xl shadow-blue-950/60 rounded-l-2xl py-3 px-2 sm:px-2.5 flex flex-col items-center gap-2 cursor-pointer transition-all duration-300 group hover:-translate-x-1 focus:outline-none select-none backdrop-blur-md"
     >
       {/* Icon with glowing pulse */}
       <div className="w-7 h-7 rounded-xl bg-amber-400/20 group-hover:bg-white/20 border border-amber-400/40 group-hover:border-white/40 flex items-center justify-center transition-colors shadow-xs">

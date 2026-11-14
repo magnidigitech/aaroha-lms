@@ -192,7 +192,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
               <div className="shrink-0 p-3.5 sm:p-4 bg-white border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
                 <button
                   type="submit"
-                  className="w-full py-2.5 sm:py-3 bg-[#0056D2] hover:bg-[#00419e] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 sm:py-3 bg-[#0A7CB3] hover:bg-[#086491] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Access Dashboard</span>
                   <ArrowRight className="w-4 h-4" />
@@ -275,7 +275,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                       onClick={() => setRegisterRole('student')}
                       className={'py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ' +
                         (registerRole === 'student'
-                          ? 'bg-[#0056D2] text-white font-bold border-[#0056D2] shadow-2xs'
+                          ? 'bg-[#0A7CB3] text-white font-bold border-[#0A7CB3] shadow-2xs'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100')}
                     >
                       <GraduationCap className="w-3.5 h-3.5" />
@@ -287,7 +287,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                       onClick={() => setRegisterRole('admin')}
                       className={'py-1.5 px-2 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ' +
                         (registerRole === 'admin'
-                          ? 'bg-[#0056D2] text-white font-bold border-[#0056D2] shadow-2xs'
+                          ? 'bg-[#0A7CB3] text-white font-bold border-[#0A7CB3] shadow-2xs'
                           : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100')}
                     >
                       <Shield className="w-3.5 h-3.5" />
@@ -315,7 +315,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                           onClick={() => setSelectedAvatar(preset.url)}
                           title={`${preset.name} (${preset.gender})`}
                           className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer bg-slate-100 flex items-center justify-center p-0.5 ${
-                            isSelected ? 'border-[#0056D2] ring-2 ring-blue-500/30 scale-105 shadow-xs' : 'border-transparent hover:opacity-80'
+                            isSelected ? 'border-[#0A7CB3] ring-2 ring-blue-500/30 scale-105 shadow-xs' : 'border-transparent hover:opacity-80'
                           }`}
                         >
                           <img 
@@ -329,7 +329,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
                             }}
                           />
                           {isSelected && (
-                            <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-[#0056D2] text-white rounded-full flex items-center justify-center shadow-xs">
+                            <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-[#0A7CB3] text-white rounded-full flex items-center justify-center shadow-xs">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </div>
                           )}
@@ -344,7 +344,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onRegister, initia
               <div className="shrink-0 p-3.5 sm:p-4 bg-white border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
                 <button
                   type="submit"
-                  className="w-full py-2.5 sm:py-3 bg-[#0056D2] hover:bg-[#00419e] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-2.5 sm:py-3 bg-[#0A7CB3] hover:bg-[#086491] text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Create Account</span>
                   <CheckCircle2 className="w-4 h-4" />

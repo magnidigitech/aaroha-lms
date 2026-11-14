@@ -192,7 +192,7 @@ export default function IssueCertificateModal({
                         onClick={() => handleStudentSelect(student)}
                         className={'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ' + (
                           userId === student.id 
-                            ? 'bg-blue-50 border-blue-300 text-[#0056D2] shadow-2xs' 
+                            ? 'bg-blue-50 border-blue-300 text-[#0A7CB3] shadow-2xs' 
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                         )}
                       >
@@ -213,7 +213,7 @@ export default function IssueCertificateModal({
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
                       placeholder="e.g. Elena Rostova"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0056D2] shadow-2xs"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0A7CB3] shadow-2xs"
                     />
                   </div>
 
@@ -226,7 +226,7 @@ export default function IssueCertificateModal({
                       value={recipientEmail}
                       onChange={(e) => setRecipientEmail(e.target.value)}
                       placeholder="e.g. elena.rostova@enterprise.io"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0056D2] shadow-2xs"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0A7CB3] shadow-2xs"
                     />
                   </div>
                 </div>
@@ -242,7 +242,7 @@ export default function IssueCertificateModal({
                   <select
                     value={grade}
                     onChange={(e) => setGrade(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#0056D2] shadow-2xs appearance-none pr-9 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#0A7CB3] shadow-2xs appearance-none pr-9 cursor-pointer"
                   >
                     {DISTINCTION_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>
@@ -269,7 +269,7 @@ export default function IssueCertificateModal({
                       type="text"
                       value={issuerName}
                       onChange={(e) => setIssuerName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0056D2] shadow-2xs"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0A7CB3] shadow-2xs"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -280,7 +280,7 @@ export default function IssueCertificateModal({
                       type="text"
                       value={issuerTitle}
                       onChange={(e) => setIssuerTitle(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0056D2] shadow-2xs"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-[#0A7CB3] shadow-2xs"
                     />
                   </div>
                 </div>

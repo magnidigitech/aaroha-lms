@@ -208,7 +208,7 @@ export default function ProfileModal({
                 />
               </div>
               <div 
-                className="absolute -bottom-1.5 -right-1.5 bg-[#0056D2] text-white p-1 rounded-lg shadow-md border-2 border-[#0B192C]"
+                className="absolute -bottom-1.5 -right-1.5 bg-[#0A7CB3] text-white p-1 rounded-lg shadow-md border-2 border-[#0B192C]"
                 title="Active Profile Avatar"
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -275,7 +275,7 @@ export default function ProfileModal({
                   onClick={() => setActiveTab('presets')}
                   className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'presets'
-                      ? 'bg-[#0056D2] text-white shadow-xs'
+                      ? 'bg-[#0A7CB3] text-white shadow-xs'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                   }`}
                 >
@@ -288,7 +288,7 @@ export default function ProfileModal({
                   onClick={() => setActiveTab('upload')}
                   className={`text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'upload'
-                      ? 'bg-[#0056D2] text-white shadow-xs'
+                      ? 'bg-[#0A7CB3] text-white shadow-xs'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                   }`}
                 >
@@ -347,7 +347,7 @@ export default function ProfileModal({
                         }}
                         className={`group relative flex flex-col items-center p-1.5 rounded-xl transition-all cursor-pointer border text-center ${
                           isSelected 
-                            ? 'bg-blue-50/90 border-[#0056D2] ring-2 ring-[#0056D2]/30 shadow-xs' 
+                            ? 'bg-blue-50/90 border-[#0A7CB3] ring-2 ring-[#0A7CB3]/30 shadow-xs' 
                             : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-100/60'
                         }`}
                         title={`${preset.name} (${preset.style})`}
@@ -366,7 +366,7 @@ export default function ProfileModal({
                           />
                           {/* Active Corner Checkmark Badge */}
                           {isSelected && (
-                            <div className="absolute top-1 right-1 w-4 h-4 bg-[#0056D2] text-white rounded-full flex items-center justify-center shadow-xs">
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-[#0A7CB3] text-white rounded-full flex items-center justify-center shadow-xs">
                               <Check className="w-2.5 h-2.5 stroke-[3]" />
                             </div>
                           )}
@@ -404,11 +404,11 @@ export default function ProfileModal({
                   onDragLeave={handleDragLeave}
                   className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
                     isDragging
-                      ? 'border-[#0056D2] bg-blue-50/80 ring-4 ring-blue-500/20'
-                      : 'border-slate-300 hover:border-[#0056D2] hover:bg-slate-50 bg-slate-50/50'
+                      ? 'border-[#0A7CB3] bg-blue-50/80 ring-4 ring-blue-500/20'
+                      : 'border-slate-300 hover:border-[#0A7CB3] hover:bg-slate-50 bg-slate-50/50'
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#0056D2] mx-auto flex items-center justify-center mb-3 shadow-xs">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#0A7CB3] mx-auto flex items-center justify-center mb-3 shadow-xs">
                     <ArrowUpCircle className="w-6 h-6" />
                   </div>
                   <div className="text-xs font-bold text-slate-900 mb-1">
@@ -537,7 +537,7 @@ export default function ProfileModal({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer active:scale-98"
+                className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer active:scale-98"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>{isSaving ? 'Saving Changes...' : 'Save Profile & Avatar'}</span>

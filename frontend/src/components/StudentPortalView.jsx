@@ -145,15 +145,15 @@ export default function StudentPortalView({
                   src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                   alt={currentUser.full_name}
                   onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
-                  className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover ring-2 ring-[#0056D2]/30 group-hover:ring-[#0056D2] shadow-md group-hover:scale-105 transition-all bg-slate-100"
+                  className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover ring-2 ring-[#0A7CB3]/30 group-hover:ring-[#0A7CB3] shadow-md group-hover:scale-105 transition-all bg-slate-100"
                 />
-                <div className="absolute -bottom-1 -right-1 bg-[#0056D2] text-white p-1.5 rounded-xl shadow-xs group-hover:bg-blue-700 transition-colors">
+                <div className="absolute -bottom-1 -right-1 bg-[#0A7CB3] text-white p-1.5 rounded-xl shadow-xs group-hover:bg-blue-700 transition-colors">
                   <Edit3 className="w-3 h-3" />
                 </div>
               </button>
             )}
             <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-2 bg-blue-50 text-[#0056D2] px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
+              <div className="inline-flex items-center gap-2 bg-blue-50 text-[#0A7CB3] px-3 py-1 rounded-full text-xs font-bold border border-blue-100">
                 <GraduationCap className="w-3.5 h-3.5" />
                 <span>Learner Workspace</span>
               </div>
@@ -174,7 +174,7 @@ export default function StudentPortalView({
                 onClick={onOpenProfile}
                 className="bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
               >
-                <Edit3 className="w-3.5 h-3.5 text-[#0056D2]" />
+                <Edit3 className="w-3.5 h-3.5 text-[#0A7CB3]" />
                 <span>Edit Profile & Avatar</span>
               </button>
             )}
@@ -182,7 +182,7 @@ export default function StudentPortalView({
               onClick={onExploreCatalog}
               className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-300 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
             >
-              <BookOpen className="w-4 h-4 text-[#0056D2]" />
+              <BookOpen className="w-4 h-4 text-[#0A7CB3]" />
               <span>Browse Catalog</span>
             </button>
           </div>
@@ -198,7 +198,7 @@ export default function StudentPortalView({
 
           <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">In Progress</span>
-            <div className="text-2xl font-black text-[#0056D2]">{inProgressProgramsCount}</div>
+            <div className="text-2xl font-black text-[#0A7CB3]">{inProgressProgramsCount}</div>
             <span className="text-[11px] text-slate-500">Actively Studying</span>
           </div>
 
@@ -226,7 +226,7 @@ export default function StudentPortalView({
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
               filter === 'all'
-                ? 'bg-white text-[#0056D2] shadow-xs'
+                ? 'bg-white text-[#0A7CB3] shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -236,7 +236,7 @@ export default function StudentPortalView({
             onClick={() => setFilter('in_progress')}
             className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
               filter === 'in_progress'
-                ? 'bg-white text-[#0056D2] shadow-xs'
+                ? 'bg-white text-[#0A7CB3] shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -246,7 +246,7 @@ export default function StudentPortalView({
             onClick={() => setFilter('completed')}
             className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
               filter === 'completed'
-                ? 'bg-white text-[#0056D2] shadow-xs'
+                ? 'bg-white text-[#0A7CB3] shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -263,7 +263,7 @@ export default function StudentPortalView({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search your courses..."
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#0056D2] shadow-2xs"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#0A7CB3] shadow-2xs"
             />
           </div>
         )}
@@ -312,7 +312,7 @@ export default function StudentPortalView({
                       {course.institution || 'Aaroha Institute of Technology'}
                     </div>
 
-                    <h3 className="text-base font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors leading-snug line-clamp-2">
+                    <h3 className="text-base font-bold text-slate-900 group-hover:text-[#0A7CB3] transition-colors leading-snug line-clamp-2">
                       {course.title}
                     </h3>
 
@@ -326,14 +326,14 @@ export default function StudentPortalView({
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-slate-600">Progress</span>
-                        <span className={`font-bold ${analytics.isCompleted ? 'text-emerald-600' : 'text-[#0056D2]'}`}>
+                        <span className={`font-bold ${analytics.isCompleted ? 'text-emerald-600' : 'text-[#0A7CB3]'}`}>
                           {analytics.progressPct}% ({analytics.completedCount}/{analytics.totalLessons})
                         </span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
-                            analytics.isCompleted ? 'bg-emerald-600' : 'bg-[#0056D2]'
+                            analytics.isCompleted ? 'bg-emerald-600' : 'bg-[#0A7CB3]'
                           }`}
                           style={{ width: `${analytics.progressPct}%` }}
                         />
@@ -356,7 +356,7 @@ export default function StudentPortalView({
                     {/* Next Lesson Box */}
                     {analytics.nextLesson && !analytics.isCompleted && (
                       <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-2.5 text-xs text-slate-700">
-                        <div className="w-6 h-6 rounded-lg bg-blue-100 text-[#0056D2] flex items-center justify-center flex-shrink-0">
+                        <div className="w-6 h-6 rounded-lg bg-blue-100 text-[#0A7CB3] flex items-center justify-center flex-shrink-0">
                           <Play className="w-3 h-3 fill-current" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -393,7 +393,7 @@ export default function StudentPortalView({
                       className={`w-full text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98 ${
                         analytics.isCompleted
                           ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                          : 'bg-[#0056D2] hover:bg-[#00419e] text-white'
+                          : 'bg-[#0A7CB3] hover:bg-[#086491] text-white'
                       }`}
                     >
                       {analytics.isCompleted ? (
@@ -419,7 +419,7 @@ export default function StudentPortalView({
       ) : (
         /* Empty State */
         <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 p-8 max-w-xl mx-auto space-y-4 shadow-xs">
-          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#0056D2] flex items-center justify-center mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#0A7CB3] flex items-center justify-center mx-auto">
             <GraduationCap className="w-8 h-8" />
           </div>
 
@@ -438,7 +438,7 @@ export default function StudentPortalView({
 
           <button
             onClick={onExploreCatalog}
-            className="inline-flex items-center gap-2 bg-[#0056D2] hover:bg-[#00419e] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
           >
             <BookOpen className="w-4 h-4" />
             <span>Explore Course Catalog</span>

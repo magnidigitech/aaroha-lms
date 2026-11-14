@@ -81,8 +81,8 @@ export default function TechSearchBar({
       {/* Search Input Box */}
       <div className={`relative flex items-center w-full transition-all ${
         isHero
-          ? 'bg-white shadow-md border-2 border-slate-200 focus-within:border-[#0056D2] focus-within:ring-4 focus-within:ring-blue-100 rounded-2xl'
-          : 'bg-slate-50 focus-within:bg-white border border-slate-300 focus-within:border-[#0056D2] focus-within:ring-1 focus-within:ring-[#0056D2] rounded-full'
+          ? 'bg-white shadow-md border-2 border-slate-200 focus-within:border-[#0A7CB3] focus-within:ring-4 focus-within:ring-blue-100 rounded-2xl'
+          : 'bg-slate-50 focus-within:bg-white border border-slate-300 focus-within:border-[#0A7CB3] focus-within:ring-1 focus-within:ring-[#0A7CB3] rounded-full'
       }`}>
         <Search className={`text-slate-400 shrink-0 ${isHero ? 'w-5 h-5 ml-4' : 'w-3.5 h-3.5 ml-3.5'}`} />
 
@@ -123,8 +123,8 @@ export default function TechSearchBar({
           }}
           className={`shrink-0 flex items-center justify-center text-white transition-all cursor-pointer ${
             isHero
-              ? 'bg-[#0056D2] hover:bg-blue-600 px-5 py-2.5 mr-2 rounded-xl text-xs font-bold shadow-xs'
-              : 'w-7 h-7 mr-1 rounded-full bg-[#0056D2] hover:bg-[#00419e]'
+              ? 'bg-[#0A7CB3] hover:bg-blue-600 px-5 py-2.5 mr-2 rounded-xl text-xs font-bold shadow-xs'
+              : 'w-7 h-7 mr-1 rounded-full bg-[#0A7CB3] hover:bg-[#086491]'
           }`}
           title="Search Curriculum"
         >
@@ -145,7 +145,7 @@ export default function TechSearchBar({
           
           {/* Header pill info */}
           <div className="px-4 py-2.5 bg-slate-50 flex items-center justify-between text-[11px] font-bold text-slate-500">
-            <div className="flex items-center gap-1.5 text-[#0056D2]">
+            <div className="flex items-center gap-1.5 text-[#0A7CB3]">
               <Sparkles className="w-3.5 h-3.5 text-blue-600" />
               <span>Open-Source Technology Feed</span>
             </div>
@@ -166,7 +166,7 @@ export default function TechSearchBar({
                   className="px-4 py-2.5 hover:bg-blue-50/70 transition-colors cursor-pointer flex items-center justify-between gap-3 group text-left"
                 >
                   <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-900 group-hover:text-[#0056D2] transition-colors flex items-center gap-2">
+                    <div className="text-xs font-bold text-slate-900 group-hover:text-[#0A7CB3] transition-colors flex items-center gap-2">
                       <span className="truncate">{item.name}</span>
                       {item.source === 'opensource' ? (
                         <span className="inline-flex items-center gap-0.5 text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded border border-emerald-200">
@@ -174,7 +174,7 @@ export default function TechSearchBar({
                           <span>OpenSource API</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-0.5 text-[9px] bg-blue-50 text-[#0056D2] px-1.5 py-0.2 rounded border border-blue-200">
+                        <span className="inline-flex items-center gap-0.5 text-[9px] bg-blue-50 text-[#0A7CB3] px-1.5 py-0.2 rounded border border-blue-200">
                           <span>Domain</span>
                         </span>
                       )}
@@ -184,7 +184,7 @@ export default function TechSearchBar({
                     </div>
                   </div>
 
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#0056D2] group-hover:translate-x-0.5 transition-all shrink-0" />
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#0A7CB3] group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
               ))
             )}
@@ -206,7 +206,7 @@ export default function TechSearchBar({
                     setIsOpen(false);
                     if (onSearch) onSearch(tag.query);
                   }}
-                  className="px-2.5 py-1 bg-white hover:bg-[#0056D2] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0056D2] rounded-lg text-[11px] font-semibold transition-all cursor-pointer shadow-2xs"
+                  className="px-2.5 py-1 bg-white hover:bg-[#0A7CB3] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0A7CB3] rounded-lg text-[11px] font-semibold transition-all cursor-pointer shadow-2xs"
                 >
                   {tag.label}
                 </button>

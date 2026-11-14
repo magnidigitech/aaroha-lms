@@ -324,15 +324,12 @@ export default function CourseClassroomView({
           className="cursor-pointer select-none group"
           title="Return to Catalog"
         >
-          <div className="bg-white hover:bg-slate-50 px-3.5 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2.5 shadow-xs transition-all group-hover:border-slate-300">
+          <div className="bg-white hover:bg-slate-50 px-3.5 py-1.5 rounded-xl border border-slate-200 flex items-center shadow-xs transition-all group-hover:border-slate-300">
             <img
               src={aarohaLogo}
               alt="Aaroha Technologies"
               className="h-6 sm:h-7 w-auto object-contain"
             />
-            <span className="text-[10px] font-black tracking-widest text-[#0056D2] uppercase pl-2 border-l border-slate-200 hidden sm:inline">
-              Academy
-            </span>
           </div>
         </div>
 
@@ -350,7 +347,7 @@ export default function CourseClassroomView({
           ) : (
             <button
               onClick={() => onEnroll(course)}
-              className="bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-97 cursor-pointer"
+              className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-97 cursor-pointer"
             >
               <Award className="w-4 h-4" />
               <span>Enroll in Program</span>
@@ -562,7 +559,7 @@ export default function CourseClassroomView({
                   </div>
                   <button
                     onClick={() => onEnroll(course)}
-                    className="bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
+                    className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
                   >
                     <Award className="w-4 h-4" />
                     <span>Enroll Now to Unlock All Lectures & Defense Labs</span>
@@ -631,7 +628,7 @@ export default function CourseClassroomView({
                 {hasNextLesson && (
                   <button
                     onClick={handleNextLesson}
-                    className="bg-[#0056D2] hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    className="bg-[#0A7CB3] hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                     title="Next Lesson"
                   >
                     <span>Next Lesson</span>
@@ -659,7 +656,7 @@ export default function CourseClassroomView({
                   onClick={() => setActiveTab('notes')}
                   className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'notes'
-                      ? 'border-[#0056D2] text-[#38bdf8]'
+                      ? 'border-[#0A7CB3] text-[#38bdf8]'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -672,7 +669,7 @@ export default function CourseClassroomView({
                     onClick={() => setActiveTab('tasks')}
                     className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                       activeTab === 'tasks'
-                        ? 'border-[#0056D2] text-[#38bdf8]'
+                        ? 'border-[#0A7CB3] text-[#38bdf8]'
                         : 'border-transparent text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -685,7 +682,7 @@ export default function CourseClassroomView({
                   onClick={() => setActiveTab('instructor')}
                   className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'instructor'
-                      ? 'border-[#0056D2] text-[#38bdf8]'
+                      ? 'border-[#0A7CB3] text-[#38bdf8]'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -755,7 +752,7 @@ export default function CourseClassroomView({
                                 value={submissionText}
                                 onChange={(e) => setSubmissionText(e.target.value)}
                                 placeholder="Detail your architecture choices, benchmarks, and edge failover handling..."
-                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-blue-500"
+                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                             <div>
@@ -765,7 +762,7 @@ export default function CourseClassroomView({
                                 value={attachmentUrl}
                                 onChange={(e) => setAttachmentUrl(e.target.value)}
                                 placeholder="https://github.com/org/repo or https://aaroha-inc.com/artifacts/rfc.pdf"
-                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0056D2] focus:ring-1 focus:ring-blue-500"
+                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                             <div className="flex items-center justify-between pt-1">
@@ -777,7 +774,7 @@ export default function CourseClassroomView({
                               <button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="ml-auto bg-[#0056D2] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                                className="ml-auto bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                               >
                                 <Send className="w-3.5 h-3.5" />
                                 <span>{isSubmitting ? 'Submitting...' : 'Submit Assignment'}</span>
@@ -892,7 +889,7 @@ export default function CourseClassroomView({
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Blue Module Circle Icon */}
-                        <div className="w-6 h-6 rounded-full bg-[#0056D2] text-white flex items-center justify-center text-xs font-bold shadow-xs flex-shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-[#0A7CB3] text-white flex items-center justify-center text-xs font-bold shadow-xs flex-shrink-0">
                           {modIdx + 1}
                         </div>
                         <div className="min-w-0">
@@ -932,7 +929,7 @@ export default function CourseClassroomView({
                               }}
                               className={`relative group rounded-xl p-2 flex items-center gap-3 transition-all cursor-pointer select-none ${
                                 isCurrent
-                                  ? 'bg-[#132d4e] border-2 border-[#0056D2] shadow-md'
+                                  ? 'bg-[#132d4e] border-2 border-[#0A7CB3] shadow-md'
                                   : 'bg-[#0F223A]/80 hover:bg-[#153154] border border-[#1b3d63]'
                               }`}
                             >

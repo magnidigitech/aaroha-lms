@@ -406,7 +406,7 @@ export default function DegreeModal({
                     setFacultyTitle(currentUser.title || 'Academic Faculty');
                     setFacultyAvatar(currentUser.avatar || '/avatars/3d/memo_1.png');
                   }}
-                  className="text-[11px] font-bold text-[#0056D2] hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-bold text-[#0A7CB3] hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <User className="w-3 h-3" />
                   <span>Apply My Profile</span>
@@ -472,7 +472,7 @@ export default function DegreeModal({
                     type="button"
                     onClick={() => setAvatarUploadTab('presets')}
                     className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      avatarUploadTab === 'presets' ? 'bg-white text-[#0056D2] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                      avatarUploadTab === 'presets' ? 'bg-white text-[#0A7CB3] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Sparkles className="w-3 h-3 text-amber-500" />
@@ -482,7 +482,7 @@ export default function DegreeModal({
                     type="button"
                     onClick={() => setAvatarUploadTab('upload')}
                     className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      avatarUploadTab === 'upload' ? 'bg-white text-[#0056D2] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                      avatarUploadTab === 'upload' ? 'bg-white text-[#0A7CB3] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Upload className="w-3 h-3" />
@@ -492,7 +492,7 @@ export default function DegreeModal({
                     type="button"
                     onClick={() => setAvatarUploadTab('url')}
                     className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      avatarUploadTab === 'url' ? 'bg-white text-[#0056D2] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                      avatarUploadTab === 'url' ? 'bg-white text-[#0A7CB3] shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Globe className="w-3 h-3" />
@@ -538,7 +538,7 @@ export default function DegreeModal({
                             type="button"
                             onClick={() => setFacultyAvatar(preset.url)}
                             className={`relative rounded-xl p-1 flex flex-col items-center transition-all cursor-pointer ${
-                              isSelected ? 'ring-2 ring-[#0056D2] bg-blue-50 shadow-2xs' : 'hover:bg-slate-100 hover:scale-105'
+                              isSelected ? 'ring-2 ring-[#0A7CB3] bg-blue-50 shadow-2xs' : 'hover:bg-slate-100 hover:scale-105'
                             }`}
                             title={`${preset.name} (${preset.gender})`}
                           >
@@ -552,7 +552,7 @@ export default function DegreeModal({
                               {preset.name}
                             </span>
                             {isSelected && (
-                              <div className="absolute top-0.5 right-0.5 w-3 h-3 bg-[#0056D2] text-white rounded-full flex items-center justify-center shadow-xs">
+                              <div className="absolute top-0.5 right-0.5 w-3 h-3 bg-[#0A7CB3] text-white rounded-full flex items-center justify-center shadow-xs">
                                 <Check className="w-2 h-2 stroke-[3]" />
                               </div>
                             )}
@@ -720,7 +720,7 @@ export default function DegreeModal({
             <button
               type="submit"
               disabled={isSaving}
-              className="px-5 py-2.5 bg-[#0056D2] hover:bg-[#00419e] disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer active:scale-98"
+              className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer active:scale-98"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isSaving ? 'Saving Program...' : (isEditMode ? 'Save Specifications' : 'Publish Degree Track')}</span>

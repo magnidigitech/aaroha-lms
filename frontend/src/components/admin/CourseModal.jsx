@@ -314,7 +314,7 @@ export default function CourseModal({
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0056D2] flex items-center justify-center border border-blue-200/80 shadow-xs">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#0A7CB3] flex items-center justify-center border border-blue-200/80 shadow-xs">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
@@ -348,11 +348,11 @@ export default function CourseModal({
                 className={
                   'py-3.5 px-3 sm:px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 whitespace-nowrap cursor-pointer ' +
                   (isActive 
-                    ? 'border-[#0056D2] text-[#0056D2] bg-blue-50/40' 
+                    ? 'border-[#0A7CB3] text-[#0A7CB3] bg-blue-50/40' 
                     : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50')
                 }
               >
-                <Icon className={'w-4 h-4 ' + (isActive ? 'text-[#0056D2]' : 'text-slate-400')} />
+                <Icon className={'w-4 h-4 ' + (isActive ? 'text-[#0A7CB3]' : 'text-slate-400')} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -518,7 +518,7 @@ export default function CourseModal({
                       onClick={() => setThumbnailUploadTab('upload')}
                       className={
                         'flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ' +
-                        (thumbnailUploadTab === 'upload' ? 'bg-white text-[#0056D2] shadow-xs' : 'text-slate-600 hover:text-slate-900')
+                        (thumbnailUploadTab === 'upload' ? 'bg-white text-[#0A7CB3] shadow-xs' : 'text-slate-600 hover:text-slate-900')
                       }
                     >
                       <Upload className="w-3.5 h-3.5" />
@@ -529,7 +529,7 @@ export default function CourseModal({
                       onClick={() => setThumbnailUploadTab('url')}
                       className={
                         'flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ' +
-                        (thumbnailUploadTab === 'url' ? 'bg-white text-[#0056D2] shadow-xs' : 'text-slate-600 hover:text-slate-900')
+                        (thumbnailUploadTab === 'url' ? 'bg-white text-[#0A7CB3] shadow-xs' : 'text-slate-600 hover:text-slate-900')
                       }
                     >
                       <Globe className="w-3.5 h-3.5" />
@@ -576,7 +576,7 @@ export default function CourseModal({
                         }}
                         className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white hover:bg-blue-50/40 rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1.5 group"
                       >
-                        <div className="w-9 h-9 rounded-full bg-blue-50 group-hover:bg-blue-100 text-[#0056D2] mx-auto flex items-center justify-center transition-colors">
+                        <div className="w-9 h-9 rounded-full bg-blue-50 group-hover:bg-blue-100 text-[#0A7CB3] mx-auto flex items-center justify-center transition-colors">
                           <Upload className="w-4 h-4" />
                         </div>
                         <div className="text-xs font-bold text-slate-800">
@@ -699,7 +699,7 @@ export default function CourseModal({
                   {currentSkillsList.map((skill, idx) => (
                     <span 
                       key={idx}
-                      className="px-2.5 py-1 bg-blue-50 text-[#0056D2] font-semibold text-[11px] rounded-md border border-blue-200/70"
+                      className="px-2.5 py-1 bg-blue-50 text-[#0A7CB3] font-semibold text-[11px] rounded-md border border-blue-200/70"
                     >
                       {skill}
                     </span>
@@ -773,7 +773,7 @@ export default function CourseModal({
                       onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-full bg-blue-100 text-[#0056D2] flex items-center justify-center font-bold text-lg border border-blue-200">
+                    <div className="w-14 h-14 rounded-full bg-blue-100 text-[#0A7CB3] flex items-center justify-center font-bold text-lg border border-blue-200">
                       {(formData.instructor_name || currentUser?.full_name || 'F').charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -784,7 +784,7 @@ export default function CourseModal({
                     {formData.instructor_name || currentUser?.full_name || 'Faculty'}
                   </div>
                   {(formData.instructor_title || currentUser?.title) ? (
-                    <div className="text-[#0056D2] font-semibold text-[11px] truncate mt-0.5">
+                    <div className="text-[#0A7CB3] font-semibold text-[11px] truncate mt-0.5">
                       {formData.instructor_title || currentUser?.title}
                     </div>
                   ) : null}
@@ -807,7 +807,7 @@ export default function CourseModal({
                       }));
                       setIsDirty(true);
                     }}
-                    className="shrink-0 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0056D2] rounded-xl text-[11px] font-bold border border-blue-200 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    className="shrink-0 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0A7CB3] rounded-xl text-[11px] font-bold border border-blue-200 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                     title="Fill all faculty fields with your logged-in profile"
                   >
                     <User className="w-3.5 h-3.5" />
@@ -867,7 +867,7 @@ export default function CourseModal({
                     <button
                       type="button"
                       onClick={() => handleChange('instructor_avatar', currentUser.avatar)}
-                      className="text-[11px] font-bold text-[#0056D2] hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-bold text-[#0A7CB3] hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <User className="w-3 h-3" />
                       <span>Use My Profile Photo</span>
@@ -883,7 +883,7 @@ export default function CourseModal({
                       onClick={() => setAvatarUploadTab('upload')}
                       className={
                         'flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ' +
-                        (avatarUploadTab === 'upload' ? 'bg-white text-[#0056D2] shadow-xs' : 'text-slate-600 hover:text-slate-900')
+                        (avatarUploadTab === 'upload' ? 'bg-white text-[#0A7CB3] shadow-xs' : 'text-slate-600 hover:text-slate-900')
                       }
                     >
                       <Upload className="w-3.5 h-3.5" />
@@ -894,7 +894,7 @@ export default function CourseModal({
                       onClick={() => setAvatarUploadTab('presets')}
                       className={
                         'flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ' +
-                        (avatarUploadTab === 'presets' ? 'bg-white text-[#0056D2] shadow-xs' : 'text-slate-600 hover:text-slate-900')
+                        (avatarUploadTab === 'presets' ? 'bg-white text-[#0A7CB3] shadow-xs' : 'text-slate-600 hover:text-slate-900')
                       }
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -905,7 +905,7 @@ export default function CourseModal({
                       onClick={() => setAvatarUploadTab('url')}
                       className={
                         'flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ' +
-                        (avatarUploadTab === 'url' ? 'bg-white text-[#0056D2] shadow-xs' : 'text-slate-600 hover:text-slate-900')
+                        (avatarUploadTab === 'url' ? 'bg-white text-[#0A7CB3] shadow-xs' : 'text-slate-600 hover:text-slate-900')
                       }
                     >
                       <Globe className="w-3.5 h-3.5" />
@@ -953,7 +953,7 @@ export default function CourseModal({
                         }}
                         className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white hover:bg-blue-50/40 rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1.5 group"
                       >
-                        <div className="w-9 h-9 rounded-full bg-blue-50 group-hover:bg-blue-100 text-[#0056D2] mx-auto flex items-center justify-center transition-colors">
+                        <div className="w-9 h-9 rounded-full bg-blue-50 group-hover:bg-blue-100 text-[#0A7CB3] mx-auto flex items-center justify-center transition-colors">
                           <Upload className="w-4 h-4" />
                         </div>
                         <div className="text-xs font-bold text-slate-800">
@@ -1003,7 +1003,7 @@ export default function CourseModal({
                               className={
                                 'relative rounded-xl p-1 transition-all cursor-pointer group flex flex-col items-center ' +
                                 (isSelected 
-                                  ? 'ring-2 ring-[#0056D2] bg-blue-50 shadow-xs' 
+                                  ? 'ring-2 ring-[#0A7CB3] bg-blue-50 shadow-xs' 
                                   : 'hover:bg-slate-100 hover:scale-105')
                               }
                               title={preset.name}
@@ -1018,7 +1018,7 @@ export default function CourseModal({
                                 {preset.name}
                               </span>
                               {isSelected && (
-                                <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-[#0056D2] text-white rounded-full flex items-center justify-center">
+                                <div className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-[#0A7CB3] text-white rounded-full flex items-center justify-center">
                                   <Check className="w-2.5 h-2.5 stroke-[3]" />
                                 </div>
                               )}
