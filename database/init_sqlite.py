@@ -163,6 +163,24 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
         FOREIGN KEY (issuer_id) REFERENCES users (id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS student_rankings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        course_id INTEGER,
+        rank_position INTEGER NOT NULL DEFAULT 1,
+        points INTEGER NOT NULL DEFAULT 0,
+        grade_pct REAL NOT NULL DEFAULT 0.00,
+        badge_text TEXT DEFAULT 'Top Performer',
+        faculty_notes TEXT,
+        lessons_completed INTEGER NOT NULL DEFAULT 0,
+        tasks_completed INTEGER NOT NULL DEFAULT 0,
+        updated_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE SET NULL
+    );
     """)
 
     # Seed data

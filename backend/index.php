@@ -10,6 +10,7 @@ require_once __DIR__ . '/controllers/EnrollmentController.php';
 require_once __DIR__ . '/controllers/TaskController.php';
 require_once __DIR__ . '/controllers/PlaybackController.php';
 require_once __DIR__ . '/controllers/CertificateController.php';
+require_once __DIR__ . '/controllers/LeaderboardController.php';
 
 // 1. Handle CORS Preflight and Headers
 handleCORS();
@@ -194,6 +195,27 @@ try {
     }
     elseif ($requestMethod === 'GET' && preg_match('#^/certificates/verify/([^/]+)$#', $path, $matches)) {
         $response = CertificateController::verifyCertificate($matches[1]);
+    }
+
+    // -------------------------------------------------------------
+    // STUDENT RANKING & ACADEMIC LEADERBOARD
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'GET' && $path === '/leaderboard') {
+        $user = AuthMiddleware::getOptionalAuth();
+        $courseId = isset($_GET['course_id']) ? (int)$_GET['course_id'] : null;
+        $response = LeaderboardController::getLeaderboard($courseId, $user);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/leaderboard') {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = LeaderboardController::createRanking($inputData, $admin);
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/leaderboard/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = LeaderboardController::updateRanking((int)$matches[1], $inputData, $admin);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/leaderboard/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = LeaderboardController::deleteRanking((int)$matches[1], $admin);
     }
 
     // -------------------------------------------------------------

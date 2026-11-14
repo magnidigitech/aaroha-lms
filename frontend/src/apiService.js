@@ -187,6 +187,26 @@ export const api = {
 
   getMyCertificates: () => request('/student/certificates'),
 
-  verifyCertificate: (code) => request('/certificates/verify/' + encodeURIComponent(code))
+  verifyCertificate: (code) => request('/certificates/verify/' + encodeURIComponent(code)),
+
+  // Student Ranking & Academic Leaderboard
+  getLeaderboard: (courseId = null) => {
+    const query = courseId ? `?course_id=${encodeURIComponent(courseId)}` : '';
+    return request(`/leaderboard${query}`);
+  },
+
+  updateLeaderboardRanking: (rankingId, data) => request(`/leaderboard/${rankingId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  createLeaderboardRanking: (data) => request('/leaderboard', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  deleteLeaderboardRanking: (rankingId) => request(`/leaderboard/${rankingId}`, {
+    method: 'DELETE'
+  })
 };
 

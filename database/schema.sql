@@ -171,6 +171,28 @@ CREATE TABLE IF NOT EXISTS certificates (
     CONSTRAINT fk_cert_issuer FOREIGN KEY (issuer_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 11. Student Rankings Table (Academic Leaderboard)
+CREATE TABLE IF NOT EXISTS student_rankings (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    course_id INT UNSIGNED NULL,
+    rank_position INT UNSIGNED NOT NULL DEFAULT 1,
+    points INT UNSIGNED NOT NULL DEFAULT 0,
+    grade_pct DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    badge_text VARCHAR(100) NULL DEFAULT 'Top Performer',
+    faculty_notes TEXT NULL,
+    lessons_completed INT UNSIGNED NOT NULL DEFAULT 0,
+    tasks_completed INT UNSIGNED NOT NULL DEFAULT 0,
+    updated_by INT UNSIGNED NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_sr_user_course (user_id, course_id),
+    INDEX idx_sr_rank (rank_position, points),
+    CONSTRAINT fk_sr_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_sr_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE SET NULL,
+    CONSTRAINT fk_sr_updater FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- -------------------------------------------------------------
 -- PERFORMANCE INDEXES
 -- -------------------------------------------------------------

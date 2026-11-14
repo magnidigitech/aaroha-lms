@@ -9,6 +9,8 @@ import DegreesCertificatesView from './components/DegreesCertificatesView';
 import CertificateModal from './components/CertificateModal';
 import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
+import LeaderboardToggle from './components/LeaderboardToggle';
+import LeaderboardDrawer from './components/LeaderboardDrawer';
 import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions, initialCertificates } from './mockData';
 import { CheckCircle2 } from 'lucide-react';
 import aarohaLogo from './assets/aaroha_logo.webp';
@@ -64,6 +66,7 @@ export default function App() {
   });
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
   const [deletedCourseIds, setDeletedCourseIds] = useState(() => {
     try {
@@ -1518,6 +1521,21 @@ export default function App() {
         isOpen={!!viewingCertificate}
         onClose={() => setViewingCertificate(null)}
         certificate={viewingCertificate}
+      />
+
+      {/* Student Ranking Leaderboard Toggle on Right Edge */}
+      <LeaderboardToggle 
+        isOpen={isLeaderboardOpen} 
+        onToggle={() => setIsLeaderboardOpen(prev => !prev)} 
+      />
+
+      {/* Student Ranking Leaderboard Drawer (Read-Only for students, Editable for faculty) */}
+      <LeaderboardDrawer
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
+        currentUser={currentUser}
+        courses={courses}
+        showToast={showToast}
       />
 
       {/* Coursera-Style Multi-Column Footer (Hidden only in focused classroom view) */}
