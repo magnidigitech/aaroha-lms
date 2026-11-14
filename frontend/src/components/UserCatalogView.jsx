@@ -1,69 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, Star, CheckCircle2, ArrowRight, Award, BookOpen, 
-  Sparkles, X, Terminal, Cpu, ShieldCheck, Layers 
+  Sparkles, X, Cpu, ShieldCheck, Layers 
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import TechSearchBar from './TechSearchBar';
 import { courseMatchesQuery, POPULAR_TECHNOLOGY_TAGS } from '../techTaxonomy';
 
-const HERO_TRACKS = [
-  {
-    id: 'cloud',
-    category: 'Cloud Architecture',
-    courseId: 1,
-    title: 'Distributed Cloud Architecture & High-Throughput Systems',
-    label: 'Cloud Systems',
-    badge: '120k QPS Sustained · P99 < 8.4ms',
-    faculty: {
-      name: 'Dr. Aris Thorne',
-      title: 'Chair of Distributed Infrastructure',
-      avatar: '/avatars/3d/memo_1.png'
-    },
-    specs: '36 ECTS Credits · 12 Months',
-    terminalSnippet: [
-      'raft.commit_index = 84192 // quorum [node-1, node-2, node-3]',
-      'storage_engine: RocksDB LSM compaction tier-1 active',
-      'bench: 124,500 req/s | p99: 8.2ms | zero-drop ingress'
-    ]
-  },
+const HERO_TECH_SHOWCASE = [
   {
     id: 'ai',
-    category: 'Applied AI',
     courseId: 2,
+    domain: 'Applied Artificial Intelligence',
     title: 'Applied Machine Learning & Low-Latency Model Serving',
-    label: 'Applied AI',
-    badge: '1,840 Tok/s · Sub-50ms SLA',
+    category: 'Applied AI',
+    rating: '4.9',
+    enrolled: '18,400+ Engineers',
+    image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80',
+    tagline: 'Transformer Inference · Triton · AWQ',
+    floatingBadges: [
+      { text: 'vLLM Serving', icon: 'Sparkles', pos: 'top-3 left-3', style: 'bg-white/95 text-purple-700 shadow-md border-purple-100', anim: 'animate-float-slow' },
+      { text: 'Sub-50ms P99 SLA', icon: 'Cpu', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-purple-300 shadow-md border-slate-700', anim: 'animate-float-reverse' },
+      { text: 'AWQ 4-Bit Quant', icon: 'CheckCircle2', pos: 'bottom-3 left-3', style: 'bg-white/95 text-slate-800 shadow-md border-slate-200', anim: 'animate-float-reverse' },
+      { text: 'GPU Distributed', icon: 'Layers', pos: 'bottom-3 right-3', style: 'bg-purple-600 text-white shadow-md border-purple-500', anim: 'animate-float-slow' }
+    ],
     faculty: {
       name: 'Dr. Marcus Vance',
       title: 'Distinguished ML Systems Engineer',
       avatar: '/avatars/3d/memo_3.png'
-    },
-    specs: '32 ECTS Credits · 10 Months',
-    terminalSnippet: [
-      'vllm.serve(model="qwen-72b-awq", tensor_parallel=4)',
-      'triton_ensemble: dynamic_batching enabled (max_queue=32)',
-      'bench: 1,840 tok/s | p99: 42.1ms | KV-cache: 76.2%'
-    ]
+    }
+  },
+  {
+    id: 'cloud',
+    courseId: 1,
+    domain: 'Distributed Cloud Systems',
+    title: 'Distributed Cloud Architecture & High-Throughput Systems',
+    category: 'Cloud Architecture',
+    rating: '4.9',
+    enrolled: '24,200+ Engineers',
+    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+    tagline: 'Raft Consensus · BGP Anycast · RocksDB',
+    floatingBadges: [
+      { text: '120k QPS Sustained', icon: 'Cpu', pos: 'top-3 left-3', style: 'bg-white/95 text-blue-700 shadow-md border-blue-100', anim: 'animate-float-slow' },
+      { text: 'Raft Consensus Protocol', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-blue-300 shadow-md border-slate-700', anim: 'animate-float-reverse' },
+      { text: 'RocksDB LSM Compaction', icon: 'CheckCircle2', pos: 'bottom-3 left-3', style: 'bg-white/95 text-slate-800 shadow-md border-slate-200', anim: 'animate-float-reverse' },
+      { text: 'BGP Anycast Routing', icon: 'Sparkles', pos: 'bottom-3 right-3', style: 'bg-blue-600 text-white shadow-md border-blue-500', anim: 'animate-float-slow' }
+    ],
+    faculty: {
+      name: 'Dr. Aris Thorne',
+      title: 'Chair of Distributed Infrastructure',
+      avatar: '/avatars/3d/memo_1.png'
+    }
   },
   {
     id: 'cyber',
-    category: 'Cybersecurity',
     courseId: 3,
     title: 'Enterprise Cyber Defense & Zero-Trust Architecture',
-    label: 'Cyber Defense',
-    badge: 'Zero-Trust SPIFFE · eBPF Kernel Live',
+    domain: 'Zero-Trust Cybersecurity',
+    category: 'Cybersecurity',
+    rating: '4.9',
+    enrolled: '14,800+ Engineers',
+    image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80',
+    tagline: 'Zero-Trust SPIFFE · eBPF Kernel Telemetry · SLSA L3',
+    floatingBadges: [
+      { text: 'eBPF Kernel Probes', icon: 'ShieldCheck', pos: 'top-3 left-3', style: 'bg-white/95 text-emerald-700 shadow-md border-emerald-100', anim: 'animate-float-slow' },
+      { text: 'Zero-Trust SPIFFE mTLS', icon: 'Layers', pos: 'top-3 right-3', style: 'bg-slate-900/90 text-emerald-300 shadow-md border-slate-700', anim: 'animate-float-reverse' },
+      { text: 'Sigstore SLSA L3 Attest', icon: 'CheckCircle2', pos: 'bottom-3 left-3', style: 'bg-white/95 text-slate-800 shadow-md border-slate-200', anim: 'animate-float-reverse' },
+      { text: 'Red Team Defense', icon: 'Sparkles', pos: 'bottom-3 right-3', style: 'bg-emerald-600 text-white shadow-md border-emerald-500', anim: 'animate-float-slow' }
+    ],
     faculty: {
       name: 'Katarina Wolf',
       title: 'Principal Security Architect',
       avatar: '/avatars/3d/memo_14.png'
-    },
-    specs: '24 ECTS Credits · 8 Months',
-    terminalSnippet: [
-      'cosign.verify(image="prod-cluster:v2.4", key="sigstore.pub")',
-      'ebpf_probe: syscall_sys_enter_execve [VERIFIED SAFE]',
-      'admission_controller: Kyverno strict mTLS enforced'
-    ]
+    }
   }
 ];
 
@@ -75,8 +84,26 @@ export default function UserCatalogView({
   selectedCategory,
   setSelectedCategory
 }) {
-  const [activeHeroTrackId, setActiveHeroTrackId] = useState('cloud');
-  const activeTrack = HERO_TRACKS.find(t => t.id === activeHeroTrackId) || HERO_TRACKS[0];
+  const [activeShowcaseIdx, setActiveShowcaseIdx] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setActiveShowcaseIdx(prev => (prev + 1) % HERO_TECH_SHOWCASE.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const currentTech = HERO_TECH_SHOWCASE[activeShowcaseIdx];
+
+  const renderBadgeIcon = (name) => {
+    if (name === 'Sparkles') return <Sparkles className="w-3 h-3 shrink-0" />;
+    if (name === 'Cpu') return <Cpu className="w-3 h-3 shrink-0" />;
+    if (name === 'ShieldCheck') return <ShieldCheck className="w-3 h-3 shrink-0" />;
+    if (name === 'Layers') return <Layers className="w-3 h-3 shrink-0" />;
+    return <CheckCircle2 className="w-3 h-3 shrink-0" />;
+  };
   const dynamicCategories = ['All', ...Array.from(new Set([
     'Applied AI',
     'Cloud Architecture',
@@ -192,105 +219,117 @@ export default function UserCatalogView({
             </div>
           </div>
 
-          {/* Right Column: Interactive Live Engineering Specialization Console (lg:col-span-5) */}
-          <div className="lg:col-span-5">
-            <div className="bg-slate-900 text-white rounded-3xl border border-slate-800 shadow-xl overflow-hidden transition-all duration-300">
-              
-              {/* Interactive Track Switcher Tabs */}
-              <div className="bg-slate-950/80 p-2 border-b border-slate-800 flex items-center gap-1 overflow-x-auto scrollbar-none">
-                {HERO_TRACKS.map(t => (
+          {/* Right Column: Animated Visual Technology Showcase (lg:col-span-5) */}
+          <div 
+            className="lg:col-span-5"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
+            {/* Domain Selection Tabs & Progress Dots */}
+            <div className="flex items-center justify-between gap-1 mb-2.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+                {HERO_TECH_SHOWCASE.map((t, idx) => (
                   <button
                     key={t.id}
-                    onClick={() => setActiveHeroTrackId(t.id)}
-                    className={'px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ' +
-                      (activeHeroTrackId === t.id
+                    onClick={() => {
+                      setActiveShowcaseIdx(idx);
+                      setIsPaused(true);
+                    }}
+                    className={'px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ' +
+                      (activeShowcaseIdx === idx
                         ? 'bg-[#0056D2] text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60')}
+                        : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
                   >
-                    <span>{t.label}</span>
+                    <span>{t.domain.split(' ')[0]} {t.domain.split(' ')[1] || ''}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Console Body */}
-              <div className="p-5 sm:p-6 space-y-4">
-                
-                {/* Live Verification Status Header */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-400">
-                      Live Architectural Verification
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    {activeTrack.specs.split('·')[0].trim()}
-                  </span>
-                </div>
-
-                {/* Course Title & Invariant Badge */}
-                <div className="space-y-2">
-                  <div className="inline-block px-2.5 py-1 rounded-md text-[11px] font-mono font-bold border border-slate-700 bg-slate-950/90 text-slate-200">
-                    {activeTrack.badge}
-                  </div>
-                  <h3 className="text-base sm:text-lg font-black text-white leading-snug line-clamp-2">
-                    {activeTrack.title}
-                  </h3>
-                </div>
-
-                {/* Terminal / Metric Telemetry Preview Box */}
-                <div className="bg-slate-950 rounded-xl p-3 border border-slate-800/80 font-mono text-[11px] text-slate-300 space-y-1 overflow-x-auto">
-                  <div className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1.5 mb-1.5">
-                    <Terminal className="w-3 h-3 text-blue-400" />
-                    <span>Invariant Validation Benchmark</span>
-                  </div>
-                  {activeTrack.terminalSnippet.map((line, lIdx) => (
-                    <div key={lIdx} className="leading-relaxed truncate">
-                      <span className="text-blue-400 select-none">❯ </span>
-                      <span className={lIdx === 0 ? 'text-slate-200' : lIdx === 2 ? 'text-emerald-400' : 'text-slate-400'}>
-                        {line}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Faculty Chair Info & Action */}
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <img
-                      src={activeTrack.faculty.avatar}
-                      alt={activeTrack.faculty.name}
-                      onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
-                      className="w-9 h-9 rounded-full object-cover border border-slate-700 shadow-xs flex-shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-white truncate">
-                        {activeTrack.faculty.name}
-                      </div>
-                      <div className="text-[10.5px] text-slate-400 truncate">
-                        {activeTrack.faculty.title}
-                      </div>
-                    </div>
-                  </div>
-
+              {/* Progress Indicators */}
+              <div className="flex items-center gap-1 shrink-0 px-1">
+                {HERO_TECH_SHOWCASE.map((_, idx) => (
                   <button
+                    key={idx}
                     onClick={() => {
-                      const matched = courses.find(c => c.id === activeTrack.courseId) || courses[0];
-                      if (matched && onOpenCourseDetails) {
-                        onOpenCourseDetails(matched);
-                      }
+                      setActiveShowcaseIdx(idx);
+                      setIsPaused(true);
                     }}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-2xs"
+                    aria-label={`Slide ${idx + 1}`}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      activeShowcaseIdx === idx ? 'w-5 bg-[#0056D2]' : 'w-1.5 bg-slate-300 hover:bg-slate-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Showcase Visual Card */}
+            <div 
+              onClick={() => {
+                const matched = courses.find(c => c.id === currentTech.courseId) || courses[0];
+                if (matched && onOpenCourseDetails) onOpenCourseDetails(matched);
+              }}
+              className="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 p-4 sm:p-5 space-y-3.5 group cursor-pointer relative overflow-hidden"
+            >
+              {/* Image Container with Floating Animated Tech Badges */}
+              <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-slate-100 shadow-2xs">
+                <img
+                  key={currentTech.id}
+                  src={currentTech.image}
+                  alt={currentTech.domain}
+                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-700 animate-in fade-in zoom-in-95 duration-500"
+                />
+                
+                {/* Soft gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent pointer-events-none" />
+
+                {/* Floating Technology Animated Badges */}
+                {currentTech.floatingBadges.map((badge, bIdx) => (
+                  <div
+                    key={bIdx}
+                    className={`absolute ${badge.pos} ${badge.anim} ${badge.style} px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 border transition-all z-20 pointer-events-none`}
                   >
-                    <span>Inspect Track</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                    {renderBadgeIcon(badge.icon)}
+                    <span>{badge.text}</span>
+                  </div>
+                ))}
+
+                {/* Bottom Overlay Label */}
+                <div className="absolute bottom-3 left-3.5 right-3.5 text-white z-20 pointer-events-none">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-blue-200">
+                    {currentTech.category} · {currentTech.rating} ★ ({currentTech.enrolled})
+                  </div>
+                  <div className="text-xs sm:text-sm font-black text-white truncate drop-shadow-xs">
+                    {currentTech.title}
+                  </div>
+                </div>
+              </div>
+
+              {/* Faculty & Action Footer */}
+              <div className="flex items-center justify-between gap-3 pt-0.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <img
+                    src={currentTech.faculty.avatar}
+                    alt={currentTech.faculty.name}
+                    onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_1.png'; }}
+                    className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-900 truncate">
+                      {currentTech.faculty.name}
+                    </div>
+                    <div className="text-[11px] text-slate-500 truncate">
+                      {currentTech.faculty.title}
+                    </div>
+                  </div>
                 </div>
 
+                <div className="flex items-center gap-1 text-xs font-bold text-[#0056D2] group-hover:text-[#00419e] group-hover:translate-x-0.5 transition-all shrink-0">
+                  <span>Explore Track</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </div>
               </div>
+
             </div>
           </div>
 

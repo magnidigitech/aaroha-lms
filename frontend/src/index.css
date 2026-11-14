@@ -33,6 +33,32 @@ body {
   animation: white-pulse-glow 1.8s infinite ease-in-out;
 }
 
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 3.8s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 4.2s ease-in-out infinite;
+}
+
 /* Accredited Certificate Print & PDF Engine */
 @media print {
   body * {
