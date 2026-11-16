@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Layers, PlusCircle, Calendar, Users, GraduationCap,
   MapPin, CheckCircle2, Clock, AlertCircle, X, Search,
-  Edit3, UserMinus, UserPlus, Check, ChevronDown, Archive, Trash2, RotateCcw
+  Edit3, UserMinus, UserPlus, Check, ChevronDown, Archive, Trash2, RotateCcw,
+  AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import { formatDate } from '../../adminUtils';
 import api from '../../apiService';
@@ -15,6 +16,9 @@ export default function AdminBatchesTab({
   onCreateBatch,
   onUpdateBatch
 }) {
+  const [rosterView, setRosterView] = useState('active'); // 'active' | 'archived'
+  const [archivedBatches, setArchivedBatches] = useState([]);
+  const [isArchivedLoading, setIsArchivedLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [courseFilter, setCourseFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -22,32 +26,87 @@ export default function AdminBatchesTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Delete Batch Modal
+  // Load archived batches from database
+  const loadArchivedBatches = async () => {
+    try {
+      setIsArchivedLoading(true);
+      const res = await api.adminGetBatches({ view: 'archived' });
+      if (res && res.batches) {
+        setArchivedBatches(res.batches);
+      }
+    } catch (err) {
+      console.warn('Failed to load archived batches:', err);
+    } finally {
+      setIsArchivedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (rosterView === 'archived') {
+      loadArchivedBatches();
+    }
+  }, [rosterView]);
+
+  // Delete / Dependency Assessment Modal State
   const [deleteBatchModal, setDeleteBatchModal] = useState({
     isOpen: false,
     batch: null,
+    isChecking: false,
+    eligibility: null,
+    confirmText: '',
     isSubmitting: false,
     error: ''
   });
 
-  const handleOpenDeleteBatch = (batch) => {
+  const handleOpenDeleteBatch = async (batch) => {
     setDeleteBatchModal({
       isOpen: true,
       batch,
+      isChecking: true,
+      eligibility: null,
+      confirmText: '',
       isSubmitting: false,
       error: ''
     });
+    try {
+      const res = await api.adminCheckBatchDeletion(batch.id);
+      setDeleteBatchModal(prev => ({
+        ...prev,
+        isChecking: false,
+        eligibility: res
+      }));
+    } catch (err) {
+      setDeleteBatchModal(prev => ({
+        ...prev,
+        isChecking: false,
+        error: err.message || 'Failed to inspect cohort dependencies.'
+      }));
+    }
   };
 
-  const handleExecuteDeleteBatch = async () => {
+  const handleExecutePermanentDelete = async () => {
+    if (!deleteBatchModal.batch || deleteBatchModal.confirmText !== 'DELETE') return;
+    try {
+      setDeleteBatchModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
+      await api.adminDeleteBatch(deleteBatchModal.batch.id, { permanent: true });
+      setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
+      if (onUpdateBatch) await onUpdateBatch();
+      if (rosterView === 'archived') await loadArchivedBatches();
+    } catch (err) {
+      setDeleteBatchModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to permanently delete cohort batch.' }));
+    }
+  };
+
+  const handleArchiveFromModal = async () => {
     if (!deleteBatchModal.batch) return;
     try {
       setDeleteBatchModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
-      await api.adminDeleteBatch(deleteBatchModal.batch.id);
-      setDeleteBatchModal({ isOpen: false, batch: null, isSubmitting: false, error: '' });
+      await api.adminArchiveBatch(deleteBatchModal.batch.id);
+      setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
       if (onUpdateBatch) await onUpdateBatch();
+      if (rosterView === 'archived') await loadArchivedBatches();
     } catch (err) {
-      setDeleteBatchModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to delete batch.' }));
+      setDeleteBatchModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to archive cohort batch.' }));
     }
   };
 
@@ -55,8 +114,31 @@ export default function AdminBatchesTab({
     try {
       await api.adminRestoreBatch(batchId);
       if (onUpdateBatch) await onUpdateBatch();
+      if (rosterView === 'archived') await loadArchivedBatches();
     } catch (err) {
       alert('Failed to restore batch: ' + err.message);
+    }
+  };
+
+  // Super Admin Cleanup Modal State
+  const [cleanupModal, setCleanupModal] = useState({
+    isOpen: false,
+    confirmText: '',
+    isSubmitting: false,
+    result: null,
+    error: ''
+  });
+
+  const handleExecuteCleanup = async () => {
+    if (cleanupModal.confirmText !== 'CLEANUP-TESTS') return;
+    try {
+      setCleanupModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
+      const res = await api.adminCleanupTestBatches();
+      setCleanupModal(prev => ({ ...prev, isSubmitting: false, result: res }));
+      if (onUpdateBatch) await onUpdateBatch();
+      if (rosterView === 'archived') await loadArchivedBatches();
+    } catch (err) {
+      setCleanupModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to clean up test batches.' }));
     }
   };
 
@@ -84,7 +166,8 @@ export default function AdminBatchesTab({
   });
 
   // Filter batches: only filters displayed records, never writes to backend
-  const filteredBatches = batches.filter(b => {
+  const currentBatchList = rosterView === 'archived' ? archivedBatches : batches;
+  const filteredBatches = currentBatchList.filter(b => {
     const matchesSearch = !searchTerm ||
       (b.batch_code && b.batch_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (b.title && b.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -250,15 +333,55 @@ export default function AdminBatchesTab({
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setFormError('');
-            setIsCreateModalOpen(true);
-          }}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0a7cb3] hover:bg-[#086491] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-        >
-          <PlusCircle size={15} /> Create Batch
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setCleanupModal({ isOpen: true, confirmText: '', isSubmitting: false, result: null, error: '' })}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300 transition-colors cursor-pointer"
+            title="Clean up disposable test cohorts"
+          >
+            <ShieldAlert size={14} className="text-amber-600" />
+            <span>Clean Up Test Batches</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setFormError('');
+              setIsCreateModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0a7cb3] hover:bg-[#086491] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <PlusCircle size={15} /> Create Batch
+          </button>
+        </div>
+      </div>
+
+      {/* Roster View Toggle: Active vs Archived */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setRosterView('active')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              rosterView === 'active'
+                ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Active Cohorts ({batches.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setRosterView('archived')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+              rosterView === 'archived'
+                ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Archived Batches ({archivedBatches.length})
+          </button>
+        </div>
       </div>
 
       {/* Filter bar: Separated strictly from data modification */}
@@ -473,26 +596,15 @@ export default function AdminBatchesTab({
                       </button>
                     )}
 
-                    {/* Delete Batch (Permitted when 0 students enrolled) */}
-                    {enrolled === 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDeleteBatch(b)}
-                        className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                        title="Delete Cohort Batch (Zero Enrolled Students)"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 cursor-not-allowed"
-                        title={`Cannot delete batch: ${enrolled} active student(s) enrolled`}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    )}
+                    {/* Delete / Dependency Review Button (Always discoverable) */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDeleteBatch(b)}
+                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Review Deletion Dependencies / Archive Cohort"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -959,25 +1071,135 @@ export default function AdminBatchesTab({
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* MODAL: DELETE BATCH CONFIRMATION                             */}
+      {/* MODAL: COHORT DELETION & ARCHIVE DEPENDENCY REVIEW            */}
       {/* ------------------------------------------------------------- */}
       {deleteBatchModal.isOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 text-xs">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-slate-900">Delete Cohort Batch</h3>
-                <p className="text-slate-600 leading-relaxed">
-                  Permanently delete batch <strong className="text-slate-900">{deleteBatchModal.batch?.batch_code}</strong> ({deleteBatchModal.batch?.title}).
-                </p>
-                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] mt-2">
-                  ✓ Safety Verification Passed: This batch currently has 0 enrolled students and can be safely deleted without impacting learner records.
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4 text-xs">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Cohort Deletion & Archive Assessment</h3>
+                  <p className="text-slate-500 text-xs">
+                    <span className="font-mono font-semibold text-[#0a7cb3]">{deleteBatchModal.batch?.batch_code}</span> — {deleteBatchModal.batch?.title}
+                  </p>
                 </div>
               </div>
+              <button
+                onClick={() => setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' })}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
             </div>
+
+            {deleteBatchModal.isChecking ? (
+              <div className="py-8 text-center text-slate-500 space-y-2">
+                <div className="animate-spin w-6 h-6 border-2 border-[#0a7cb3] border-t-transparent rounded-full mx-auto" />
+                <p className="font-medium text-xs">Analyzing cohort dependencies across academic records...</p>
+              </div>
+            ) : deleteBatchModal.eligibility ? (
+              <div className="space-y-4">
+                {/* Dependency Summary Grid */}
+                <div className="space-y-2">
+                  <span className="text-slate-700 font-semibold block text-xs">Academic Dependency Summary:</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-slate-500 text-[10px] block uppercase font-medium">Students</span>
+                      <span className={`text-base font-bold ${deleteBatchModal.eligibility.dependencies?.enrolled_students > 0 ? 'text-amber-700 font-mono' : 'text-slate-800 font-mono'}`}>
+                        {deleteBatchModal.eligibility.dependencies?.enrolled_students || 0}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-slate-500 text-[10px] block uppercase font-medium">Faculty</span>
+                      <span className={`text-base font-bold ${deleteBatchModal.eligibility.dependencies?.faculty_assignments > 0 ? 'text-amber-700 font-mono' : 'text-slate-800 font-mono'}`}>
+                        {deleteBatchModal.eligibility.dependencies?.faculty_assignments || 0}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-slate-500 text-[10px] block uppercase font-medium">Sessions</span>
+                      <span className={`text-base font-bold ${deleteBatchModal.eligibility.dependencies?.scheduled_sessions > 0 ? 'text-amber-700 font-mono' : 'text-slate-800 font-mono'}`}>
+                        {deleteBatchModal.eligibility.dependencies?.scheduled_sessions || 0}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-slate-500 text-[10px] block uppercase font-medium">Attendance</span>
+                      <span className={`text-base font-bold ${deleteBatchModal.eligibility.dependencies?.attendance_records > 0 ? 'text-amber-700 font-mono' : 'text-slate-800 font-mono'}`}>
+                        {deleteBatchModal.eligibility.dependencies?.attendance_records || 0}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-slate-500 text-[10px] block uppercase font-medium">Submissions</span>
+                      <span className={`text-base font-bold ${deleteBatchModal.eligibility.dependencies?.task_submissions > 0 ? 'text-amber-700 font-mono' : 'text-slate-800 font-mono'}`}>
+                        {deleteBatchModal.eligibility.dependencies?.task_submissions || 0}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-center">
+                      <span className="text-slate-500 text-[10px] block uppercase font-medium">Certificates</span>
+                      <span className={`text-base font-bold ${deleteBatchModal.eligibility.dependencies?.issued_certificates > 0 ? 'text-amber-700 font-mono' : 'text-slate-800 font-mono'}`}>
+                        {deleteBatchModal.eligibility.dependencies?.issued_certificates || 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {deleteBatchModal.eligibility.can_delete_permanently ? (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1">
+                      <span className="font-semibold block flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-700" />
+                        Zero Academic Dependencies Detected
+                      </span>
+                      <p className="text-[11px] text-emerald-800">
+                        This batch contains no enrolled students, faculty assignments, scheduled classes, attendance records, task submissions, or issued certificates. It can be safely and permanently removed.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-700 font-medium text-[11px]">
+                        To confirm permanent deletion, please type <strong className="text-slate-900 font-mono">DELETE</strong> below:
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Type DELETE to confirm"
+                        value={deleteBatchModal.confirmText}
+                        onChange={e => setDeleteBatchModal(prev => ({ ...prev, confirmText: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-hidden focus:border-rose-500 font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+                      <div className="flex items-center gap-1.5 font-semibold text-amber-800">
+                        <AlertTriangle size={15} />
+                        <span>Permanent Deletion Blocked</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800">
+                        This cohort has linked academic records. Deleting it permanently would violate data retention policies and compromise student transcripts.
+                      </p>
+                      {deleteBatchModal.eligibility.blocking_reasons && deleteBatchModal.eligibility.blocking_reasons.length > 0 && (
+                        <ul className="list-disc list-inside text-[11px] space-y-0.5 text-amber-900 font-medium pt-1">
+                          {deleteBatchModal.eligibility.blocking_reasons.map((reason, idx) => (
+                            <li key={idx}>{reason}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 text-xs space-y-1">
+                      <span className="font-semibold block text-[#086491]">Recommended Resolution:</span>
+                      <p className="text-[11px] text-sky-800">
+                        <strong>Archive this cohort batch instead.</strong> Archiving removes it from active course dropdowns and scheduling calendars while safely preserving all student submissions, attendance records, and certificates.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             {deleteBatchModal.error && (
               <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs">
@@ -985,23 +1207,122 @@ export default function AdminBatchesTab({
               </div>
             )}
 
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div>
+                {deleteBatchModal.eligibility && !deleteBatchModal.eligibility.can_delete_permanently && deleteBatchModal.eligibility.dependencies?.enrolled_students > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = deleteBatchModal.batch;
+                      setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
+                      if (b) handleOpenRoster(b);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-[#086491] font-semibold text-xs cursor-pointer flex items-center gap-1"
+                  >
+                    <Users size={13} /> Manage Roster
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={deleteBatchModal.isSubmitting}
+                  onClick={() => setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' })}
+                  className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                {deleteBatchModal.eligibility?.can_delete_permanently ? (
+                  <button
+                    type="button"
+                    disabled={deleteBatchModal.isSubmitting || deleteBatchModal.confirmText !== 'DELETE'}
+                    onClick={handleExecutePermanentDelete}
+                    className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white font-semibold cursor-pointer"
+                  >
+                    {deleteBatchModal.isSubmitting ? 'Deleting...' : 'Permanently Delete'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={deleteBatchModal.isSubmitting}
+                    onClick={handleArchiveFromModal}
+                    className="px-4 py-2 rounded-lg bg-[#0a7cb3] hover:bg-[#086491] text-white font-semibold cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Archive size={14} />
+                    <span>{deleteBatchModal.isSubmitting ? 'Archiving...' : 'Archive Batch Instead'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: SUPER ADMIN CLEANUP DISPOSABLE TEST BATCHES            */}
+      {/* ------------------------------------------------------------- */}
+      {cleanupModal.isOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 text-xs">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900">Clean Up Disposable Test Batches</h3>
+                <p className="text-slate-600 leading-relaxed text-xs">
+                  This administrative utility deletes unlinked test cohorts that were generated during testing (e.g. cohorts with no student submissions or certificates).
+                </p>
+                <div className="p-2.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
+                  Academic cohorts with student enrollments or completion records are strictly protected and will not be touched.
+                </div>
+              </div>
+            </div>
+
+            {cleanupModal.result ? (
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
+                {cleanupModal.result.message || 'Cleanup completed successfully.'}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="block text-slate-700 font-medium text-[11px]">
+                  Type <strong className="text-slate-900 font-mono">CLEANUP-TESTS</strong> to confirm:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Type CLEANUP-TESTS"
+                  value={cleanupModal.confirmText}
+                  onChange={e => setCleanupModal(prev => ({ ...prev, confirmText: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-hidden focus:border-amber-500 font-mono text-xs"
+                />
+              </div>
+            )}
+
+            {cleanupModal.error && (
+              <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                {cleanupModal.error}
+              </div>
+            )}
+
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
               <button
                 type="button"
-                disabled={deleteBatchModal.isSubmitting}
-                onClick={() => setDeleteBatchModal({ isOpen: false, batch: null, isSubmitting: false, error: '' })}
+                onClick={() => setCleanupModal({ isOpen: false, confirmText: '', isSubmitting: false, result: null, error: '' })}
                 className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
               >
-                Cancel
+                {cleanupModal.result ? 'Close' : 'Cancel'}
               </button>
-              <button
-                type="button"
-                disabled={deleteBatchModal.isSubmitting}
-                onClick={handleExecuteDeleteBatch}
-                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white font-semibold cursor-pointer"
-              >
-                {deleteBatchModal.isSubmitting ? 'Deleting...' : 'Delete Batch'}
-              </button>
+              {!cleanupModal.result && (
+                <button
+                  type="button"
+                  disabled={cleanupModal.isSubmitting || cleanupModal.confirmText !== 'CLEANUP-TESTS'}
+                  onClick={handleExecuteCleanup}
+                  className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white font-semibold cursor-pointer"
+                >
+                  {cleanupModal.isSubmitting ? 'Cleaning up...' : 'Execute Cleanup'}
+                </button>
+              )}
             </div>
           </div>
         </div>

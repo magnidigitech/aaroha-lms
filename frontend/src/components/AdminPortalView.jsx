@@ -335,14 +335,22 @@ export default function AdminPortalView({
 
   const handleUpdateStudent = async (userId, studentData) => {
     try {
-      const res = await api.adminTransferStudentBatch(userId, studentData);
-      if (res?.success) {
-        showToast('Student profile updated');
-        await fetchStudents();
+      if (studentData && (studentData.new_batch_id || studentData.batch_id)) {
+        const res = await api.adminTransferStudentBatch(userId, studentData);
+        if (res?.success) {
+          showToast(res.message || 'Student cohort transfer completed');
+        }
       }
+      await fetchStudents();
+      await fetchBatches();
     } catch (err) {
       showToast(err.message || 'Update failed', 'error');
     }
+  };
+
+  const handleDeleteStudent = async () => {
+    await fetchStudents();
+    await fetchBatches();
   };
 
   const handleTransferBatch = async (userId, data) => {
@@ -1015,6 +1023,7 @@ export default function AdminPortalView({
               coordinators={coordinators}
               onAddStudent={handleAddStudent}
               onUpdateStudent={handleUpdateStudent}
+              onDeleteStudent={handleDeleteStudent}
               onTransferBatch={handleTransferBatch}
               onToggleStatus={handleToggleStudentStatus}
               onResendInvite={handleResendInvite}
@@ -1032,6 +1041,7 @@ export default function AdminPortalView({
               batches={batches}
               onAddFaculty={handleAddFaculty}
               onUpdateFaculty={fetchFaculty}
+              onDeleteFaculty={fetchFaculty}
               onToggleFacultyStatus={handleToggleFacultyStatus}
               onResendInvite={handleResendInvite}
               onRevokeInvite={handleRevokeInvite}
@@ -1139,8 +1149,10 @@ export default function AdminPortalView({
               certificates={certificates}
               students={students}
               courses={courses}
+              batches={batches}
               onIssueCertificate={onIssueCertificate}
               onRevokeCertificate={handleRevokeCertificate}
+              onRefreshCertificates={fetchCertificates}
               onViewCertificate={(c) => {}}
             />
           )}

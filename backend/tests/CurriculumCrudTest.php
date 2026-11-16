@@ -1,7 +1,17 @@
 <?php
 // Aaroha LMS - Curriculum CRUD & Relational Authorization Test Suite
-// Verifies Course, Module, Lesson, and Task updates, safe deletion, Bunny Video ID validation,
-// and relational ownership authorization against native MySQL.
+// Isolated Test Environment: clone operational database to temporary SQLite file
+$origDb = __DIR__ . '/../../database/lms.sqlite';
+$testDbPath = sys_get_temp_dir() . '/aaroha_crud_test_' . getmypid() . '_' . time() . '.sqlite';
+if (file_exists($origDb)) {
+    copy($origDb, $testDbPath);
+}
+putenv("DB_SQLITE_PATH={$testDbPath}");
+register_shutdown_function(function() use ($testDbPath) {
+    if (file_exists($testDbPath)) {
+        @unlink($testDbPath);
+    }
+});
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../controllers/CourseController.php';

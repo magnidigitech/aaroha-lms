@@ -1,5 +1,18 @@
 <?php
 // Aaroha LMS - Comprehensive Management Actions Audit & Lifecycle Verification
+// Isolated Test Environment: clone operational database to temporary SQLite file
+$origDb = __DIR__ . '/../../database/lms.sqlite';
+$testDbPath = sys_get_temp_dir() . '/aaroha_audit_test_' . getmypid() . '_' . time() . '.sqlite';
+if (file_exists($origDb)) {
+    copy($origDb, $testDbPath);
+}
+putenv("DB_SQLITE_PATH={$testDbPath}");
+register_shutdown_function(function() use ($testDbPath) {
+    if (file_exists($testDbPath)) {
+        @unlink($testDbPath);
+    }
+});
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../controllers/AdminPortalController.php';
 require_once __DIR__ . '/../controllers/CourseController.php';

@@ -611,33 +611,50 @@ export default function FacultyDashboardView({
                       <th className="px-5 py-3.5">Cohort</th>
                       <th className="px-5 py-3.5">Attendance</th>
                       <th className="px-5 py-3.5">Average Score</th>
+                      <th className="px-5 py-3.5">Certification Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {students.map(st => (
-                      <tr key={st.student_id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="px-5 py-3.5 font-bold text-slate-900 flex items-center gap-2.5">
-                          <img 
-                            src={st.student_avatar || '/avatars/3d/memo_13.png'} 
-                            alt={st.student_name}
-                            className="w-7 h-7 rounded-full object-cover bg-slate-100"
-                          />
-                          <span>{st.student_name}</span>
-                        </td>
-                        <td className="px-5 py-3.5 font-mono text-slate-500">{st.student_id_code}</td>
-                        <td className="px-5 py-3.5 font-semibold text-slate-600">{st.batch_code}</td>
-                        <td className="px-5 py-3.5">
-                          <span className={'font-bold ' + 
-                            (st.attendance_pct >= 80 ? 'text-emerald-600' : st.attendance_pct !== 'Not available yet' ? 'text-amber-600' : 'text-slate-400')}
-                          >
-                            {st.attendance_pct !== 'Not available yet' ? (st.attendance_pct + '%') : 'Not available yet'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 font-bold text-[#0A7CB3]">
-                          {st.average_score !== 'Not available yet' ? (st.average_score + ' pts') : 'Not available yet'}
-                        </td>
-                      </tr>
-                    ))}
+                    {students.map(st => {
+                      const isEligible = (Number(st.attendance_pct) >= 75 || st.attendance_pct === 100) && (Number(st.average_score) >= 70 || st.average_score === 100);
+
+                      return (
+                        <tr key={st.student_id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-5 py-3.5 font-bold text-slate-900 flex items-center gap-2.5">
+                            <img 
+                              src={st.student_avatar || '/avatars/3d/memo_13.png'} 
+                              alt={st.student_name}
+                              className="w-7 h-7 rounded-full object-cover bg-slate-100"
+                            />
+                            <span>{st.student_name}</span>
+                          </td>
+                          <td className="px-5 py-3.5 font-mono text-slate-500">{st.student_id_code}</td>
+                          <td className="px-5 py-3.5 font-semibold text-slate-600">{st.batch_code}</td>
+                          <td className="px-5 py-3.5">
+                            <span className={'font-bold ' + 
+                              (st.attendance_pct >= 80 ? 'text-emerald-600' : st.attendance_pct !== 'Not available yet' ? 'text-amber-600' : 'text-slate-400')}
+                            >
+                              {st.attendance_pct !== 'Not available yet' ? (st.attendance_pct + '%') : 'Not available yet'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 font-bold text-[#0A7CB3]">
+                            {st.average_score !== 'Not available yet' ? (st.average_score + ' pts') : 'Not available yet'}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {isEligible ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 w-fit">
+                                <Award size={11} className="text-emerald-700" />
+                                Eligible for Certification
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 w-fit">
+                                Coursework in Progress
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -16,6 +16,7 @@ export default function AdminStudentsTab({
   coordinators = [],
   onAddStudent,
   onUpdateStudent,
+  onDeleteStudent,
   onTransferBatch,
   onToggleStatus,
   onResendInvite,
@@ -254,7 +255,8 @@ export default function AdminStudentsTab({
       if (selectedStudentDetail && (selectedStudentDetail.student?.user_id === studentId || selectedStudentDetail.student?.id === studentId)) {
         onCloseStudentDetail();
       }
-      if (onUpdateStudent) await onUpdateStudent(studentId, {});
+      if (onDeleteStudent) await onDeleteStudent();
+      else if (onUpdateStudent) await onUpdateStudent(studentId, {});
       if (rosterView === 'archived') await loadArchivedStudents();
     } catch (err) {
       setDeleteModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to delete student.' }));

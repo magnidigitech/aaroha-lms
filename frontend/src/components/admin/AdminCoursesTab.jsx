@@ -10,7 +10,6 @@ import ModuleModal from './ModuleModal';
 import LectureModal from './LectureModal';
 import AssignmentModal from './AssignmentModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
-import IssueCertificateModal from './IssueCertificateModal';
 
 export default function AdminCoursesTab({
   courses = [],
@@ -26,7 +25,6 @@ export default function AdminCoursesTab({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
-  onIssueCertificate,
   currentUser
 }) {
   // Modal dialog states
@@ -34,7 +32,6 @@ export default function AdminCoursesTab({
   const [moduleModal, setModuleModal] = useState({ isOpen: false, courseId: null, initialData: null });
   const [lectureModal, setLectureModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
   const [assignmentModal, setAssignmentModal] = useState({ isOpen: false, courseId: null, moduleId: null, initialData: null });
-  const [issueCertificateModal, setIssueCertificateModal] = useState({ isOpen: false, course: null });
   const [blockedDeleteCourse, setBlockedDeleteCourse] = useState(null);
 
   // Per-course card active pillar tab state ('syllabus' | 'outcomes' | 'about' | 'faculty')
@@ -328,18 +325,6 @@ export default function AdminCoursesTab({
                   >
                     <Plus className="w-3.5 h-3.5 text-blue-600" />
                     <span>Module</span>
-                  </button>
-
-                  {/* Issue Certificate */}
-                  <button
-                    type="button"
-                    onClick={() => setIssueCertificateModal({ isOpen: true, course })}
-                    className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 hover:border-amber-300 text-amber-900 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    title={'Issue Official Accredited Certificate for ' + course.title}
-                    aria-label={'Issue Certificate: ' + course.title}
-                  >
-                    <Award className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Certificate</span>
                   </button>
 
                   {/* Delete Course (Only if no dependent batches or enrollments) */}
@@ -883,14 +868,6 @@ export default function AdminCoursesTab({
           await deleteModal.onConfirm();
           setDeleteModal(prev => ({ ...prev, isOpen: false }));
         }}
-      />
-
-      {/* MODAL 6: Issue Accredited Certificate Modal */}
-      <IssueCertificateModal
-        isOpen={issueCertificateModal.isOpen}
-        course={issueCertificateModal.course}
-        onClose={() => setIssueCertificateModal({ isOpen: false, course: null })}
-        onIssueCertificate={onIssueCertificate}
       />
 
       {/* MODAL 7: Blocked Course Deletion Dialog (Dependent Batches / Students Exist) */}

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { 
   Award, ShieldCheck, CheckCircle2, 
   ArrowRight, Search, BookOpen, 
-  Copy, Check, Layers, Sparkles, CheckCircle, Video, FileText
+  Copy, Check, Layers, Sparkles, CheckCircle, Video, FileText,
+  AlertTriangle, XCircle
 } from 'lucide-react';
+import api from '../apiService';
 
 export default function DegreesCertificatesView({
   courses = [],
@@ -28,41 +30,34 @@ export default function DegreesCertificatesView({
     )
   );
 
-  const handleVerify = (codeOverride) => {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState(null);
+
+  const handleVerify = async (codeOverride) => {
     const rawTarget = codeOverride || searchCode;
     const target = rawTarget ? rawTarget.trim().toUpperCase() : '';
     setHasSearched(true);
+    setVerificationError(null);
 
     if (!target) {
       setVerificationResult(null);
       return;
     }
 
-    // Check against real certificates in system
-    const match = certificates.find(c => 
-      c.certificate_code && c.certificate_code.toUpperCase() === target
-    );
-
-    if (match) {
-      setVerificationResult(match);
-    } else {
-      // Demo fallback certificate code check
-      if (target.includes('9E4F') || target === 'AAROHA-CERT-2026-9E4F-8812') {
-        const demoMatch = {
-          id: 'demo-1',
-          certificate_code: 'AAROHA-CERT-2026-9E4F-8812',
-          recipient_name: 'Elena Rostova',
-          recipient_email: 'elena.rostova@aaroha.systems',
-          course_title: 'Distributed Cloud Architecture & High-Throughput Systems',
-          issuer_name: 'Faculty Directorate',
-          issuer_title: 'Director of Curriculum & Distributed Systems',
-          grade: 'Executive Distinction (98% Pass · Verified Peer Reviewed)',
-          issued_at: '2026-11-13T12:00:00Z'
-        };
-        setVerificationResult(demoMatch);
+    try {
+      setIsVerifying(true);
+      const res = await api.verifyCertificate(target);
+      if (res && res.certificate) {
+        setVerificationResult(res.certificate);
       } else {
         setVerificationResult(null);
+        setVerificationError('No matching credential record found in official registry.');
       }
+    } catch (err) {
+      setVerificationResult(null);
+      setVerificationError(err.message || 'Credential verification failed. Record not found or invalid.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -201,118 +196,181 @@ export default function DegreesCertificatesView({
 
               <button
                 onClick={() => handleVerify()}
-                className="px-6 py-3 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shrink-0"
+                disabled={isVerifying}
+                className="px-6 py-3 bg-[#0A7CB3] hover:bg-[#086491] disabled:opacity-50 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 shrink-0"
               >
                 <Search className="w-4 h-4" />
-                <span>Verify Credential</span>
+                <span>{isVerifying ? 'Verifying...' : 'Verify Credential'}</span>
               </button>
             </div>
 
-            {/* Quick Demo Test Code Button */}
-            <div className="pt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <span>Quick Test:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchCode('AAROHA-CERT-2026-9E4F-8812');
-                  handleVerify('AAROHA-CERT-2026-9E4F-8812');
-                }}
-                className="px-2.5 py-1 rounded-md bg-blue-50 text-[#0A7CB3] font-mono font-bold hover:bg-blue-100 transition-colors border border-blue-200 cursor-pointer"
-              >
-                AAROHA-CERT-2026-9E4F-8812 (Elena Rostova)
-              </button>
-            </div>
+            {/* Live Registry Sample if Available */}
+            {certificates.length > 0 && (
+              <div className="pt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span>Registry Sample:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = certificates[0].certificate_code;
+                    setSearchCode(code);
+                    handleVerify(code);
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-blue-50 text-[#0A7CB3] font-mono font-bold hover:bg-blue-100 transition-colors border border-blue-200 cursor-pointer"
+                >
+                  {certificates[0].certificate_code} ({certificates[0].recipient_name})
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Verification Result Display */}
           {hasSearched && (
             <div className="max-w-3xl animate-in fade-in slide-in-from-top-2 duration-200">
-              {verificationResult ? (
-                <div className="bg-gradient-to-r from-emerald-50 via-white to-blue-50/50 rounded-3xl border-2 border-emerald-500/40 p-6 sm:p-8 shadow-md space-y-6">
-                  <div className="flex items-center justify-between pb-4 border-b border-emerald-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                        <CheckCircle className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
-                          <span>Official Accredited Credential Confirmed</span>
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          Verified against Aaroha Technologies Registry
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="hidden sm:block text-right">
-                      <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 select-all">
-                        {verificationResult.certificate_code}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recipient</span>
-                      <div className="font-extrabold text-slate-900 text-sm">
-                        {verificationResult.recipient_name}
-                      </div>
-                      <div className="text-slate-500 text-[11px]">
-                        {verificationResult.recipient_email}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Course / Curriculum</span>
-                      <div className="font-extrabold text-slate-900 text-sm line-clamp-2">
-                        {verificationResult.course_title}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Awarded Distinction</span>
-                      <div className="font-extrabold text-[#0A7CB3] text-xs">
-                        {verificationResult.grade || 'Pass with Distinction'}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issuing Authority</span>
-                      <div className="font-extrabold text-slate-900 text-xs">
-                        {verificationResult.issuer_name || 'Faculty Lead'}
-                      </div>
-                      <div className="text-slate-500 text-[11px]">
-                        {verificationResult.issuer_title || 'Aaroha Technologies'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
-                    <button
-                      onClick={() => handleCopyCode(verificationResult.certificate_code)}
-                      className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
-                    >
-                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedCode ? 'Code Copied' : 'Copy Credential Code'}</span>
-                    </button>
-
-                    <button
-                      onClick={() => onViewCertificate && onViewCertificate(verificationResult)}
-                      className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-                    >
-                      <Award className="w-4 h-4" />
-                      <span>View Official Digital Parchment</span>
-                    </button>
-                  </div>
+              {isVerifying ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-2">
+                  <div className="animate-spin w-6 h-6 border-2 border-[#0a7cb3] border-t-transparent rounded-full mx-auto" />
+                  <p className="text-xs text-slate-600 font-medium">Querying official Aaroha credential registry...</p>
                 </div>
+              ) : verificationResult ? (
+                verificationResult.status === 'revoked' ? (
+                  /* Revoked Credential Banner */
+                  <div className="bg-rose-50 rounded-3xl border-2 border-rose-500/60 p-6 sm:p-8 shadow-md space-y-6">
+                    <div className="flex items-center justify-between pb-4 border-b border-rose-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
+                          <AlertTriangle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-black uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
+                            <span>FORMALLY REVOKED CREDENTIAL</span>
+                          </div>
+                          <div className="text-xs text-rose-600">
+                            This credential was officially invalidated and is no longer recognized.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="hidden sm:block text-right">
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-md bg-white border border-rose-300 text-rose-700 select-all">
+                          {verificationResult.certificate_code}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-rose-200 text-xs space-y-2">
+                      <div className="font-bold text-rose-900 text-xs uppercase tracking-wide">
+                        Revocation Record:
+                      </div>
+                      <div className="text-slate-700">
+                        Date Revoked: <strong className="text-slate-900">{verificationResult.revoked_at ? new Date(verificationResult.revoked_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Official Record'}</strong>
+                      </div>
+                      <div className="text-slate-700">
+                        Reason for Revocation: <strong className="text-rose-700">{verificationResult.revocation_reason || 'Administrative revocation'}</strong>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs opacity-75">
+                      <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Original Recipient</span>
+                        <div className="font-bold text-slate-800">{verificationResult.recipient_name}</div>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Curriculum</span>
+                        <div className="font-bold text-slate-800">{verificationResult.course_title}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Valid Credential Banner */
+                  <div className="bg-gradient-to-r from-emerald-50 via-white to-blue-50/50 rounded-3xl border-2 border-emerald-500/40 p-6 sm:p-8 shadow-md space-y-6">
+                    <div className="flex items-center justify-between pb-4 border-b border-emerald-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                          <CheckCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                            <span>Official Accredited Credential Confirmed</span>
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Verified against Aaroha Technologies Registry
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="hidden sm:block text-right">
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 select-all">
+                          {verificationResult.certificate_code}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recipient</span>
+                        <div className="font-extrabold text-slate-900 text-sm">
+                          {verificationResult.recipient_name}
+                        </div>
+                        <div className="text-slate-500 text-[11px]">
+                          {verificationResult.recipient_email}
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Course / Curriculum</span>
+                        <div className="font-extrabold text-slate-900 text-sm line-clamp-2">
+                          {verificationResult.course_title}
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Awarded Distinction</span>
+                        <div className="font-extrabold text-[#0A7CB3] text-xs">
+                          {verificationResult.grade || 'Pass with Distinction'}
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Issuing Authority</span>
+                        <div className="font-extrabold text-slate-900 text-xs">
+                          {verificationResult.issuer_name || 'Faculty Lead'}
+                        </div>
+                        <div className="text-slate-500 text-[11px]">
+                          {verificationResult.issuer_title || 'Aaroha Technologies'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
+                      <button
+                        onClick={() => handleCopyCode(verificationResult.certificate_code)}
+                        className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedCode ? 'Code Copied' : 'Copy Credential Code'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => onViewCertificate && onViewCertificate(verificationResult)}
+                        className="px-5 py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <Award className="w-4 h-4" />
+                        <span>View Official Digital Parchment</span>
+                      </button>
+                    </div>
+                  </div>
+                )
               ) : (
                 <div className="bg-red-50/70 border border-red-200 rounded-2xl p-6 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+                    <XCircle className="w-5 h-5" />
+                  </div>
                   <div className="text-sm font-bold text-red-800">
                     No verified credential record found
                   </div>
                   <p className="text-xs text-red-600 max-w-md mx-auto">
-                    Please ensure the 16-character alphanumeric code is entered accurately, including the prefix (e.g. AAROHA-CERT-...).
+                    {verificationError || 'Please ensure the credential code is entered accurately (e.g. AAROHA-CERT-...).'}
                   </p>
                 </div>
               )}

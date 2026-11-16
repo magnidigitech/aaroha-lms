@@ -306,6 +306,23 @@ def run_tests():
     status, res = request("POST", "/auth/login", {"email": "alice.test@example.com", "password": "BrandNewAlicePass2026!"})
     assert_test(status == 200 and res.get("success"), "13e. Login succeeds with newly reset password")
 
+    # Teardown test artifacts to prevent database pollution
+    try:
+        clean_conn = sqlite3.connect(DB_PATH)
+        clean_cur = clean_conn.cursor()
+        clean_cur.execute("DELETE FROM class_sessions WHERE faculty_id = ? OR topic = 'Distributed Storage Engines'", (bob_id,))
+        clean_cur.execute("DELETE FROM faculty_batch_assignments WHERE faculty_id = ?", (bob_id,))
+        clean_cur.execute("DELETE FROM faculty_profiles WHERE user_id = ?", (bob_id,))
+        clean_cur.execute("DELETE FROM batch_enrollments WHERE user_id IN (?, ?)", (alice_id, bob_id))
+        clean_cur.execute("DELETE FROM enrollments WHERE user_id = ?", (alice_id,))
+        clean_cur.execute("DELETE FROM student_profiles WHERE user_id = ?", (alice_id,))
+        clean_cur.execute("DELETE FROM password_resets WHERE user_id IN (?, ?)", (alice_id, bob_id))
+        clean_cur.execute("DELETE FROM users WHERE id IN (?, ?)", (alice_id, bob_id))
+        clean_conn.commit()
+        clean_conn.close()
+    except Exception as cleanup_err:
+        print(f"Cleanup notice: {cleanup_err}")
+
     print("=" * 70)
     print(f"RESULTS: {passed}/{total} tests PASSED (100% SUCCESS)")
     print("=" * 70)

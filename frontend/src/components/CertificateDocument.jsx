@@ -99,6 +99,20 @@ export default function CertificateDocument({ certificate }) {
           </div>
         </div>
 
+        {/* Prominent Preview Watermark */}
+        {(certificate.watermark || certificate.is_preview) && (
+          <div 
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center select-none"
+          >
+            <div className="transform -rotate-25 border-8 border-rose-600/40 px-8 py-3 rounded-3xl bg-rose-50/50 backdrop-blur-2xs shadow-lg">
+              <span className="text-3xl sm:text-5xl font-black text-rose-600/50 tracking-widest uppercase font-mono">
+                {certificate.watermark || 'PREVIEW — NOT ISSUED'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Corner Filigree Flourishes */}
         <div className="absolute top-3 left-3 text-amber-600/60 font-serif text-lg select-none">✦</div>
         <div className="absolute top-3 right-3 text-amber-600/60 font-serif text-lg select-none">✦</div>
@@ -161,13 +175,20 @@ export default function CertificateDocument({ certificate }) {
             </div>
           </div>
 
-          {/* Distinction / Honors Pill */}
-          {certificate.grade && (
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-bold font-sans shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>{certificate.grade}</span>
-            </div>
-          )}
+          {/* Distinction / Honors Pill & Training Hours */}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {certificate.grade && (
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm font-bold font-sans shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>{certificate.grade}</span>
+              </div>
+            )}
+            {certificate.training_hours && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-[#086491] text-xs font-semibold font-sans">
+                <span>Practicum: {certificate.training_hours}</span>
+              </div>
+            )}
+          </div>
 
           {/* Signatures & Accreditation Footer */}
           <div className="pt-8 sm:pt-12 grid grid-cols-1 sm:grid-cols-3 items-end gap-6 border-t border-slate-200/80">
@@ -175,13 +196,13 @@ export default function CertificateDocument({ certificate }) {
             {/* Faculty Instructor Signatory */}
             <div className="space-y-1 text-center sm:text-left">
               <div className="font-serif italic text-base sm:text-lg text-slate-800 tracking-wide border-b border-slate-400 pb-1 inline-block min-w-[160px]">
-                {certificate.issuer_name || 'Faculty'}
+                {certificate.signatory_faculty_name || certificate.issuer_name || 'Faculty Lead'}
               </div>
               <div className="text-[11px] font-bold text-slate-900 font-sans">
-                {certificate.issuer_title || ''}
+                {certificate.signatory_faculty_title || certificate.issuer_title || 'Lead Faculty & Instructor'}
               </div>
               <div className="text-[10px] text-slate-500 font-sans">
-                Aaroha Faculty
+                Aaroha Academic Faculty
               </div>
             </div>
 
@@ -203,10 +224,10 @@ export default function CertificateDocument({ certificate }) {
             {/* Academic Dean Signatory */}
             <div className="space-y-1 text-center sm:text-right">
               <div className="font-serif italic text-base sm:text-lg text-slate-800 tracking-wide border-b border-slate-400 pb-1 inline-block min-w-[160px]">
-                Academic Board & Dean
+                {certificate.signatory_dean_name || 'Dr. Marcus Vance'}
               </div>
               <div className="text-[11px] font-bold text-slate-900 font-sans">
-                Board of Academic Review
+                {certificate.signatory_dean_title || 'Dean of Curriculum & Review'}
               </div>
               <div className="text-[10px] text-slate-500 font-sans">
                 Conferred: {formattedDate}

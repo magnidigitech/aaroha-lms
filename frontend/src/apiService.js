@@ -336,6 +336,14 @@ export const api = {
 
   adminCheckStudentDeletion: (userId) => request(`/admin/students/${userId}/deletion-eligibility`),
 
+  adminArchiveStudent: (userId) => request(`/admin/students/${userId}/archive`, {
+    method: 'POST'
+  }),
+
+  adminRestoreStudent: (userId) => request(`/admin/students/${userId}/restore`, {
+    method: 'POST'
+  }),
+
   adminDeleteStudent: (userId) => request(`/admin/students/${userId}`, {
     method: 'DELETE'
   }),
@@ -428,6 +436,8 @@ export const api = {
     body: JSON.stringify(data)
   }),
 
+  adminCheckBatchDeletion: (batchId) => request(`/admin/batches/${batchId}/deletion-eligibility`),
+
   adminArchiveBatch: (batchId) => request(`/admin/batches/${batchId}/archive`, {
     method: 'POST'
   }),
@@ -436,8 +446,12 @@ export const api = {
     method: 'POST'
   }),
 
-  adminDeleteBatch: (batchId) => request(`/admin/batches/${batchId}`, {
+  adminDeleteBatch: (batchId, params = {}) => request(`/admin/batches/${batchId}${params.permanent ? '?permanent=true' : ''}`, {
     method: 'DELETE'
+  }),
+
+  adminCleanupTestBatches: () => request('/admin/batches/cleanup-test-batches', {
+    method: 'POST'
   }),
 
   adminManageAccountStatus: (userId, data) => request(`/admin/users/${userId}/status`, {
@@ -627,7 +641,20 @@ export const api = {
     body: JSON.stringify(data)
   }),
 
-  adminGetCertificates: () => request('/certificates'),
+  adminGetCertificates: () => request('/admin/certificates'),
+
+  adminGetCertificateEligibility: (courseId, userId, batchId) =>
+    request(`/admin/certificates/eligibility?course_id=${courseId}&user_id=${userId}${batchId ? '&batch_id=' + batchId : ''}`),
+
+  adminPreviewCertificate: (data) => request('/admin/certificates/preview', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminIssueCertificate: (data) => request('/admin/certificates/issue', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
 
   adminRevokeCertificate: (id, data) => request(`/certificates/${id}/revoke`, {
     method: 'POST',
