@@ -4,8 +4,8 @@ import {
   Sparkles, X 
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
+import heroStudentsImg from '../assets/hero_learning_students.webp';
 import TechSearchBar from './TechSearchBar';
-import HeroLearningIllustration from './HeroLearningIllustration';
 import HeroTechBackground from './HeroTechBackground';
 import { courseMatchesQuery, POPULAR_TECHNOLOGY_TAGS } from '../techTaxonomy';
 
@@ -52,31 +52,63 @@ export default function UserCatalogView({
   };
 
   return (
-    <div className="space-y-10 pb-24">
-      {/* Homepage Hero Section */}
-      <section className="bg-gradient-to-b from-sky-50/50 via-white to-white rounded-2xl border border-slate-200/80 p-5 sm:p-8 lg:p-10 relative overflow-hidden shadow-xs">
-        {/* Subtle Technology Network Background Animation */}
+    <div className="w-full pb-24">
+      {/* Full-Width Homepage Hero Section */}
+      <section className="relative w-full min-h-[calc(100svh-4rem)] sm:min-h-[calc(100svh-4.5rem)] flex items-center bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100/40">
+        {/* Full-bleed Background Photograph Layer */}
+        <div 
+          aria-hidden="true" 
+          className="absolute inset-0 pointer-events-none select-none overflow-hidden z-0"
+        >
+          {/* High-quality photograph positioned to the right */}
+          <img
+            src={heroStudentsImg}
+            alt=""
+            className="absolute right-0 top-0 h-full w-full sm:w-4/5 lg:w-3/5 object-cover object-[75%_25%] sm:object-right opacity-85 sm:opacity-90"
+            loading="eager"
+            fetchpriority="high"
+          />
+
+          {/* Horizontal Gradient Mask: Seamless blend from solid pale background on left to transparent on right */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-r from-slate-50 via-slate-50/95 via-45% sm:via-slate-50/80 sm:via-50% to-transparent to-95%" 
+          />
+
+          {/* Soft Vertical Vignette: smooth top & bottom edge transition */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-b from-white/80 via-transparent to-slate-50/90 pointer-events-none" 
+          />
+
+          {/* Mobile contrast veil: softens background image on small screens for high contrast */}
+          <div 
+            className="absolute inset-0 bg-white/75 sm:bg-transparent pointer-events-none" 
+          />
+        </div>
+
+        {/* Subtle Technology Network Animation Layer */}
         <HeroTechBackground />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
-          
-          {/* Left Column: Heading, Description, Search & CTA (lg:col-span-7 ~ 60%) */}
-          <div className="lg:col-span-7 space-y-4 sm:space-y-5 min-w-0">
+        {/* Centered Content Container with Responsive Side Padding */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 relative z-10">
+          <div className="max-w-xl lg:max-w-2xl space-y-4 sm:space-y-6">
+            {/* Small Label */}
             <div className="inline-flex items-center text-xs font-bold uppercase tracking-wider text-[#0A7CB3]">
               AAROHA TECHNOLOGIES
             </div>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 leading-tight">
               Build practical tech skills.<br />
               Take your next career step.
             </h1>
 
-            <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal max-w-xl">
+            {/* Description */}
+            <p className="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal max-w-xl">
               Explore technology courses, learn through guided projects, and develop your skills with faculty support.
             </p>
 
-            {/* Preserved Search Component in Hero */}
-            <div className="pt-1 w-full min-w-0 max-w-xl space-y-3">
+            {/* Hero Search Box on a solid, high-contrast surface */}
+            <div className="pt-1 w-full max-w-xl space-y-3.5">
               <TechSearchBar
                 size="hero"
                 searchQuery={searchQuery}
@@ -108,7 +140,7 @@ export default function UserCatalogView({
             </div>
 
             {/* Secondary Action: Explore All Programs */}
-            <div className="pt-1">
+            <div className="pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -126,17 +158,11 @@ export default function UserCatalogView({
               </button>
             </div>
           </div>
-
-          {/* Right Column: Clean Technology-Learning Visual (lg:col-span-5 ~ 40%) */}
-          <div className="lg:col-span-5 min-w-0">
-            <HeroLearningIllustration />
-          </div>
-
         </div>
       </section>
 
-      {/* Filter and Search Bar (Coursera Catalog Controls) */}
-      <div id="browse-courses-section" className="space-y-4 pt-2 scroll-mt-24">
+      {/* Filter and Search Bar (Coursera Catalog Controls) in Centered Container */}
+      <div id="browse-courses-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 space-y-6 scroll-mt-20">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">

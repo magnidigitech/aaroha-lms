@@ -1509,7 +1509,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full ${activeView === 'course-classroom' || activeView === 'admin' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+      <main className={`flex-1 w-full ${activeView === 'course-classroom' || activeView === 'admin' || activeView === 'catalog' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
         {/* 1. Main Course Catalog */}
         {activeView === 'catalog' && (
           <UserCatalogView
