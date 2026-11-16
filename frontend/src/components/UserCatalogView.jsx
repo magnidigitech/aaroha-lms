@@ -1,38 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
-  Search, Star, CheckCircle2, ArrowRight, Award, BookOpen, 
-  Sparkles, X, Cpu, ShieldCheck, Layers 
+  Star, ArrowRight, BookOpen, 
+  Sparkles, X 
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import TechSearchBar from './TechSearchBar';
+import HeroLearningIllustration from './HeroLearningIllustration';
+import HeroTechBackground from './HeroTechBackground';
 import { courseMatchesQuery, POPULAR_TECHNOLOGY_TAGS } from '../techTaxonomy';
-
-const HERO_TECH_SHOWCASE = [
-  {
-    id: 'ai',
-    label: 'Artificial Intelligence',
-    title: 'Applied AI & Neural Systems',
-    subtitle: 'Deep neural networks, LLM acceleration, continuous batching, and scalable GPU execution graphs.',
-    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1000&q=85',
-    tag: 'Next-Gen Computing'
-  },
-  {
-    id: 'cloud',
-    label: 'Cloud Infrastructure',
-    title: 'Distributed Systems & Cloud Architecture',
-    subtitle: 'High-throughput data backbones, multi-region consensus, low-latency streaming, and planetary-scale clusters.',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1000&q=85',
-    tag: 'High-Throughput Engineering'
-  },
-  {
-    id: 'cyber',
-    label: 'Cyber Defense',
-    title: 'Zero-Trust Architecture & Resilient Systems',
-    subtitle: 'Kernel-level observability, proactive threat defense, memory safety, and verifiable cryptographic attestations.',
-    image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1000&q=85',
-    tag: 'Resilience & Security'
-  }
-];
 
 export default function UserCatalogView({ 
   courses = [], 
@@ -42,19 +17,6 @@ export default function UserCatalogView({
   selectedCategory,
   setSelectedCategory
 }) {
-  const [activeShowcaseIdx, setActiveShowcaseIdx] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-
-  useEffect(() => {
-    if (isPaused) return;
-    const interval = setInterval(() => {
-      setActiveShowcaseIdx(prev => (prev + 1) % HERO_TECH_SHOWCASE.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [isPaused]);
-
-  const currentTech = HERO_TECH_SHOWCASE[activeShowcaseIdx];
-
   const dynamicCategories = ['All', ...Array.from(new Set([
     'Applied AI',
     'Cloud Architecture',
@@ -91,31 +53,30 @@ export default function UserCatalogView({
 
   return (
     <div className="space-y-10 pb-24">
-      {/* Executive Hero Banner */}
-      <section className="bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/50 rounded-3xl border border-blue-100/90 p-6 sm:p-10 lg:p-12 relative overflow-hidden shadow-xs">
-        {/* Ambient subtle glow background */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-indigo-400/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Homepage Hero Section */}
+      <section className="bg-gradient-to-b from-sky-50/50 via-white to-white rounded-2xl border border-slate-200/80 p-5 sm:p-8 lg:p-10 relative overflow-hidden shadow-xs">
+        {/* Subtle Technology Network Background Animation */}
+        <HeroTechBackground />
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
           
-          {/* Left Column: Heading, Search & Value Prop (lg:col-span-7) */}
-          <div className="lg:col-span-7 space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-[#0A7CB3] text-xs font-bold uppercase tracking-wider border border-blue-200/60 shadow-2xs">
-              <Award className="w-3.5 h-3.5 text-[#0A7CB3]" />
-              <span>Aaroha Institute of Technology · Executive Academy</span>
+          {/* Left Column: Heading, Description, Search & CTA (lg:col-span-7 ~ 60%) */}
+          <div className="lg:col-span-7 space-y-4 sm:space-y-5 min-w-0">
+            <div className="inline-flex items-center text-xs font-bold uppercase tracking-wider text-[#0A7CB3]">
+              AAROHA TECHNOLOGIES
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-              Production Systems Engineering Curricula
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+              Build practical tech skills.<br />
+              Take your next career step.
             </h1>
 
-            <p className="text-slate-600 text-xs sm:text-sm lg:text-base leading-relaxed font-normal max-w-2xl">
-              Master state-of-the-art distributed systems, low-latency AI inference, and zero-trust defenses through university-calibrated engineering specializations, authenticated video lectures, and faculty-evaluated capstones.
+            <p className="text-slate-600 text-sm sm:text-base leading-relaxed font-normal max-w-xl">
+              Explore technology courses, learn through guided projects, and develop your skills with faculty support.
             </p>
 
-            {/* OPEN-SOURCE TECHNOLOGY SEARCH BAR IN HERO */}
-            <div className="pt-1 max-w-2xl space-y-3">
+            {/* Preserved Search Component in Hero */}
+            <div className="pt-1 w-full min-w-0 max-w-xl space-y-3">
               <TechSearchBar
                 size="hero"
                 searchQuery={searchQuery}
@@ -124,10 +85,10 @@ export default function UserCatalogView({
                 placeholder="Search technologies, subdomains & systems (e.g. AI, NLP, Raft...)"
               />
 
-              {/* Quick Open-Source Technology Tags */}
+              {/* Preserved Topic Chips Beneath Search */}
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap pt-0.5">
                 <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-blue-600" />
+                  <Sparkles className="w-3 h-3 text-[#0A7CB3]" />
                   <span>Technologies:</span>
                 </span>
                 {POPULAR_TECHNOLOGY_TAGS.slice(0, 6).map((tag, tIdx) => (
@@ -138,7 +99,7 @@ export default function UserCatalogView({
                       if (setSearchQuery) setSearchQuery(tag.query);
                       handleSearchSubmit(tag.query);
                     }}
-                    className="px-2.5 py-1 bg-white hover:bg-[#0A7CB3] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0A7CB3] rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                    className="px-2.5 py-1 bg-white hover:bg-[#0A7CB3] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0A7CB3] rounded-lg text-xs font-medium transition-all cursor-pointer shadow-2xs"
                   >
                     {tag.label}
                   </button>
@@ -146,9 +107,10 @@ export default function UserCatalogView({
               </div>
             </div>
 
-            {/* Action Buttons & Value Strip */}
-            <div className="pt-2 flex flex-wrap items-center gap-3 sm:gap-4">
+            {/* Secondary Action: Explore All Programs */}
+            <div className="pt-1">
               <button
+                type="button"
                 onClick={() => {
                   const target = document.getElementById('browse-courses-section');
                   if (target) {
@@ -157,107 +119,17 @@ export default function UserCatalogView({
                     window.scrollTo({ top: 500, behavior: 'smooth' });
                   }
                 }}
-                className="px-6 py-3 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-[#0A7CB3] border border-slate-300 hover:border-[#0A7CB3] text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
               >
                 <span>Explore All Programs</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-[#0A7CB3]" />
               </button>
-
-              <div className="flex items-center gap-2 text-xs text-slate-600 font-semibold px-1">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>100% Online · Free Video Previews · Accredited Digital Parchment</span>
-              </div>
             </div>
           </div>
 
-          {/* Right Column: Animated Visual Technology Showcase (lg:col-span-5) */}
-          <div 
-            className="lg:col-span-5"
-            onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
-          >
-            {/* Domain Selection Tabs (Full width, zero cutoff) */}
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-3 overflow-x-auto scrollbar-none pb-0.5">
-              {HERO_TECH_SHOWCASE.map((t, idx) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setActiveShowcaseIdx(idx);
-                    setIsPaused(true);
-                  }}
-                  className={'px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ' +
-                    (activeShowcaseIdx === idx
-                      ? 'bg-[#0A7CB3] text-white shadow-xs'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
-                >
-                  <span>{t.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Showcase Visual Card - Pure Technology Image Showcase */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-3 sm:p-4 space-y-3 relative overflow-hidden group">
-              {/* Image Container with Gentle Ambient Lighting */}
-              <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
-                <img
-                  key={currentTech.id}
-                  src={currentTech.image}
-                  alt={currentTech.title}
-                  className="w-full h-full object-cover transition-all duration-700 animate-in fade-in zoom-in-95 group-hover:scale-105"
-                />
-                
-                {/* Modern Dark Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-black/20 pointer-events-none" />
-
-                {/* Subtle Domain Pill in Top-Left */}
-                <div className="absolute top-3 left-3 z-10">
-                  <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold rounded-full border border-white/20 flex items-center gap-1.5 shadow-xs">
-                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                    <span>{currentTech.tag}</span>
-                  </span>
-                </div>
-
-                {/* Bottom Overlay Info */}
-                <div className="absolute bottom-3 left-3.5 right-3.5 text-white z-10 space-y-1 pointer-events-none">
-                  <h3 className="text-sm sm:text-base font-bold text-white leading-tight drop-shadow-sm">
-                    {currentTech.title}
-                  </h3>
-                  <p className="text-xs text-slate-200/90 line-clamp-2 leading-relaxed drop-shadow-xs">
-                    {currentTech.subtitle}
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Bar & Status Line */}
-              <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1 pt-0.5">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>Accredited Technology Curricula</span>
-                </span>
-                
-                {/* Progress Indicators & Slide Counter */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    {HERO_TECH_SHOWCASE.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setActiveShowcaseIdx(idx);
-                          setIsPaused(true);
-                        }}
-                        aria-label={`Slide ${idx + 1}`}
-                        className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                          activeShowcaseIdx === idx ? 'w-5 bg-[#0A7CB3]' : 'w-1.5 bg-slate-300 hover:bg-slate-400'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-slate-400">
-                    {activeShowcaseIdx + 1} of {HERO_TECH_SHOWCASE.length}
-                  </span>
-                </div>
-              </div>
-            </div>
+          {/* Right Column: Clean Technology-Learning Visual (lg:col-span-5 ~ 40%) */}
+          <div className="lg:col-span-5 min-w-0">
+            <HeroLearningIllustration />
           </div>
 
         </div>
