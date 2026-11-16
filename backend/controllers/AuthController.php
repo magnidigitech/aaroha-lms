@@ -4,11 +4,44 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/jwt.php';
 
 class AuthController {
+    /**
+     * Public self-registration is explicitly disabled per institutional policy.
+     * All student and faculty accounts must be provisioned by an administrator.
+     */
     public static function register($data) {
+        http_response_code(403);
+        return [
+            'success' => false,
+            'error' => 'Public registration is disabled. All student and faculty accounts must be onboarded directly by the platform administrator.'
+        ];
+    }
+
+    /**
+     * Administrator User Directory Retrieval
+     */
+    public static function adminGetUsers() {
+        $pdo = Database::getConnection();
+        try {
+            $stmt = $pdo->query("SELECT id, full_name, email, role, title, avatar, created_at FROM users ORDER BY id DESC");
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return [
+                'success' => true,
+                'users' => $users ?: []
+            ];
+        } catch (PDOException $e) {
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Database query failed: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Administrator Direct User Onboarding
+     */
+    public static function adminCreateUser($data, $adminUser) {
         $fullName = trim($data['full_name'] ?? '');
         $email = strtolower(trim($data['email'] ?? ''));
         $password = $data['password'] ?? '';
-        $role = $data['role'] ?? 'student';
+        $role = strtolower(trim($data['role'] ?? 'student'));
         $title = !empty($data['title']) ? trim($data['title']) : null;
         $avatar = !empty($data['avatar']) ? trim($data['avatar']) : null;
 
@@ -19,12 +52,12 @@ class AuthController {
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             http_response_code(400);
-            return ['success' => false, 'error' => 'Valid email address required'];
+            return ['success' => false, 'error' => 'A valid corporate or institutional email address is required'];
         }
 
-        if (strlen($password) < 8) {
+        if (strlen($password) < 6) {
             http_response_code(400);
-            return ['success' => false, 'error' => 'Password must be at least 8 characters long'];
+            return ['success' => false, 'error' => 'Password must be at least 6 characters long'];
         }
 
         if (!in_array($role, ['student', 'admin', 'faculty', 'instructor'])) {
@@ -38,40 +71,55 @@ class AuthController {
         $stmt->execute([$email]);
         if ($stmt->fetch()) {
             http_response_code(409);
-            return ['success' => false, 'error' => 'An account with this email already exists'];
+            return ['success' => false, 'error' => 'An account with this email address already exists in the system'];
+        }
+
+        // Proactively ensure avatar column is LONGTEXT for custom base64 avatars
+        if ($avatar !== null) {
+            try {
+                @$pdo->exec("ALTER TABLE users MODIFY COLUMN avatar LONGTEXT NULL");
+            } catch (Exception $migEx) {}
         }
 
         // Hash password with Bcrypt cost 12
         $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
-        $insertStmt = $pdo->prepare("
-            INSERT INTO users (full_name, email, password_hash, role, title, avatar, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ");
-        $insertStmt->execute([$fullName, $email, $passwordHash, $role, $title, $avatar]);
-        $userId = (int)$pdo->lastInsertId();
+        try {
+            $insertStmt = $pdo->prepare("
+                INSERT INTO users (full_name, email, password_hash, role, title, avatar, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+            $insertStmt->execute([$fullName, $email, $passwordHash, $role, $title, $avatar]);
+            $userId = (int)$pdo->lastInsertId();
+        } catch (PDOException $e) {
+            // Self-healing schema check
+            try {
+                @$pdo->exec("ALTER TABLE users ADD COLUMN title VARCHAR(150) NULL");
+            } catch (Exception $ex) {}
+            try {
+                @$pdo->exec("ALTER TABLE users ADD COLUMN avatar LONGTEXT NULL");
+            } catch (Exception $ex) {}
 
-        $tokenPayload = [
-            'id' => $userId,
-            'full_name' => $fullName,
-            'email' => $email,
-            'role' => $role
-        ];
-
-        $jwtToken = JWT::generate($tokenPayload);
+            $insertStmt = $pdo->prepare("
+                INSERT INTO users (full_name, email, password_hash, role, title, avatar, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+            $insertStmt->execute([$fullName, $email, $passwordHash, $role, $title, $avatar]);
+            $userId = (int)$pdo->lastInsertId();
+        }
 
         http_response_code(201);
         return [
             'success' => true,
-            'message' => 'Account created successfully',
-            'token' => $jwtToken,
+            'message' => 'User account onboarded successfully by administrator',
             'user' => [
                 'id' => $userId,
                 'full_name' => $fullName,
                 'email' => $email,
                 'role' => $role,
                 'title' => $title,
-                'avatar' => $avatar
+                'avatar' => $avatar,
+                'created_at' => date('Y-m-d H:i:s')
             ]
         ];
     }
@@ -229,4 +277,3 @@ class AuthController {
         ];
     }
 }
-

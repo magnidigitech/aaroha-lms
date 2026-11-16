@@ -283,6 +283,21 @@ export default function App() {
                   }
                 })
                 .catch(() => {});
+              api.adminGetUsers()
+                .then(usersRes => {
+                  if (usersRes && usersRes.users && usersRes.users.length > 0) {
+                    setUsers(prev => {
+                      const userMap = new Map();
+                      prev.forEach(u => userMap.set(u.email.toLowerCase(), u));
+                      usersRes.users.forEach(u => {
+                        const existing = userMap.get(u.email.toLowerCase());
+                        userMap.set(u.email.toLowerCase(), { ...existing, ...u });
+                      });
+                      return Array.from(userMap.values());
+                    });
+                  }
+                })
+                .catch(() => {});
             } else {
               api.getMyEnrollments()
                 .then(enrRes => {
@@ -456,6 +471,21 @@ export default function App() {
               if (subRes && subRes.submissions) setTaskSubmissions(subRes.submissions);
             })
             .catch(() => {});
+          api.adminGetUsers()
+            .then(usersRes => {
+              if (usersRes && usersRes.users && usersRes.users.length > 0) {
+                setUsers(prev => {
+                  const userMap = new Map();
+                  prev.forEach(u => userMap.set(u.email.toLowerCase(), u));
+                  usersRes.users.forEach(u => {
+                    const existing = userMap.get(u.email.toLowerCase());
+                    userMap.set(u.email.toLowerCase(), { ...existing, ...u });
+                  });
+                  return Array.from(userMap.values());
+                });
+              }
+            })
+            .catch(() => {});
         } else {
           if (authModal.intendedCourse) {
             executeEnrollment(loggedUser.id, authModal.intendedCourse.id);
@@ -504,62 +534,38 @@ export default function App() {
     return false;
   };
 
-  const handleRegister = async (userData) => {
+  const handleAdminOnboardUser = async (userData) => {
     try {
-      const res = await api.register(userData);
+      const res = await api.adminCreateUser(userData);
       if (res && res.user) {
-        const registeredUser = {
+        const onboardedUser = {
           ...res.user,
           avatar: res.user.avatar || userData.avatar || '/avatars/3d/memo_13.png',
           title: res.user.title || userData.title || ''
         };
-        setCurrentUser(registeredUser);
-        localStorage.setItem('aaroha_user', JSON.stringify(registeredUser));
-        setIsBackendLive(true);
-
-        if (isFacultyRole(registeredUser.role)) {
-          setActiveView('admin');
-          showToast('Faculty account activated: ' + registeredUser.full_name);
-        } else {
-          if (authModal.intendedCourse) {
-            executeEnrollment(registeredUser.id, authModal.intendedCourse.id);
-          } else {
-            setActiveView('student');
-          }
-          showToast('Account registered successfully. Welcome, ' + registeredUser.full_name);
-        }
-        return;
+        setUsers(prev => [onboardedUser, ...prev.filter(u => u.email.toLowerCase() !== onboardedUser.email.toLowerCase())]);
+        showToast('Institutional account onboarded for ' + onboardedUser.full_name);
+        return onboardedUser;
       }
     } catch (apiErr) {
-      console.warn('API registration skipped, creating local account:', apiErr.message);
+      console.warn('API user onboarding failed, provisioning local account:', apiErr.message);
     }
 
     // Local fallback
-    const newUser = {
+    const fallbackUser = {
       id: Date.now(),
       full_name: userData.full_name,
       email: userData.email,
       password: userData.password,
-      role: userData.role,
+      role: userData.role || 'student',
       avatar: userData.avatar || '/avatars/3d/memo_13.png',
-      title: userData.title || ''
+      title: userData.title || (userData.role === 'faculty' ? 'Faculty Instructor' : 'Student Fellow'),
+      created_at: new Date().toISOString()
     };
 
-    setUsers([...users, newUser]);
-    setCurrentUser(newUser);
-    localStorage.setItem('aaroha_user', JSON.stringify(newUser));
-
-    if (isFacultyRole(newUser.role)) {
-      setActiveView('admin');
-      showToast('Faculty account activated: ' + newUser.full_name);
-    } else {
-      if (authModal.intendedCourse) {
-        executeEnrollment(newUser.id, authModal.intendedCourse.id);
-      } else {
-        setActiveView('student');
-      }
-      showToast('Account registered successfully. Welcome, ' + newUser.full_name);
-    }
+    setUsers(prev => [fallbackUser, ...prev.filter(u => u.email.toLowerCase() !== fallbackUser.email.toLowerCase())]);
+    showToast('Account provisioned for ' + fallbackUser.full_name);
+    return fallbackUser;
   };
 
   const handleUpdateProfile = async (profileData) => {
@@ -660,8 +666,8 @@ export default function App() {
     const courseId = typeof courseOrId === 'object' ? courseOrId.id : courseOrId;
     const course = typeof courseOrId === 'object' ? courseOrId : courses.find(c => c.id === courseId);
     if (!currentUser) {
-      handleOpenAuth('register', course);
-      showToast('Please sign in or create an account to enroll.');
+      handleOpenAuth('login', course);
+      showToast('Please sign in with your institutional credentials to enroll.');
       return;
     }
 
@@ -1421,7 +1427,7 @@ export default function App() {
           currentUser={currentUser}
           activeView={activeView}
           setActiveView={setActiveView}
-          onOpenAuth={(tab) => handleOpenAuth(tab, null)}
+          onOpenAuth={() => handleOpenAuth('login', null)}
           onLogout={handleLogout}
           onOpenProfile={() => setIsProfileModalOpen(true)}
           stats={{
@@ -1577,6 +1583,8 @@ export default function App() {
             onOpenProfile={() => setIsProfileModalOpen(true)}
             currentUser={currentUser}
             enrolledStudents={users.filter(u => u.role === 'student')}
+            users={users}
+            onOnboardUser={handleAdminOnboardUser}
           />
         )}
       </main>
@@ -1586,8 +1594,6 @@ export default function App() {
         isOpen={authModal.isOpen}
         onClose={() => setAuthModal({ isOpen: false, tab: 'login', intendedCourse: null })}
         onLogin={handleLogin}
-        onRegister={handleRegister}
-        initialTab={authModal.tab}
         intendedCourseTitle={authModal.intendedCourse?.title}
       />
 

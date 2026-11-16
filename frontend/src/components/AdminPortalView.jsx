@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   Shield, Plus, BookOpen, Layers, ListTodo, CheckCircle2, Clock, 
   Eye, AlertCircle, Edit3, Trash2, ArrowRight, RotateCcw, X, 
-  GraduationCap, Award, FileText, Video, Sparkles
+  GraduationCap, Award, FileText, Video, Sparkles, Users, UserPlus, 
+  UserCheck, Search, Mail, Calendar, Check, Copy
 } from 'lucide-react';
 import CourseModal from './admin/CourseModal';
 import ModuleModal from './admin/ModuleModal';
@@ -10,10 +11,13 @@ import LectureModal from './admin/LectureModal';
 import AssignmentModal from './admin/AssignmentModal';
 import DeleteConfirmModal from './admin/DeleteConfirmModal';
 import IssueCertificateModal from './admin/IssueCertificateModal';
+import OnboardUserModal from './admin/OnboardUserModal';
 
 export default function AdminPortalView({
   courses = [],
   taskSubmissions = [],
+  users = [],
+  onOnboardUser,
   onAddCourse,
   onUpdateCourse,
   onDeleteCourse,
@@ -32,7 +36,10 @@ export default function AdminPortalView({
   currentUser,
   enrolledStudents = []
 }) {
-  const [activeTab, setActiveTab] = useState('courses'); // 'courses' | 'grading'
+  const [activeTab, setActiveTab] = useState('courses'); // 'courses' | 'grading' | 'users'
+  const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('all'); // 'all' | 'student' | 'faculty'
 
   // Modal dialog states
   const [courseModal, setCourseModal] = useState({ isOpen: false, initialData: null, initialTab: 'syllabus' });
@@ -198,7 +205,7 @@ export default function AdminPortalView({
           </div>
         </div>
 
-        {/* Action Buttons: Edit Profile & Create Program */}
+        {/* Action Buttons: Edit Profile, Onboard User & Author Program */}
         <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0 flex-wrap">
           {onOpenProfile && (
             <button
@@ -209,6 +216,13 @@ export default function AdminPortalView({
               <span>Edit Profile</span>
             </button>
           )}
+          <button
+            onClick={() => setIsOnboardModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-97 cursor-pointer shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Onboard User</span>
+          </button>
           <button
             onClick={() => setCourseModal({ isOpen: true, initialData: null, initialTab: 'syllabus' })}
             className="bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-97 cursor-pointer shrink-0"
@@ -248,6 +262,18 @@ export default function AdminPortalView({
               {pendingSubmissions.length}
             </span>
           )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-2 shrink-0 ${
+            activeTab === 'users'
+              ? 'border-[#0A7CB3] text-[#0A7CB3]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>User Directory ({users.length})</span>
         </button>
       </div>
 
@@ -836,6 +862,205 @@ export default function AdminPortalView({
         </div>
       )}
 
+      {/* TAB 3: USER ONBOARDING & DIRECTORY */}
+      {activeTab === 'users' && (
+        <div className="space-y-6">
+          {/* Summary Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#0A7CB3] flex items-center justify-center shrink-0">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Onboarded</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">{users.length}</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center shrink-0">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Student Fellows</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">
+                  {users.filter(u => u.role === 'student').length}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Faculty & Instructors</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">
+                  {users.filter(u => u.role !== 'student').length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Directory Search & Filter Controls */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search accounts by name, email, or role title..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:bg-white"
+                />
+                {userSearchTerm && (
+                  <button
+                    onClick={() => setUserSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Pills & Onboard CTA */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold">
+                  <button
+                    onClick={() => setUserRoleFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      userRoleFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    All ({users.length})
+                  </button>
+                  <button
+                    onClick={() => setUserRoleFilter('student')}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      userRoleFilter === 'student' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Students ({users.filter(u => u.role === 'student').length})
+                  </button>
+                  <button
+                    onClick={() => setUserRoleFilter('faculty')}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      userRoleFilter === 'faculty' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Faculty ({users.filter(u => u.role !== 'student').length})
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setIsOnboardModalOpen(true)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer ml-auto"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Onboard User</span>
+                </button>
+              </div>
+            </div>
+
+            {/* User List */}
+            {(() => {
+              const term = userSearchTerm.toLowerCase().trim();
+              const filtered = users.filter((u) => {
+                const matchesSearch = !term ||
+                  (u.full_name && u.full_name.toLowerCase().includes(term)) ||
+                  (u.email && u.email.toLowerCase().includes(term)) ||
+                  (u.title && u.title.toLowerCase().includes(term));
+                if (!matchesSearch) return false;
+                if (userRoleFilter === 'student') return u.role === 'student';
+                if (userRoleFilter === 'faculty') return u.role !== 'student';
+                return true;
+              });
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="py-12 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl">
+                    <p className="font-semibold text-slate-700">No user accounts found matching your query.</p>
+                    <p className="mt-1">Try clearing your search or onboarding a new user to this tenant.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                  {filtered.map((u) => {
+                    const isFaculty = u.role === 'admin' || u.role === 'faculty' || u.role === 'instructor';
+                    return (
+                      <div key={u.id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* 3D Avatar */}
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                            {u.avatar ? (
+                              <img
+                                src={u.avatar}
+                                alt={u.full_name}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="font-bold text-slate-600 text-xs">
+                                {u.full_name ? u.full_name.charAt(0).toUpperCase() : 'U'}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-900 text-xs sm:text-sm truncate">
+                                {u.full_name}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border ${
+                                  isFaculty
+                                    ? 'bg-slate-900 text-white border-slate-900'
+                                    : 'bg-blue-50 text-[#0A7CB3] border-blue-200'
+                                }`}
+                              >
+                                {isFaculty ? <Shield className="w-2.5 h-2.5" /> : <GraduationCap className="w-2.5 h-2.5" />}
+                                <span>{isFaculty ? (u.role === 'admin' ? 'Administrator' : 'Faculty') : 'Student Fellow'}</span>
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5 flex-wrap">
+                              <span className="flex items-center gap-1 text-slate-600 truncate">
+                                <Mail className="w-3 h-3 text-slate-400" />
+                                {u.email}
+                              </span>
+                              {u.title && (
+                                <>
+                                  <span>•</span>
+                                  <span className="truncate max-w-xs">{u.title}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 text-[11px]">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 font-semibold rounded-lg border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Active Account</span>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* MODAL 1: Course Modal (Create & Edit) */}
       <CourseModal
         isOpen={courseModal.isOpen}
@@ -1003,6 +1228,13 @@ export default function AdminPortalView({
           </div>
         </div>
       )}
+
+      {/* MODAL 7: Onboard User Modal */}
+      <OnboardUserModal
+        isOpen={isOnboardModalOpen}
+        onClose={() => setIsOnboardModalOpen(false)}
+        onOnboardUser={onOnboardUser}
+      />
     </div>
   );
 }

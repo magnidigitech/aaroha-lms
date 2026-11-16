@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, UserPlus, LogOut, GraduationCap, Shield, Compass, Menu, X, Award, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Search, ChevronDown, User, LogOut, GraduationCap, Shield, Compass, Menu, X, Award, ShieldCheck, ArrowRight } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import TechSearchBar from './TechSearchBar';
 
@@ -211,17 +211,10 @@ export default function Navbar({
               <div className="hidden md:flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className="text-xs font-bold text-[#0A7CB3] hover:text-[#086491] hover:underline px-2 py-1.5 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  Log In
-                </button>
-
-                <button
-                  onClick={() => onOpenAuth('register')}
-                  className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Join Free</span>
+                  <User className="w-3.5 h-3.5" />
+                  <span>Log In</span>
                 </button>
               </div>
             )}
@@ -352,24 +345,16 @@ export default function Navbar({
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="pt-1">
                   <button
                     onClick={() => {
                       onOpenAuth('login');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl text-center"
+                    className="w-full py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl text-center shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Log In
-                  </button>
-                  <button
-                    onClick={() => {
-                      onOpenAuth('register');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl text-center shadow-xs"
-                  >
-                    Join Free
+                    <User className="w-4 h-4" />
+                    <span>Log In</span>
                   </button>
                 </div>
               )}

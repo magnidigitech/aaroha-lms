@@ -68,6 +68,13 @@ export const api = {
     return res;
   },
 
+  // Administrator User Directory & Onboarding
+  adminGetUsers: () => request('/admin/users'),
+  adminCreateUser: (userData) => request('/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(userData)
+  }),
+
   logout: () => {
     localStorage.removeItem('aaroha_token');
     localStorage.removeItem('aaroha_user');

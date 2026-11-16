@@ -63,6 +63,14 @@ try {
         $user = AuthMiddleware::requireAuth();
         $response = AuthController::updateProfile((int)$user['id'], $inputData);
     }
+    elseif ($requestMethod === 'GET' && $path === '/admin/users') {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = AuthController::adminGetUsers();
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/users') {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = AuthController::adminCreateUser($inputData, $admin);
+    }
 
     // -------------------------------------------------------------
     // COURSE CATALOG & DETAILS (PUBLIC & GUEST)
