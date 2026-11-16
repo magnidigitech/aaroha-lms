@@ -72,6 +72,11 @@ export const api = {
     localStorage.removeItem('aaroha_token');
     localStorage.removeItem('aaroha_user');
     localStorage.removeItem('aaroha_view');
+    localStorage.removeItem('aaroha_selected_course_id');
+    try {
+      sessionStorage.removeItem('aaroha_view');
+      sessionStorage.removeItem('aaroha_selected_course_id');
+    } catch (e) {}
   },
 
   getMe: () => request('/auth/me'),

@@ -40,17 +40,28 @@ export default function App() {
 
   const [activeView, setActiveView] = useState(() => {
     try {
-      const savedView = localStorage.getItem('aaroha_view');
+      // Clean up legacy localStorage aaroha_view and aaroha_selected_course_id
+      localStorage.removeItem('aaroha_view');
+      localStorage.removeItem('aaroha_selected_course_id');
+
+      // sessionStorage is tab-scoped:
+      // - Preserved on page reloads (F5) within an active tab
+      // - Restored by Chrome when user restores tabs (e.g. "Continue where you left off" or Ctrl+Shift+T)
+      // - Completely empty whenever a tab is closed and a new tab is opened!
+      const tabView = sessionStorage.getItem('aaroha_view');
       const savedUser = localStorage.getItem('aaroha_user');
-      if (savedUser) {
-        const user = JSON.parse(savedUser);
-        if (savedView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin', 'degrees'].includes(savedView)) {
-          if (savedView === 'admin' && !isFacultyRole(user.role)) return 'student';
-          if (savedView === 'course-detail') return 'course-brochure';
-          return savedView;
+
+      if (tabView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin', 'degrees'].includes(tabView)) {
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          if (tabView === 'admin' && !isFacultyRole(user.role)) return 'student';
         }
-        return isFacultyRole(user.role) ? 'admin' : 'student';
+        if (tabView === 'course-detail') return 'course-brochure';
+        return tabView;
       }
+
+      // If opening in a fresh tab (user closed previous tab), ALWAYS open from homepage ('catalog'),
+      // regardless of whether they are signed in or not!
       return 'catalog';
     } catch (e) {
       return 'catalog';
@@ -137,7 +148,7 @@ export default function App() {
   
   const [selectedCourse, setSelectedCourse] = useState(() => {
     try {
-      const savedCourseId = localStorage.getItem('aaroha_selected_course_id');
+      const savedCourseId = sessionStorage.getItem('aaroha_selected_course_id');
       const cachedCourses = localStorage.getItem('aaroha_courses');
       const pool = cachedCourses ? JSON.parse(cachedCourses) : initialCourses.filter(c => !c.is_deleted);
       if (savedCourseId) {
@@ -230,16 +241,20 @@ export default function App() {
     } catch (e) {}
   }, [degrees]);
 
-  // Track active view and course in storage
+  // Track active view and course in tab-scoped sessionStorage
   useEffect(() => {
     if (activeView) {
-      localStorage.setItem('aaroha_view', activeView);
+      try {
+        sessionStorage.setItem('aaroha_view', activeView);
+      } catch (e) {}
     }
   }, [activeView]);
 
   useEffect(() => {
     if (selectedCourse?.id) {
-      localStorage.setItem('aaroha_selected_course_id', selectedCourse.id);
+      try {
+        sessionStorage.setItem('aaroha_selected_course_id', String(selectedCourse.id));
+      } catch (e) {}
     }
   }, [selectedCourse]);
 
@@ -304,6 +319,11 @@ export default function App() {
             localStorage.removeItem('aaroha_token');
             localStorage.removeItem('aaroha_user');
             localStorage.removeItem('aaroha_view');
+            localStorage.removeItem('aaroha_selected_course_id');
+            try {
+              sessionStorage.removeItem('aaroha_view');
+              sessionStorage.removeItem('aaroha_selected_course_id');
+            } catch (e) {}
             setCurrentUser(null);
             setActiveView('catalog');
           }
@@ -430,7 +450,6 @@ export default function App() {
 
         if (isFacultyRole(loggedUser.role)) {
           setActiveView('admin');
-          localStorage.setItem('aaroha_view', 'admin');
           showToast('Signed in as Faculty: ' + loggedUser.full_name);
           api.getPendingSubmissions()
             .then(subRes => {
@@ -442,7 +461,6 @@ export default function App() {
             executeEnrollment(loggedUser.id, authModal.intendedCourse.id);
           } else {
             setActiveView('student');
-            localStorage.setItem('aaroha_view', 'student');
           }
           showToast('Welcome back, ' + loggedUser.full_name);
           api.getMyEnrollments()
@@ -471,14 +489,12 @@ export default function App() {
       localStorage.setItem('aaroha_user', JSON.stringify(foundUser));
       if (isFacultyRole(foundUser.role)) {
         setActiveView('admin');
-        localStorage.setItem('aaroha_view', 'admin');
         showToast('Signed in as Faculty: ' + foundUser.full_name);
       } else {
         if (authModal.intendedCourse) {
           executeEnrollment(foundUser.id, authModal.intendedCourse.id);
         } else {
           setActiveView('student');
-          localStorage.setItem('aaroha_view', 'student');
         }
         showToast('Welcome back, ' + foundUser.full_name);
       }
@@ -503,14 +519,12 @@ export default function App() {
 
         if (isFacultyRole(registeredUser.role)) {
           setActiveView('admin');
-          localStorage.setItem('aaroha_view', 'admin');
           showToast('Faculty account activated: ' + registeredUser.full_name);
         } else {
           if (authModal.intendedCourse) {
             executeEnrollment(registeredUser.id, authModal.intendedCourse.id);
           } else {
             setActiveView('student');
-            localStorage.setItem('aaroha_view', 'student');
           }
           showToast('Account registered successfully. Welcome, ' + registeredUser.full_name);
         }
@@ -537,14 +551,12 @@ export default function App() {
 
     if (isFacultyRole(newUser.role)) {
       setActiveView('admin');
-      localStorage.setItem('aaroha_view', 'admin');
       showToast('Faculty account activated: ' + newUser.full_name);
     } else {
       if (authModal.intendedCourse) {
         executeEnrollment(newUser.id, authModal.intendedCourse.id);
       } else {
         setActiveView('student');
-        localStorage.setItem('aaroha_view', 'student');
       }
       showToast('Account registered successfully. Welcome, ' + newUser.full_name);
     }
@@ -571,10 +583,8 @@ export default function App() {
       // If user switched authority/role, adjust view
       if (isFacultyRole(updatedUser.role) && activeView === 'student') {
         setActiveView('admin');
-        localStorage.setItem('aaroha_view', 'admin');
       } else if (!isFacultyRole(updatedUser.role) && activeView === 'admin') {
         setActiveView('student');
-        localStorage.setItem('aaroha_view', 'student');
       }
 
       showToast('Profile and avatar updated successfully!');
@@ -591,10 +601,8 @@ export default function App() {
 
       if (isFacultyRole(updatedUser.role) && activeView === 'student') {
         setActiveView('admin');
-        localStorage.setItem('aaroha_view', 'admin');
       } else if (!isFacultyRole(updatedUser.role) && activeView === 'admin') {
         setActiveView('student');
-        localStorage.setItem('aaroha_view', 'student');
       }
 
       showToast('Profile and avatar saved locally.');
@@ -606,6 +614,11 @@ export default function App() {
     api.logout();
     localStorage.removeItem('aaroha_user');
     localStorage.removeItem('aaroha_view');
+    localStorage.removeItem('aaroha_selected_course_id');
+    try {
+      sessionStorage.removeItem('aaroha_view');
+      sessionStorage.removeItem('aaroha_selected_course_id');
+    } catch (e) {}
     setCurrentUser(null);
     setActiveView('catalog');
     showToast('Signed out of workspace.');
