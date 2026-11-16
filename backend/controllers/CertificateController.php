@@ -177,6 +177,75 @@ class CertificateController {
         ];
     }
 
+    // Reissue an accredited digital certificate with a new credential code
+    public static function reissueCertificate(int $certId, array $data, array $actor): array {
+        $pdo = Database::getConnection();
+
+        $stmt = $pdo->prepare("SELECT * FROM certificates WHERE id = ? LIMIT 1");
+        $stmt->execute([$certId]);
+        $cert = $stmt->fetch();
+
+        if (!$cert) {
+            http_response_code(404);
+            return [
+                'success' => false,
+                'error' => 'Certificate not found'
+            ];
+        }
+
+        $reissueReason = trim($data['reissue_reason'] ?? 'Official curriculum administrative reissuance');
+        $newGrade = !empty($data['grade']) ? trim($data['grade']) : $cert['grade'];
+        $newRecipientName = !empty($data['recipient_name']) ? trim($data['recipient_name']) : $cert['recipient_name'];
+
+        $randomHex = strtoupper(bin2hex(random_bytes(3)));
+        $randomDigits = mt_rand(1000, 9999);
+        $newCertificateCode = 'AAROHA-CERT-' . date('Y') . '-' . $randomHex . '-' . $randomDigits;
+
+        $prevCode = $cert['certificate_code'];
+        $now = date('Y-m-d H:i:s');
+        $issuerId = (int)($actor['id'] ?? $cert['issuer_id']);
+        $issuerName = !empty($actor['full_name']) ? $actor['full_name'] : $cert['issuer_name'];
+
+        $upd = $pdo->prepare("
+            UPDATE certificates
+            SET previous_certificate_code = ?,
+                certificate_code = ?,
+                recipient_name = ?,
+                grade = ?,
+                reissued_at = ?,
+                reissue_reason = ?,
+                issuer_id = ?,
+                issuer_name = ?
+            WHERE id = ?
+        ");
+
+        $upd->execute([
+            $prevCode,
+            $newCertificateCode,
+            $newRecipientName,
+            $newGrade,
+            $now,
+            $reissueReason,
+            $issuerId,
+            $issuerName,
+            $certId
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Certificate successfully reissued with new credential tracking code.',
+            'certificate' => [
+                'id' => $certId,
+                'previous_certificate_code' => $prevCode,
+                'certificate_code' => $newCertificateCode,
+                'recipient_name' => $newRecipientName,
+                'grade' => $newGrade,
+                'reissued_at' => $now,
+                'reissue_reason' => $reissueReason
+            ]
+        ];
+    }
+
     // Verify a certificate by verification code
     public static function verifyCertificate(string $code): array {
         $pdo = Database::getConnection();

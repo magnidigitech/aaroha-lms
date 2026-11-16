@@ -114,7 +114,7 @@ export default function IssueCertificateModal({
         {/* Header Bar */}
         <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-800 to-[#0B1A2F] text-white flex items-center justify-between border-b border-slate-700">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center border border-amber-500/30 shrink-0">
               <Award className="w-5 h-5" />
             </div>
             <div>

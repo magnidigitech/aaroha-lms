@@ -10,6 +10,7 @@ deploy-package/
 *.zip
 *.pdf
 build_summary_pdf_*.py
+screenshots/
 
 # Sensitive Production Config (DO NOT COMMIT DATABASE PASSWORDS)
 backend/config/env.php

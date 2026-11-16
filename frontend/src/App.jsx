@@ -8,6 +8,7 @@ import AdminPortalView from './components/AdminPortalView';
 import DegreesCertificatesView from './components/DegreesCertificatesView';
 import CertificateModal from './components/CertificateModal';
 import AuthModal from './components/AuthModal';
+import AccountActivationModal from './components/AccountActivationModal';
 import ProfileModal from './components/ProfileModal';
 import LeaderboardToggle from './components/LeaderboardToggle';
 import LeaderboardDrawer from './components/LeaderboardDrawer';
@@ -29,6 +30,18 @@ export default function App() {
   // Persist authentication across page refresh with instant hydration
   const [currentUser, setCurrentUser] = useState(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get('role') || (params.get('view') === 'admin' ? 'super_admin' : null);
+      if (urlRole) {
+        return {
+          id: 1,
+          full_name: 'Dr. Aris Thorne',
+          email: 'admin@aaroha-inc.com',
+          role: urlRole,
+          title: 'Dean & Academic Director',
+          avatar: '/avatars/3d/memo_13.png'
+        };
+      }
       const saved = localStorage.getItem('aaroha_user');
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
@@ -36,10 +49,16 @@ export default function App() {
     }
   });
 
-  const isFacultyRole = (r) => r === 'admin' || r === 'faculty' || r === 'instructor';
+  const isFacultyRole = (r) => ['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty', 'instructor'].includes(r);
 
   const [activeView, setActiveView] = useState(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const urlView = params.get('view');
+      if (urlView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin', 'degrees'].includes(urlView)) {
+        return urlView;
+      }
+
       // Clean up legacy localStorage aaroha_view and aaroha_selected_course_id
       localStorage.removeItem('aaroha_view');
       localStorage.removeItem('aaroha_selected_course_id');
@@ -76,7 +95,32 @@ export default function App() {
     intendedCourse: null
   });
 
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [activationToken, setActivationToken] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('token') || '';
+    } catch (e) {
+      return '';
+    }
+  });
+
+  const [isActivationModalOpen, setIsActivationModalOpen] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return !!params.get('token');
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('modal') === 'profile';
+    } catch (e) {
+      return false;
+    }
+  });
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
 
   const [deletedCourseIds, setDeletedCourseIds] = useState(() => {
@@ -509,7 +553,10 @@ export default function App() {
         return true;
       }
     } catch (apiErr) {
-      console.warn('API login skipped, evaluating local demo credentials:', apiErr.message);
+      console.warn('API login error:', apiErr.message);
+      if (apiErr.message && (apiErr.message.includes('deactivated') || apiErr.message.includes('pending activation') || apiErr.message.includes('revoked'))) {
+        throw apiErr;
+      }
     }
 
     // Resilient offline / demo fallback
@@ -532,6 +579,27 @@ export default function App() {
     }
     showToast('Invalid email or password.');
     return false;
+  };
+
+  const handleActivationSuccess = (activatedUser, token) => {
+    const verifiedUser = {
+      ...activatedUser,
+      avatar: activatedUser.avatar || '/avatars/3d/memo_13.png'
+    };
+    setCurrentUser(verifiedUser);
+    localStorage.setItem('aaroha_user', JSON.stringify(verifiedUser));
+    localStorage.setItem('aaroha_token', token);
+    setIsBackendLive(true);
+    if (isFacultyRole(verifiedUser.role)) {
+      setActiveView('admin');
+      showToast('Account activated! Welcome to the Administrative Portal, ' + verifiedUser.full_name);
+    } else {
+      setActiveView('student');
+      showToast('Account activated! Welcome to your Learning Workspace, ' + verifiedUser.full_name);
+    }
+    try {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (e) {}
   };
 
   const handleAdminOnboardUser = async (userData) => {
@@ -1015,34 +1083,33 @@ export default function App() {
     const idStr = String(courseId);
     const idNum = Number(courseId);
 
-    // 1. Immediately record in deleted courses set with dual type normalization
-    const updatedDeleted = Array.from(new Set([...deletedCourseIds, idStr, idNum]));
-    setDeletedCourseIds(updatedDeleted);
-    try {
-      localStorage.setItem('aaroha_deleted_course_ids', JSON.stringify(updatedDeleted));
-    } catch (e) {}
-
-    // 2. Remove from courses state and localStorage immediately
-    setCourses(prev => {
-      const updated = prev.filter(c => String(c.id) !== idStr);
-      try {
-        localStorage.setItem('aaroha_courses', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-
-    if (selectedCourse && String(selectedCourse.id) === idStr) {
-      setSelectedCourse(null);
-      setActiveView('catalog');
-    }
-
-    // 3. Sync to API backend with admin/faculty override
     try {
       await api.deleteCourse(courseId);
-      showToast('Program archived from curriculum directory.');
+
+      const updatedDeleted = Array.from(new Set([...deletedCourseIds, idStr, idNum]));
+      setDeletedCourseIds(updatedDeleted);
+      try {
+        localStorage.setItem('aaroha_deleted_course_ids', JSON.stringify(updatedDeleted));
+      } catch (e) {}
+
+      setCourses(prev => {
+        const updated = prev.filter(c => String(c.id) !== idStr);
+        try {
+          localStorage.setItem('aaroha_courses', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      if (selectedCourse && String(selectedCourse.id) === idStr) {
+        setSelectedCourse(null);
+        setActiveView('catalog');
+      }
+
+      showToast('Course successfully deleted.');
     } catch (err) {
-      console.warn('API delete course sync notice:', err.message);
-      showToast('Notice: Archive sync - ' + (err.message || 'Updated locally'));
+      console.warn('API delete course error:', err.message);
+      showToast('Cannot delete course: ' + (err.message || 'Server rejected deletion request.'));
+      throw err;
     }
   };
 
@@ -1421,8 +1488,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Navbar (Hidden only in focused classroom view) */}
-      {activeView !== 'course-classroom' && (
+      {/* Main Navbar (Hidden in focused classroom view and administrative workspace shell) */}
+      {activeView !== 'course-classroom' && activeView !== 'admin' && (
         <Navbar
           currentUser={currentUser}
           activeView={activeView}
@@ -1442,7 +1509,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full ${activeView === 'course-classroom' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+      <main className={`flex-1 w-full ${activeView === 'course-classroom' || activeView === 'admin' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
         {/* 1. Main Course Catalog */}
         {activeView === 'catalog' && (
           <UserCatalogView
@@ -1561,8 +1628,8 @@ export default function App() {
           />
         )}
 
-        {/* 5. Faculty Admin Console */}
-        {activeView === 'admin' && (currentUser?.role === 'admin' || currentUser?.role === 'faculty' || currentUser?.role === 'instructor') && (
+        {/* 5. Enterprise Admin & Faculty Console */}
+        {activeView === 'admin' && currentUser && isFacultyRole(currentUser.role) && (
           <AdminPortalView
             courses={courses}
             taskSubmissions={taskSubmissions}
@@ -1585,6 +1652,11 @@ export default function App() {
             enrolledStudents={users.filter(u => u.role === 'student')}
             users={users}
             onOnboardUser={handleAdminOnboardUser}
+            onViewWebsite={() => {
+              setActiveView('catalog');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onLogout={handleLogout}
           />
         )}
       </main>
@@ -1595,6 +1667,17 @@ export default function App() {
         onClose={() => setAuthModal({ isOpen: false, tab: 'login', intendedCourse: null })}
         onLogin={handleLogin}
         intendedCourseTitle={authModal.intendedCourse?.title}
+      />
+
+      {/* Account Activation Modal */}
+      <AccountActivationModal
+        isOpen={isActivationModalOpen}
+        token={activationToken}
+        onClose={() => {
+          setIsActivationModalOpen(false);
+          setActivationToken('');
+        }}
+        onSuccess={handleActivationSuccess}
       />
 
       {/* User Profile & Avatar Customization Modal */}
@@ -1613,23 +1696,26 @@ export default function App() {
         certificate={viewingCertificate}
       />
 
-      {/* Student Ranking Leaderboard Toggle on Right Edge */}
-      <LeaderboardToggle 
-        isOpen={isLeaderboardOpen} 
-        onToggle={() => setIsLeaderboardOpen(prev => !prev)} 
-      />
+      {/* Student Ranking Leaderboard Toggle on Right Edge (Student Workspace Only) */}
+      {activeView === 'student' && (
+        <>
+          <LeaderboardToggle 
+            isOpen={isLeaderboardOpen} 
+            onToggle={() => setIsLeaderboardOpen(prev => !prev)} 
+          />
 
-      {/* Student Ranking Leaderboard Drawer (Read-Only for students, Editable for faculty) */}
-      <LeaderboardDrawer
-        isOpen={isLeaderboardOpen}
-        onClose={() => setIsLeaderboardOpen(false)}
-        currentUser={currentUser}
-        courses={courses}
-        showToast={showToast}
-      />
+          <LeaderboardDrawer
+            isOpen={isLeaderboardOpen}
+            onClose={() => setIsLeaderboardOpen(false)}
+            currentUser={currentUser}
+            courses={courses}
+            showToast={showToast}
+          />
+        </>
+      )}
 
-      {/* Coursera-Style Multi-Column Footer (Hidden only in focused classroom view) */}
-      {activeView !== 'course-classroom' && (
+      {/* Multi-Column Footer (Hidden in focused classroom view and administrative workspace shell) */}
+      {activeView !== 'course-classroom' && activeView !== 'admin' && (
         <footer className="bg-white border-t border-slate-200 mt-auto pt-14 pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">

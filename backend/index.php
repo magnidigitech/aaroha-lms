@@ -12,6 +12,10 @@ require_once __DIR__ . '/controllers/PlaybackController.php';
 require_once __DIR__ . '/controllers/CertificateController.php';
 require_once __DIR__ . '/controllers/LeaderboardController.php';
 require_once __DIR__ . '/controllers/DegreeController.php';
+require_once __DIR__ . '/controllers/AdminPortalController.php';
+require_once __DIR__ . '/controllers/DashboardController.php';
+require_once __DIR__ . '/controllers/ProfileController.php';
+require_once __DIR__ . '/controllers/PublishingController.php';
 
 // 1. Handle CORS Preflight and Headers
 handleCORS();
@@ -51,6 +55,31 @@ try {
     // -------------------------------------------------------------
     if ($requestMethod === 'POST' && $path === '/auth/register') {
         $response = AuthController::register($inputData);
+    }
+    // Single-Use Cryptographic Invitation Verification
+    elseif ($requestMethod === 'GET' && $path === '/auth/verify-invitation') {
+        $response = AuthController::verifyInvitation($_GET['token'] ?? '');
+    }
+    elseif ($requestMethod === 'POST' && $path === '/auth/activate') {
+        $response = AuthController::activateAccount($inputData);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/auth/forgot-password') {
+        $response = AuthController::forgotPassword($inputData);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/auth/reset-password') {
+        $response = AuthController::resetPassword($inputData);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/invitations/resend') {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::resendInvitation($inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/invitations/revoke') {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::revokeInvitation($inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/faculty/(\\d+)/toggle-status$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::toggleFacultyStatus((int)$matches[1], $inputData, $actor);
     }
     elseif ($requestMethod === 'POST' && $path === '/auth/login') {
         $response = AuthController::login($inputData);
@@ -142,6 +171,14 @@ try {
         $admin = AuthMiddleware::requireAdmin();
         $response = CourseController::deleteTask((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
     }
+    elseif (($requestMethod === 'POST' || $requestMethod === 'PUT') && preg_match('#^/(?:admin/)?courses/(\d+)/restore$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::restoreCourse((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
+    }
+    elseif (($requestMethod === 'POST' || $requestMethod === 'PUT') && preg_match('#^/(?:admin/tasks|courses/\d+/tasks|tasks)/(\d+)/status$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::toggleTaskStatus((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
+    }
 
     // -------------------------------------------------------------
     // STUDENT ENROLLMENTS & PROGRESS
@@ -198,6 +235,10 @@ try {
         $admin = AuthMiddleware::requireAdmin();
         $response = CertificateController::getCourseCertificates((int)$matches[1]);
     }
+    elseif ($requestMethod === 'POST' && preg_match('#^/(?:admin/)?certificates/(\d+)/reissue$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CertificateController::reissueCertificate((int)$matches[1], $inputData, $admin);
+    }
     elseif ($requestMethod === 'GET' && $path === '/student/certificates') {
         $user = AuthMiddleware::requireAuth();
         $response = CertificateController::getMyCertificates((int)$user['id']);
@@ -244,6 +285,398 @@ try {
     elseif ($requestMethod === 'DELETE' && preg_match('#^/degrees/(\d+)$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
         $response = DegreeController::deleteDegree((int)$matches[1], $admin);
+    }
+
+    // -------------------------------------------------------------
+    // ROLE-BASED DASHBOARDS (STUDENT, FACULTY, COORDINATOR, SUPER ADMIN, PLACEMENT)
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'GET' && $path === '/student/dashboard') {
+        $actor = AuthMiddleware::requireAuth();
+        $response = DashboardController::getStudentDashboard($actor);
+    }
+    elseif ($requestMethod === 'GET' && $path === '/faculty/dashboard') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty', 'instructor']);
+        $response = DashboardController::getFacultyDashboard($actor);
+    }
+    elseif ($requestMethod === 'GET' && $path === '/placement/dashboard') {
+        $actor = AuthMiddleware::requirePlacement();
+        $response = DashboardController::getPlacementDashboard($actor);
+    }
+    elseif ($requestMethod === 'GET' && $path === '/coordinator/dashboard') {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = DashboardController::getCoordinatorDashboard($actor);
+    }
+    elseif ($requestMethod === 'GET' && $path === '/super-admin/dashboard') {
+        $actor = AuthMiddleware::requireSuperAdmin();
+        $response = DashboardController::getSuperAdminDashboard($actor);
+    }
+
+    // -------------------------------------------------------------
+    // PERSONAL PROFILE & ACCOUNT SETTINGS (ALL ROLES)
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'GET' && $path === '/user/profile') {
+        $actor = AuthMiddleware::requireAuth();
+        $response = ProfileController::getProfile($actor);
+    }
+    elseif ($requestMethod === 'PUT' && $path === '/user/profile') {
+        $actor = AuthMiddleware::requireAuth();
+        $response = ProfileController::updateProfile($actor, $inputData);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/user/change-password') {
+        $actor = AuthMiddleware::requireAuth();
+        $response = ProfileController::changePassword($actor, $inputData);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/user/sessions/logout-other') {
+        $actor = AuthMiddleware::requireAuth();
+        $response = ProfileController::logoutOtherSessions($actor);
+    }
+
+    // -------------------------------------------------------------
+    // ENTERPRISE ADMIN PORTAL (STUDENTS, FACULTY, BATCHES, SCHEDULE, ATTENDANCE, PLACEMENT)
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'GET' && $path === '/admin/dashboard/stats') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty']);
+        $response = AdminPortalController::getDashboardStats($actor);
+    }
+    // Students
+    elseif ($requestMethod === 'GET' && $path === '/admin/students') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty']);
+        $response = AdminPortalController::getStudents($_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/students') {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::createStudent($inputData, $actor);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/students/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty']);
+        $response = AdminPortalController::getStudentDetail((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/transfer-batch$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::transferStudentBatch((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/toggle-status$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::toggleStudentStatus((int)$matches[1], $inputData, $actor);
+    }
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/students/(\d+)(?:/update)?$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::updateStudentProfile((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/enroll$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::enrollStudentCourse((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/withdraw-enrollment$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::withdrawStudentEnrollment((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/deactivate$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::deactivateStudentAccount((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/reactivate$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::reactivateStudentAccount((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/archive$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::archiveStudent((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/students/(\d+)/restore$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::restoreStudent((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/students/(\d+)/deletion-eligibility$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::checkStudentDeletionEligibility((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/students/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireAdmin();
+        $response = AdminPortalController::deleteStudent((int)$matches[1], $actor);
+    }
+    // Faculty
+    elseif ($requestMethod === 'GET' && $path === '/admin/faculty') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::getFaculty($_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/faculty') {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::createFaculty($inputData, $actor);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/faculty/(\d+)/detail$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::getFacultyDetail((int)$matches[1]);
+    }
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/faculty/(\d+)(?:/update)?$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::updateFacultyProfile((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/faculty/(\d+)/workload$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = AdminPortalController::getFacultyWorkload((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/faculty/(\d+)/assignments$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::getFacultyAssignments((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/faculty/(\d+)/assignments$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::assignFacultyBatch((int)$matches[1], $inputData, $actor);
+    }
+    elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/admin/faculty/(\d+)/assignments/(\d+)(?:/remove)?$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::removeFacultyAssignment((int)$matches[1], (int)$matches[2], $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/faculty/(\d+)/deactivate$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::deactivateFacultyAccount((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/faculty/(\d+)/reactivate$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::reactivateFacultyAccount((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/faculty/(\d+)/archive$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::archiveFaculty((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/faculty/(\d+)/restore$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::restoreFaculty((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/faculty/(\d+)/deletion-eligibility$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::checkFacultyDeletionEligibility((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/faculty/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireAdmin();
+        $response = AdminPortalController::deleteFaculty((int)$matches[1], $actor);
+    }
+    // Batches
+    elseif ($requestMethod === 'GET' && $path === '/admin/batches') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty', 'placement_officer']);
+        $response = AdminPortalController::getBatches($_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/batches') {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::createBatch($inputData, $actor);
+    }
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/batches/(\d+)(?:/update)?$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::updateBatch((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/batches/(\d+)/students$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::getBatchStudents((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/batches/(\d+)/students$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::addBatchStudent((int)$matches[1], $inputData, $actor);
+    }
+    elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/admin/batches/(\d+)/students/(\d+)(?:/withdraw)?$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::withdrawBatchStudent((int)$matches[1], (int)$matches[2], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/batches/(\d+)/assign-faculty$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::assignBatchFaculty((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/batches/(\d+)/archive$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::archiveBatch((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/batches/(\d+)/restore$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::restoreBatch((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/batches/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireAdmin();
+        $response = AdminPortalController::deleteBatch((int)$matches[1], $actor);
+    }
+    // Schedule
+    elseif ($requestMethod === 'GET' && $path === '/admin/schedule') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty', 'student']);
+        $response = AdminPortalController::getSchedule($_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/schedule') {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::createSession($inputData, $actor);
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/admin/schedule/(\d+)/reschedule$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::rescheduleSession((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/schedule/(\d+)/cancel$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::cancelSession((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/schedule/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::deleteSession((int)$matches[1], $actor);
+    }
+    // Attendance
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/attendance/session/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::getSessionAttendance((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/attendance/session/(\d+)/bulk$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::saveSessionAttendance((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/admin/attendance/(\d+)/correct$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::correctAttendance((int)$matches[1], $inputData, $actor);
+    }
+    // Fees & Payments (Offline Scope Safeguard - Super Admin only for non-destructive auditing)
+    elseif ($requestMethod === 'GET' && $path === '/admin/fees/plans') {
+        $actor = AuthMiddleware::requireSuperAdmin();
+        $response = AdminPortalController::getFeePlans($_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/fees/payments') {
+        $actor = AuthMiddleware::requireSuperAdmin();
+        $response = AdminPortalController::recordPayment($inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/fees/refunds') {
+        $actor = AuthMiddleware::requireSuperAdmin();
+        $response = AdminPortalController::recordRefund($inputData, $actor);
+    }
+    // Follow-ups
+    elseif ($requestMethod === 'GET' && $path === '/admin/followups') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = AdminPortalController::getFollowups($_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/followups') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = AdminPortalController::createFollowup($inputData, $actor);
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/admin/followups/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = AdminPortalController::updateFollowup((int)$matches[1], $inputData, $actor);
+    }
+    // Placement
+    elseif ($requestMethod === 'GET' && $path === '/admin/placement') {
+        $actor = AuthMiddleware::requirePlacement();
+        $response = AdminPortalController::getPlacementData();
+    }
+    // Support & Feedback
+    elseif ($requestMethod === 'GET' && $path === '/admin/support') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::getSupportTickets();
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/support/tickets/(\d+)/thread$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::getTicketThread((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/support/tickets/(\d+)/reply$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = AdminPortalController::replySupportTicket((int)$matches[1], $inputData, $actor);
+    }
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/support/tickets/(\d+)/status$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = AdminPortalController::updateTicketStatus((int)$matches[1], $inputData, $actor);
+    }
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/support/tickets/(\d+)/assign$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = AdminPortalController::assignSupportTicket((int)$matches[1], $inputData, $actor);
+    }
+    // Settings & Audit Logs
+    elseif ($requestMethod === 'GET' && $path === '/admin/settings') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = AdminPortalController::getSettings();
+    }
+    elseif ($requestMethod === 'PUT' && $path === '/admin/settings') {
+        $actor = AuthMiddleware::requireSuperAdmin();
+        $response = AdminPortalController::updateSettings($inputData, $actor);
+    }
+    elseif ($requestMethod === 'GET' && $path === '/admin/audit-logs') {
+        $actor = AuthMiddleware::requireSuperAdmin();
+        $response = AdminPortalController::getAuditLogs($_GET);
+    }
+
+    // -------------------------------------------------------------
+    // CONTENT PUBLISHING, PERMISSIONS & AUDIENCE TARGETING
+    // -------------------------------------------------------------
+    // Public Website Content (Unauthenticated / Public Access)
+    elseif ($requestMethod === 'GET' && $path === '/public/content') {
+        $response = PublishingController::getPublicWebsiteContent('all');
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/public/content/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
+        $response = PublishingController::getPublicWebsiteContent('single', $matches[1]);
+    }
+    elseif ($requestMethod === 'GET' && $path === '/public/courses') {
+        $response = PublishingController::getPublicWebsiteContent('courses');
+    }
+    // Secure Material Download / File Access
+    elseif ($requestMethod === 'GET' && preg_match('#^/content/material/(\d+)/download$#', $path, $matches)) {
+        $actor = AuthMiddleware::getOptionalAuth() ?: ['role' => 'guest'];
+        $response = PublishingController::secureDownloadMaterial((int)$matches[1], $actor);
+    }
+    // Live Audience Count Calculation
+    elseif ($requestMethod === 'POST' && $path === '/admin/audience-count') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::getAudienceCount(
+            $inputData['audience_type'] ?? '',
+            $inputData['audience_id'] ?? null,
+            $actor
+        );
+    }
+    // Learning Materials Management
+    elseif ($requestMethod === 'GET' && $path === '/admin/materials') {
+        $actor = AuthMiddleware::requireAuth();
+        $response = PublishingController::getMaterials($actor, $_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/materials') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::createMaterial($inputData, $actor);
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/admin/materials/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::updateMaterial((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/materials/(\d+)/publish$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::publishMaterial((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/materials/(\d+)/unpublish$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::unpublishMaterial((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/materials/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::deleteMaterial((int)$matches[1], $actor);
+    }
+    // Announcements Management
+    elseif ($requestMethod === 'GET' && $path === '/admin/announcements') {
+        $actor = AuthMiddleware::requireAuth();
+        $response = PublishingController::getAnnouncements($actor, $_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/announcements') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::createAnnouncement($inputData, $actor);
+    }
+    // Admin Publishing Queues & Public Content Review
+    elseif ($requestMethod === 'GET' && $path === '/admin/publishing/queues') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = PublishingController::getAdminPublishingQueues($actor);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/publishing/review') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
+        $response = PublishingController::adminReviewPublicContent(
+            $inputData['content_type'] ?? 'public_website_content',
+            (int)($inputData['id'] ?? 0),
+            $inputData['action'] ?? '',
+            $inputData['review_notes'] ?? '',
+            $actor
+        );
+    }
+    // Faculty Public Submissions (Articles & Showcases)
+    elseif ($requestMethod === 'GET' && $path === '/faculty/public-submissions') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::getPublicShowcases($actor, $_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/faculty/public-submissions') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+        $response = PublishingController::createPublicSubmission($inputData, $actor);
     }
 
     // -------------------------------------------------------------

@@ -68,11 +68,47 @@ export const api = {
     return res;
   },
 
+  // Account Activation & Recovery
+  verifyInvitation: (token) => request('/auth/verify-invitation?token=' + encodeURIComponent(token)),
+
+  activateAccount: async (data) => {
+    const res = await request('/auth/activate', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    if (res.token) {
+      localStorage.setItem('aaroha_token', res.token);
+    }
+    return res;
+  },
+
+  forgotPassword: (email) => request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  }),
+
+  resetPassword: (data) => request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
   // Administrator User Directory & Onboarding
   adminGetUsers: () => request('/admin/users'),
   adminCreateUser: (userData) => request('/admin/users', {
     method: 'POST',
     body: JSON.stringify(userData)
+  }),
+  adminResendInvitation: (userId) => request('/admin/invitations/resend', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId })
+  }),
+  adminRevokeInvitation: (userId) => request('/admin/invitations/revoke', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId })
+  }),
+  adminToggleFacultyStatus: (userId, data) => request('/admin/faculty/' + userId + '/toggle-status', {
+    method: 'POST',
+    body: JSON.stringify(data)
   }),
 
   logout: () => {
@@ -101,6 +137,7 @@ export const api = {
 
   // Courses (Public & Enrolled)
   getCourses: () => request('/courses'),
+  adminGetCourses: () => request('/admin/courses'),
   getCourseDetails: (idOrSlug) => request(`/courses/${idOrSlug}`),
 
   // Faculty / Admin Authoring
@@ -236,6 +273,393 @@ export const api = {
 
   deleteDegree: (degreeId) => request(`/degrees/${degreeId}`, {
     method: 'DELETE'
+  }),
+
+  // Enterprise Admin Portal Endpoints
+  adminGetDashboardStats: () => request('/admin/dashboard/stats'),
+
+  // --- Student Lifecycle & Actions ---
+  adminGetStudents: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/students${q ? '?' + q : ''}`);
+  },
+
+  adminCreateStudent: (data) => request('/admin/students', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetStudentDetail: (userId) => request(`/admin/students/${userId}`),
+
+  adminUpdateStudentProfile: (userId, data) => request(`/admin/students/${userId}/update`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminTransferStudentBatch: (userId, data) => request(`/admin/students/${userId}/transfer-batch`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminEnrollStudent: (userId, data) => request(`/admin/students/${userId}/enroll`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminWithdrawStudentEnrollment: (userId, data) => request(`/admin/students/${userId}/withdraw-enrollment`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminToggleStudentStatus: (userId, data) => request(`/admin/students/${userId}/toggle-status`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminDeactivateStudent: (userId, data = {}) => request(`/admin/students/${userId}/deactivate`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminReactivateStudent: (userId) => request(`/admin/students/${userId}/reactivate`, {
+    method: 'POST'
+  }),
+
+  adminArchiveStudent: (userId, data = {}) => request(`/admin/students/${userId}/archive`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminRestoreStudent: (userId) => request(`/admin/students/${userId}/restore`, {
+    method: 'POST'
+  }),
+
+  adminCheckStudentDeletion: (userId) => request(`/admin/students/${userId}/deletion-eligibility`),
+
+  adminDeleteStudent: (userId) => request(`/admin/students/${userId}`, {
+    method: 'DELETE'
+  }),
+
+  // --- Faculty Lifecycle & Workload ---
+  adminGetFaculty: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/faculty${q ? '?' + q : ''}`);
+  },
+
+  adminCreateFaculty: (data) => request('/admin/faculty', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetFacultyDetail: (facultyId) => request(`/admin/faculty/${facultyId}/detail`),
+
+  adminUpdateFacultyProfile: (facultyId, data) => request(`/admin/faculty/${facultyId}/update`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetFacultyWorkload: (facultyId) => request(`/admin/faculty/${facultyId}/workload`),
+
+  adminGetFacultyAssignments: (facultyId) => request(`/admin/faculty/${facultyId}/assignments`),
+
+  adminAssignFacultyBatch: (facultyId, data) => request(`/admin/faculty/${facultyId}/assignments`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminRemoveFacultyAssignment: (facultyId, batchId) => request(`/admin/faculty/${facultyId}/assignments/${batchId}/remove`, {
+    method: 'POST'
+  }),
+
+  adminDeactivateFaculty: (facultyId, data = {}) => request(`/admin/faculty/${facultyId}/deactivate`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminReactivateFaculty: (facultyId) => request(`/admin/faculty/${facultyId}/reactivate`, {
+    method: 'POST'
+  }),
+
+  adminArchiveFaculty: (facultyId, data = {}) => request(`/admin/faculty/${facultyId}/archive`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminRestoreFaculty: (facultyId) => request(`/admin/faculty/${facultyId}/restore`, {
+    method: 'POST'
+  }),
+
+  adminCheckFacultyDeletion: (facultyId) => request(`/admin/faculty/${facultyId}/deletion-eligibility`),
+
+  adminDeleteFaculty: (facultyId) => request(`/admin/faculty/${facultyId}`, {
+    method: 'DELETE'
+  }),
+
+  // --- Batches Management ---
+  adminGetBatches: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/batches${q ? '?' + q : ''}`);
+  },
+
+  adminCreateBatch: (data) => request('/admin/batches', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminUpdateBatch: (batchId, data) => request(`/admin/batches/${batchId}/update`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetBatchStudents: (batchId) => request(`/admin/batches/${batchId}/students`),
+
+  adminEnrollBatchStudent: (batchId, data) => request(`/admin/batches/${batchId}/students`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminWithdrawBatchStudent: (batchId, studentId, data = {}) => request(`/admin/batches/${batchId}/students/${studentId}/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminAssignBatchFaculty: (batchId, data) => request(`/admin/batches/${batchId}/assign-faculty`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminArchiveBatch: (batchId) => request(`/admin/batches/${batchId}/archive`, {
+    method: 'POST'
+  }),
+
+  adminRestoreBatch: (batchId) => request(`/admin/batches/${batchId}/restore`, {
+    method: 'POST'
+  }),
+
+  adminDeleteBatch: (batchId) => request(`/admin/batches/${batchId}`, {
+    method: 'DELETE'
+  }),
+
+  adminManageAccountStatus: (userId, data) => request(`/admin/users/${userId}/status`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetSchedule: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/schedule${q ? '?' + q : ''}`);
+  },
+
+  adminCreateSession: (data) => request('/admin/schedule', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminRescheduleSession: (sessionId, data) => request(`/admin/schedule/${sessionId}/reschedule`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  adminCancelSession: (sessionId, data) => request(`/admin/schedule/${sessionId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetSessionAttendance: (sessionId) => request(`/admin/attendance/session/${sessionId}`),
+
+  adminSaveSessionAttendance: (sessionId, data) => request(`/admin/attendance/session/${sessionId}/bulk`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminCorrectAttendance: (recordId, data) => request(`/admin/attendance/${recordId}/correct`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetMaterials: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/materials${q ? '?' + q : ''}`);
+  },
+
+  adminGetAnnouncements: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/announcements${q ? '?' + q : ''}`);
+  },
+
+  adminGetFollowups: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/followups${q ? '?' + q : ''}`);
+  },
+
+  adminCreateFollowup: (data) => request('/admin/followups', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminUpdateFollowup: (id, data) => request(`/admin/followups/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetPlacementData: () => request('/admin/placement'),
+
+  adminGetSupportData: () => request('/admin/support'),
+
+  // Support Tickets Thread & Actions
+  adminGetTicketThread: (ticketId) => request(`/admin/support/tickets/${ticketId}/thread`),
+  adminReplySupportTicket: (ticketId, data) => request(`/admin/support/tickets/${ticketId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  adminUpdateTicketStatus: (ticketId, data) => request(`/admin/support/tickets/${ticketId}/status`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  adminAssignSupportTicket: (ticketId, data) => request(`/admin/support/tickets/${ticketId}/assign`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // Course Restore & Task Closure
+  adminRestoreCourse: (courseId) => request(`/admin/courses/${courseId}/restore`, {
+    method: 'POST'
+  }),
+  adminToggleTaskStatus: (taskId, data) => request(`/admin/tasks/${taskId}/status`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // Certificate Reissue
+  adminReissueCertificate: (certId, data) => request(`/admin/certificates/${certId}/reissue`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // Class Session Deletion
+  adminDeleteSession: (sessionId) => request(`/admin/schedule/${sessionId}`, {
+    method: 'DELETE'
+  }),
+
+
+  adminGetSettings: () => request('/admin/settings'),
+
+  adminUpdateSettings: (data) => request('/admin/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  adminCreateMaterial: (data) => request('/admin/materials', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminUpdateMaterial: (id, data) => request(`/admin/materials/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  adminPublishMaterial: (id, data = {}) => request(`/admin/materials/${id}/publish`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminUnpublishMaterial: (id) => request(`/admin/materials/${id}/unpublish`, {
+    method: 'POST'
+  }),
+
+  adminDeleteMaterial: (id) => request(`/admin/materials/${id}`, {
+    method: 'DELETE'
+  }),
+
+  adminGetAudienceCount: (audience_type, audience_id) => request('/admin/audience-count', {
+    method: 'POST',
+    body: JSON.stringify({ audience_type, audience_id })
+  }),
+
+  adminGetPublishingQueues: () => request('/admin/publishing/queues'),
+
+  adminReviewPublicContent: (data) => request('/admin/publishing/review', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  facultyGetPublicSubmissions: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/faculty/public-submissions${q ? '?' + q : ''}`);
+  },
+
+  facultyCreatePublicSubmission: (data) => request('/faculty/public-submissions', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  publicGetContent: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/public/content${q ? '?' + q : ''}`);
+  },
+
+  publicGetCourses: () => request('/public/courses'),
+
+  publicGetContentItem: (slug) => request(`/public/content/${slug}`),
+
+  adminCreateAnnouncement: (data) => request('/admin/announcements', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminDeleteAnnouncement: (id) => request(`/admin/announcements/${id}`, {
+    method: 'DELETE'
+  }),
+
+  adminUpdateUserRole: (userId, data) => request(`/admin/users/${userId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  adminUpdatePlacementProfile: (userId, data) => request(`/admin/placement/profiles/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+
+  adminCreateJobOpening: (data) => request('/admin/placement/jobs', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetCertificates: () => request('/certificates'),
+
+  adminRevokeCertificate: (id, data) => request(`/certificates/${id}/revoke`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  adminGetAuditLogs: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request('/admin/audit-logs' + (q ? '?' + q : ''));
+  },
+
+  // Role-Based Dashboards
+  getStudentDashboard: () => request('/student/dashboard'),
+  getFacultyDashboard: () => request('/faculty/dashboard'),
+  getPlacementDashboard: () => request('/placement/dashboard'),
+  getCoordinatorDashboard: () => request('/coordinator/dashboard'),
+  getSuperAdminDashboard: () => request('/super-admin/dashboard'),
+
+  // Personal Profile & Settings
+  getUserProfile: () => request('/user/profile'),
+  updateUserProfile: (data) => request('/user/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+  changePassword: (data) => request('/user/change-password', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  logoutOtherSessions: () => request('/user/sessions/logout-other', {
+    method: 'POST'
   })
 };
+
+export default api;
 

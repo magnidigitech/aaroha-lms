@@ -134,7 +134,7 @@ class AuthController {
         }
 
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT id, full_name, email, password_hash, role, title, avatar FROM users WHERE email = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, full_name, email, password_hash, role, title, avatar, status, is_archived, deleted_at, authorized_roles_json FROM users WHERE email = ? LIMIT 1");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
@@ -149,6 +149,80 @@ class AuthController {
                 http_response_code(401);
                 return ['success' => false, 'error' => 'Invalid email or password'];
             }
+        }
+
+        // Account lifecycle blocking: Deactivated or archived accounts cannot log in
+        if (($user['status'] ?? 'active') === 'deactivated' || ($user['status'] ?? 'active') === 'archived' || !empty($user['deleted_at']) || !empty($user['is_archived'])) {
+            http_response_code(403);
+            return [
+                'success' => false,
+                'error' => 'This account has been ' . ($user['status'] ?: 'deactivated') . '. Please contact institutional administration.',
+                'account_status' => $user['status'] ?: 'deactivated'
+            ];
+        }
+
+        // Role-level lifecycle blocking: If student profile is deactivated/archived and user has no other role
+        if ($user['role'] === 'student') {
+            $sp = $pdo->prepare("SELECT account_status FROM student_profiles WHERE user_id = ?");
+            $sp->execute([(int)$user['id']]);
+            $stStatus = $sp->fetchColumn();
+            if ($stStatus === 'deactivated' || $stStatus === 'archived') {
+                $authRoles = json_decode($user['authorized_roles_json'] ?? '[]', true) ?: [];
+                $otherRoles = array_diff($authRoles, ['student']);
+                if (empty($otherRoles)) {
+                    http_response_code(403);
+                    return [
+                        'success' => false,
+                        'error' => 'Student account has been ' . $stStatus . '. Login access is blocked.',
+                        'account_status' => $stStatus
+                    ];
+                }
+            }
+        } elseif ($user['role'] === 'faculty' || $user['role'] === 'instructor') {
+            $fp = $pdo->prepare("SELECT account_status FROM faculty_profiles WHERE user_id = ?");
+            $fp->execute([(int)$user['id']]);
+            $facStatus = $fp->fetchColumn();
+            if ($facStatus === 'deactivated' || $facStatus === 'archived') {
+                $authRoles = json_decode($user['authorized_roles_json'] ?? '[]', true) ?: [];
+                $otherRoles = array_diff($authRoles, ['faculty', 'instructor']);
+                if (empty($otherRoles)) {
+                    http_response_code(403);
+                    return [
+                        'success' => false,
+                        'error' => 'Faculty account has been ' . $facStatus . '. Login access is blocked.',
+                        'account_status' => $facStatus
+                    ];
+                }
+            }
+        }
+
+        // Account status check for students and faculty prior to issuing session
+        $sCheck = $pdo->prepare("SELECT account_status FROM student_profiles WHERE user_id = ? LIMIT 1");
+        $sCheck->execute([(int)$user['id']]);
+        $sProf = $sCheck->fetch();
+        $accStatus = $sProf ? $sProf['account_status'] : null;
+
+        if (!$accStatus) {
+            $fCheck = $pdo->prepare("SELECT account_status FROM faculty_profiles WHERE user_id = ? LIMIT 1");
+            $fCheck->execute([(int)$user['id']]);
+            $fProf = $fCheck->fetch();
+            $accStatus = $fProf ? $fProf['account_status'] : null;
+        }
+
+        if ($accStatus === 'invited') {
+            http_response_code(403);
+            return [
+                'success' => false,
+                'error' => 'Account has not been activated yet. Please click the invitation link sent to your email to set your password and activate your account.'
+            ];
+        }
+
+        if ($accStatus === 'deactivated' || $accStatus === 'suspended') {
+            http_response_code(403);
+            return [
+                'success' => false,
+                'error' => 'Your account has been deactivated by an administrator. Please contact support.'
+            ];
         }
 
         $tokenPayload = [
@@ -276,4 +350,261 @@ class AuthController {
             ]
         ];
     }
+
+    /**
+     * Verify single-use invitation token cryptographically
+     */
+    public static function verifyInvitation($token) {
+        $token = trim($token ?? '');
+        if (empty($token)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Invitation token is required'];
+        }
+
+        $pdo = Database::getConnection();
+
+        // Check student profile
+        $stmt = $pdo->prepare("
+            SELECT sp.student_id_code as id_code, sp.account_status, sp.invitation_expires_at, sp.invitation_accepted_at,
+                   u.id as user_id, u.full_name, u.email, u.role
+            FROM student_profiles sp
+            JOIN users u ON sp.user_id = u.id
+            WHERE sp.invitation_token = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$token]);
+        $match = $stmt->fetch();
+
+        if (!$match) {
+            // Check faculty profile
+            $stmt = $pdo->prepare("
+                SELECT fp.faculty_id_code as id_code, fp.account_status, fp.invitation_expires_at, fp.invitation_accepted_at,
+                       u.id as user_id, u.full_name, u.email, u.role
+                FROM faculty_profiles fp
+                JOIN users u ON fp.user_id = u.id
+                WHERE fp.invitation_token = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$token]);
+            $match = $stmt->fetch();
+        }
+
+        if (!$match) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Invalid invitation link. Please contact your coordinator.'];
+        }
+
+        if (!empty($match['invitation_accepted_at'])) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'This invitation has already been accepted. Please sign in with your password.'];
+        }
+
+        if (!empty($match['invitation_expires_at']) && strtotime($match['invitation_expires_at']) < time()) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'This invitation link has expired. Please request a new invitation link from your administrator.'];
+        }
+
+        return [
+            'success' => true,
+            'user' => [
+                'user_id' => (int)$match['user_id'],
+                'full_name' => $match['full_name'],
+                'email' => $match['email'],
+                'role' => $match['role'],
+                'id_code' => $match['id_code']
+            ]
+        ];
+    }
+
+    /**
+     * Activate account and set self-chosen password
+     */
+    public static function activateAccount($data) {
+        $token = trim($data['token'] ?? '');
+        $password = $data['password'] ?? '';
+
+        if (empty($token) || empty($password)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Invitation token and password are required'];
+        }
+
+        if (strlen($password) < 8) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Password must be at least 8 characters long'];
+        }
+
+        $pdo = Database::getConnection();
+
+        $stmt = $pdo->prepare("SELECT user_id, invitation_expires_at, invitation_accepted_at FROM student_profiles WHERE invitation_token = ? LIMIT 1");
+        $stmt->execute([$token]);
+        $target = $stmt->fetch();
+        $isStudent = true;
+
+        if (!$target) {
+            $stmt = $pdo->prepare("SELECT user_id, invitation_expires_at, invitation_accepted_at FROM faculty_profiles WHERE invitation_token = ? LIMIT 1");
+            $stmt->execute([$token]);
+            $target = $stmt->fetch();
+            $isStudent = false;
+        }
+
+        if (!$target) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Invalid invitation token'];
+        }
+
+        if (!empty($target['invitation_accepted_at'])) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'This invitation has already been accepted'];
+        }
+
+        if (!empty($target['invitation_expires_at']) && strtotime($target['invitation_expires_at']) < time()) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Invitation link has expired'];
+        }
+
+        $userId = (int)$target['user_id'];
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+
+        $pdo->beginTransaction();
+        try {
+            $uStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+            $uStmt->execute([$passwordHash, $userId]);
+
+            $now = date('Y-m-d H:i:s');
+            if ($isStudent) {
+                $pStmt = $pdo->prepare("UPDATE student_profiles SET account_status = 'active', invitation_accepted_at = ? WHERE user_id = ?");
+                $pStmt->execute([$now, $userId]);
+            } else {
+                $pStmt = $pdo->prepare("UPDATE faculty_profiles SET account_status = 'active', invitation_accepted_at = ? WHERE user_id = ?");
+                $pStmt->execute([$now, $userId]);
+            }
+
+            $pdo->commit();
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Failed to activate account: ' . $e->getMessage()];
+        }
+
+        $uFetch = $pdo->prepare("SELECT id, full_name, email, role, title, avatar FROM users WHERE id = ? LIMIT 1");
+        $uFetch->execute([$userId]);
+        $user = $uFetch->fetch();
+
+        $tokenPayload = [
+            'id' => (int)$user['id'],
+            'full_name' => $user['full_name'],
+            'email' => $user['email'],
+            'role' => $user['role']
+        ];
+        $jwtToken = JWT::generate($tokenPayload);
+
+        return [
+            'success' => true,
+            'message' => 'Account activated successfully. Welcome to Aaroha Technologies!',
+            'token' => $jwtToken,
+            'user' => $user
+        ];
+    }
+
+    /**
+     * Request single-use password reset link
+     */
+    public static function forgotPassword($data) {
+        $email = strtolower(trim($data['email'] ?? ''));
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'A valid email address is required'];
+        }
+
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT id, full_name FROM users WHERE email = ? LIMIT 1");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user) {
+            return [
+                'success' => true,
+                'message' => 'If an account exists with this email, password reset instructions will be provided.',
+                'email_delivery' => 'Unconfigured (Simulated Live Preview)'
+            ];
+        }
+
+        $token = bin2hex(random_bytes(24));
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+        $ins = $pdo->prepare("INSERT INTO password_resets (user_id, token, expires_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)");
+        $ins->execute([(int)$user['id'], $token, $expiresAt]);
+
+        $resetUrl = "https://lms.aaroha-inc.com/reset-password?token=" . $token;
+
+        return [
+            'success' => true,
+            'message' => 'Password reset link generated successfully.',
+            'reset_url' => $resetUrl,
+            'email_delivery' => 'Unconfigured (Simulated Live Preview)',
+            'email_notice' => 'Email delivery is currently simulated (SMTP unconfigured). Use the provided reset link directly.'
+        ];
+    }
+
+    /**
+     * Reset password with valid single-use token
+     */
+    public static function resetPassword($data) {
+        $token = trim($data['token'] ?? '');
+        $password = $data['password'] ?? '';
+
+        if (empty($token) || empty($password)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Reset token and new password are required'];
+        }
+
+        if (strlen($password) < 8) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Password must be at least 8 characters long'];
+        }
+
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT id, user_id, expires_at, used_at FROM password_resets WHERE token = ? LIMIT 1");
+        $stmt->execute([$token]);
+        $reset = $stmt->fetch();
+
+        if (!$reset) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Invalid password reset token'];
+        }
+
+        if (!empty($reset['used_at'])) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'This password reset link has already been used'];
+        }
+
+        if (strtotime($reset['expires_at']) < time()) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Password reset link has expired'];
+        }
+
+        $userId = (int)$reset['user_id'];
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+
+        $pdo->beginTransaction();
+        try {
+            $uStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+            $uStmt->execute([$passwordHash, $userId]);
+
+            $rStmt = $pdo->prepare("UPDATE password_resets SET used_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $rStmt->execute([(int)$reset['id']]);
+
+            $pdo->commit();
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Failed to reset password: ' . $e->getMessage()];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Password has been reset successfully. You may now log in with your new credentials.'
+        ];
+    }
+
 }

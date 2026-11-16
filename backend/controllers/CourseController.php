@@ -1031,4 +1031,48 @@ class CourseController {
             'task_id' => $taskId
         ];
     }
+
+    public static function restoreCourse(int $courseId, int $userId, string $userRole) {
+        $pdo = Database::getConnection();
+        if (!in_array($userRole, ['admin', 'super_admin'])) {
+            self::setHttpStatus(403);
+            return ['success' => false, 'error' => 'Only administrators can restore archived courses.'];
+        }
+
+        $stmt = $pdo->prepare("UPDATE courses SET is_deleted = 0 WHERE id = ?");
+        $stmt->execute([$courseId]);
+
+        $pdo->prepare("UPDATE modules SET is_deleted = 0 WHERE course_id = ?")->execute([$courseId]);
+        $pdo->prepare("UPDATE lessons SET is_deleted = 0 WHERE module_id IN (SELECT id FROM modules WHERE course_id = ?)")->execute([$courseId]);
+        $pdo->prepare("UPDATE tasks SET is_deleted = 0 WHERE module_id IN (SELECT id FROM modules WHERE course_id = ?)")->execute([$courseId]);
+
+        return [
+            'success' => true,
+            'message' => 'Course and syllabus curriculum successfully restored from archive.',
+            'course_id' => $courseId
+        ];
+    }
+
+    public static function toggleTaskStatus(int $taskId, array $data, int $userId, string $userRole) {
+        $pdo = Database::getConnection();
+        $auth = self::checkTaskOwnership($pdo, $taskId, $userId, $userRole);
+        if (!$auth['allowed']) {
+            self::setHttpStatus($auth['code']);
+            return ['success' => false, 'error' => $auth['error']];
+        }
+
+        $status = trim($data['status'] ?? 'closed'); // 'published' | 'closed'
+        $reason = trim($data['closure_reason'] ?? '');
+        $closedAt = ($status === 'closed') ? date('Y-m-d H:i:s') : null;
+
+        $stmt = $pdo->prepare("UPDATE tasks SET status = ?, closed_at = ?, closure_reason = ? WHERE id = ?");
+        $stmt->execute([$status, $closedAt, $reason, $taskId]);
+
+        return [
+            'success' => true,
+            'message' => "Task status successfully updated to {$status}.",
+            'task_id' => $taskId,
+            'status' => $status
+        ];
+    }
 }

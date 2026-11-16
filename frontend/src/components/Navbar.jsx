@@ -152,7 +152,7 @@ export default function Navbar({
               </button>
             )}
 
-            {(currentUser?.role === 'admin' || currentUser?.role === 'faculty' || currentUser?.role === 'instructor') && (
+            {currentUser && ['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty', 'instructor'].includes(currentUser.role) && (
               <button
                 onClick={() => setActiveView('admin')}
                 className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
@@ -161,7 +161,15 @@ export default function Navbar({
                     : 'text-slate-700 hover:text-[#0A7CB3]')}
               >
                 <Shield className="w-4 h-4 text-[#0A7CB3]" />
-                <span className="hidden md:inline">Faculty Console</span>
+                <span className="hidden md:inline">
+                  {currentUser.role === 'super_admin' || currentUser.role === 'admin'
+                    ? 'Admin Portal'
+                    : currentUser.role === 'coordinator'
+                    ? 'Academic Ops'
+                    : currentUser.role === 'placement_officer'
+                    ? 'Placement'
+                    : 'Faculty Console'}
+                </span>
                 {stats?.pendingReviews > 0 && (
                   <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                     {stats.pendingReviews}
@@ -285,7 +293,7 @@ export default function Navbar({
                 </button>
               )}
 
-              {(currentUser?.role === 'admin' || currentUser?.role === 'faculty' || currentUser?.role === 'instructor') && (
+              {currentUser && ['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty', 'instructor'].includes(currentUser.role) && (
                 <button
                   onClick={() => {
                     setActiveView('admin');
@@ -297,7 +305,15 @@ export default function Navbar({
                 >
                   <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-[#0A7CB3]" />
-                    <span>Faculty Console</span>
+                    <span>
+                      {currentUser.role === 'super_admin' || currentUser.role === 'admin'
+                        ? 'Admin Portal'
+                        : currentUser.role === 'coordinator'
+                        ? 'Academic Ops'
+                        : currentUser.role === 'placement_officer'
+                        ? 'Placement Portal'
+                        : 'Faculty Console'}
+                    </span>
                   </div>
                   {stats?.pendingReviews > 0 && (
                     <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
