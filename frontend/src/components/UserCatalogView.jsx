@@ -176,42 +176,23 @@ export default function UserCatalogView({
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
-            {/* Domain Selection Tabs & Progress Dots */}
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-                {HERO_TECH_SHOWCASE.map((t, idx) => (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setActiveShowcaseIdx(idx);
-                      setIsPaused(true);
-                    }}
-                    className={'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ' +
-                      (activeShowcaseIdx === idx
-                        ? 'bg-[#0A7CB3] text-white shadow-xs'
-                        : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
-                  >
-                    <span>{t.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Progress Indicators */}
-              <div className="flex items-center gap-1.5 shrink-0 px-1">
-                {HERO_TECH_SHOWCASE.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setActiveShowcaseIdx(idx);
-                      setIsPaused(true);
-                    }}
-                    aria-label={`Slide ${idx + 1}`}
-                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                      activeShowcaseIdx === idx ? 'w-5 bg-[#0A7CB3]' : 'w-1.5 bg-slate-300 hover:bg-slate-400'
-                    }`}
-                  />
-                ))}
-              </div>
+            {/* Domain Selection Tabs (Full width, zero cutoff) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-3 overflow-x-auto scrollbar-none pb-0.5">
+              {HERO_TECH_SHOWCASE.map((t, idx) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setActiveShowcaseIdx(idx);
+                    setIsPaused(true);
+                  }}
+                  className={'px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ' +
+                    (activeShowcaseIdx === idx
+                      ? 'bg-[#0A7CB3] text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200')}
+                >
+                  <span>{t.label}</span>
+                </button>
+              ))}
             </div>
 
             {/* Showcase Visual Card - Pure Technology Image Showcase */}
@@ -253,9 +234,28 @@ export default function UserCatalogView({
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>Accredited Technology Curricula</span>
                 </span>
-                <span className="text-slate-400">
-                  {activeShowcaseIdx + 1} of {HERO_TECH_SHOWCASE.length}
-                </span>
+                
+                {/* Progress Indicators & Slide Counter */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {HERO_TECH_SHOWCASE.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setActiveShowcaseIdx(idx);
+                          setIsPaused(true);
+                        }}
+                        aria-label={`Slide ${idx + 1}`}
+                        className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                          activeShowcaseIdx === idx ? 'w-5 bg-[#0A7CB3]' : 'w-1.5 bg-slate-300 hover:bg-slate-400'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-slate-400">
+                    {activeShowcaseIdx + 1} of {HERO_TECH_SHOWCASE.length}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
