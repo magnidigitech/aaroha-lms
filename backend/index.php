@@ -2,6 +2,34 @@
 // Aaroha LMS - REST API Entrypoint Router
 // Optimized for Hostinger Shared LAMP stack (Native PHP 8.x + MySQL)
 
+// Global Exception & Fatal Error Trap to Guarantee JSON Response on Production
+set_exception_handler(function(Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode([
+        'success' => false,
+        'error' => 'Internal Server Error: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+});
+
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'success' => false,
+            'error' => 'Fatal Server Error: ' . $err['message'],
+            'file' => basename($err['file']),
+            'line' => $err['line']
+        ], JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+});
+
 require_once __DIR__ . '/middleware/cors.php';
 require_once __DIR__ . '/middleware/auth.php';
 require_once __DIR__ . '/controllers/AuthController.php';
@@ -767,7 +795,7 @@ try {
             'method' => $requestMethod
         ];
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(500);
     $response = [
         'success' => false,

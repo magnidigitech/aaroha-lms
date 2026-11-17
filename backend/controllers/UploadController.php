@@ -4,13 +4,24 @@
 // and HMAC-signed short-lived token access for enrolled students.
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../config/jwt.php';
 
 class UploadController {
 
     private static function getSecret(): string {
-        $cfg = getAppConfig();
-        return $cfg['jwt']['secret'] ?? 'aaroha_shared_production_jwt_secret_key_2026';
+        $candidates = [
+            __DIR__ . '/../config/env.php',
+            dirname(__DIR__, 2) . '/env.php',
+            dirname(__DIR__, 3) . '/env.php',
+        ];
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate)) {
+                $cfg = require $candidate;
+                if (!empty($cfg['JWT_SECRET'])) return $cfg['JWT_SECRET'];
+                if (!empty($cfg['jwt']['secret'])) return $cfg['jwt']['secret'];
+            }
+        }
+        return getenv('JWT_SECRET') ?: 'aaroha_shared_production_jwt_secret_key_2026';
     }
 
     private static function getUploadsBaseDir(): string {
