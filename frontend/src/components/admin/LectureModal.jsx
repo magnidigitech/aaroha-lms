@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Video, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, ShieldCheck, KeyRound } from 'lucide-react';
 import { extractBunnyVideoId } from '../../videoUtils';
+import MediaSourceInput from '../common/MediaSourceInput';
 
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -44,7 +45,9 @@ export default function LectureModal({
         // Detect provider from existing lesson
         let detectedProvider = initialData.video_provider || 'bunny_stream';
         const media = initialData.media_url || initialData.video_url || '';
-        if (!initialData.video_provider) {
+        if (media.includes('/api/uploads/') || initialData.source_type === 'upload') {
+          detectedProvider = 'upload';
+        } else if (!initialData.video_provider) {
           if (extractBunnyVideoId(media) || media.length === 36) {
             detectedProvider = 'bunny_stream';
           } else if (media.includes('youtu')) {
@@ -120,11 +123,11 @@ export default function LectureModal({
     }
 
     if (formData.content_type === 'video') {
-      const mediaVal = formData.media_url.trim();
+      const mediaVal = (formData.media_url || '').trim();
       if (!mediaVal) {
         newErrors.media_url = formData.video_provider === 'bunny_stream' 
           ? 'Bunny Video ID is required' 
-          : 'Video URL is required';
+          : (formData.video_provider === 'upload' ? 'Video file upload is required' : 'Video URL is required');
       } else if (formData.video_provider === 'bunny_stream') {
         const extracted = extractBunnyVideoId(mediaVal);
         if (!extracted && !UUID_REGEX.test(mediaVal)) {
@@ -285,15 +288,38 @@ export default function LectureModal({
                   onChange={(e) => handleChange('video_provider', e.target.value)}
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-medium"
                 >
+                  <option value="upload">Direct Video Upload (Local Storage / Stream)</option>
                   <option value="bunny_stream">Bunny Stream (Authenticated & Secure)</option>
                   <option value="youtube">YouTube Embed</option>
                   <option value="vimeo">Vimeo</option>
-                  <option value="direct">Direct MP4 / WebM File</option>
+                  <option value="direct">Direct External Media URL (.mp4 / .webm)</option>
                 </select>
               </div>
 
-              {/* Bunny Stream Video ID Entry */}
-              {formData.video_provider === 'bunny_stream' ? (
+              {/* Direct File Upload via MediaSourceInput */}
+              {formData.video_provider === 'upload' ? (
+                <div>
+                  <MediaSourceInput
+                    category="lesson_video"
+                    value={formData.media_url}
+                    label="Lesson Video File or Direct Stream"
+                    helpText="Upload MP4, WEBM, MOV, or MKV up to 500MB. Uses chunked delivery for smooth streaming."
+                    required
+                    onChange={(url, meta) => {
+                      handleChange('media_url', url);
+                      if (meta?.storage_key) {
+                        setFormData(prev => ({
+                          ...prev,
+                          storage_key: meta.storage_key,
+                          source_type: 'upload'
+                        }));
+                      }
+                    }}
+                  />
+                  {errors.media_url && <p className="text-red-600 text-[11px] mt-1">{errors.media_url}</p>}
+                </div>
+              ) : formData.video_provider === 'bunny_stream' ? (
+                /* Bunny Stream Video ID Entry */
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="font-semibold text-slate-800 flex items-center gap-1.5">
@@ -329,7 +355,7 @@ export default function LectureModal({
                   )}
                 </div>
               ) : (
-                /* Other Video Providers (YouTube, Vimeo, Direct) */
+                /* Other Video Providers (YouTube, Vimeo, Direct URL) */
                 <div>
                   <label className="font-semibold text-slate-800 block mb-1">
                     {formData.video_provider === 'youtube' && 'YouTube Video URL:'}

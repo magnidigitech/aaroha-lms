@@ -16,6 +16,7 @@ require_once __DIR__ . '/controllers/AdminPortalController.php';
 require_once __DIR__ . '/controllers/DashboardController.php';
 require_once __DIR__ . '/controllers/ProfileController.php';
 require_once __DIR__ . '/controllers/PublishingController.php';
+require_once __DIR__ . '/controllers/UploadController.php';
 
 // 1. Handle CORS Preflight and Headers
 handleCORS();
@@ -194,6 +195,30 @@ try {
     elseif ($requestMethod === 'POST' && preg_match('#^/lessons/(\d+)/complete$#', $path, $matches)) {
         $user = AuthMiddleware::requireAuth();
         $response = EnrollmentController::completeLesson((int)$matches[1], (int)$user['id']);
+    }
+
+    // -------------------------------------------------------------
+    // DIRECT UPLOADS & SECURE MEDIA DELIVERY
+    // -------------------------------------------------------------
+    elseif ($requestMethod === 'POST' && $path === '/uploads') {
+        $user = AuthMiddleware::getOptionalAuth();
+        $response = UploadController::upload($inputData, $user);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/uploads/chunk') {
+        $user = AuthMiddleware::getOptionalAuth();
+        $response = UploadController::uploadChunk($inputData, $user);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/uploads/public/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
+        UploadController::servePublic($matches[1]);
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/uploads/stream/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
+        $user = AuthMiddleware::getOptionalAuth();
+        UploadController::serveStream($matches[1], $user);
+    }
+    // Admin Enrolment Access Duration Extension
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/enrollments/(\d+)/extend$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = EnrollmentController::extendAccess((int)$matches[1], $inputData, $actor);
     }
 
     // -------------------------------------------------------------

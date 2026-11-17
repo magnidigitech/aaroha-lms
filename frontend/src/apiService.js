@@ -685,7 +685,107 @@ export const api = {
   }),
   logoutOtherSessions: () => request('/user/sessions/logout-other', {
     method: 'POST'
-  })
+  }),
+
+  // Course Access Duration & Extensions
+  adminExtendAccess: (enrollmentId, data) => request(`/admin/enrollments/${enrollmentId}/extend`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
+  // Direct File Upload Support & Storage
+  uploadFile: (file, category = 'material_document', onProgress = null, signal = null) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/uploads`);
+      
+      const token = localStorage.getItem('aaroha_token');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          xhr.abort();
+          reject(new DOMException('Upload aborted by user', 'AbortError'));
+        });
+      }
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent, e.loaded, e.total);
+        }
+      };
+
+      xhr.onload = () => {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && res.success) {
+            resolve(res);
+          } else {
+            reject(new Error(res.error || `Upload failed with status ${xhr.status}`));
+          }
+        } catch (e) {
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error during file upload.'));
+      xhr.ontimeout = () => reject(new Error('Upload timed out.'));
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+      xhr.send(formData);
+    });
+  },
+
+  uploadChunk: (chunkData) => request('/uploads/chunk', {
+    method: 'POST',
+    body: JSON.stringify(chunkData)
+  }),
+
+  uploadLargeFileChunked: async (file, category = 'lesson_video', onProgress = null, signal = null) => {
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB chunk slice
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = 'up_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    
+    for (let i = 0; i < totalChunks; i++) {
+      if (signal && signal.aborted) throw new DOMException('Upload aborted', 'AbortError');
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(file.size, start + CHUNK_SIZE);
+      const chunkBlob = file.slice(start, end);
+      
+      const chunkBase64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const resultStr = reader.result;
+          const commaIdx = resultStr.indexOf(',');
+          res(commaIdx !== -1 ? resultStr.substring(commaIdx + 1) : resultStr);
+        };
+        reader.onerror = rej;
+        reader.readAsDataURL(chunkBlob);
+      });
+
+      const res = await api.uploadChunk({
+        upload_id: uploadId,
+        chunk_index: i,
+        total_chunks: totalChunks,
+        chunk_data: chunkBase64,
+        filename: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        file_size: file.size,
+        category
+      });
+
+      if (onProgress) {
+        onProgress(Math.round(((i + 1) / totalChunks) * 100), end, file.size);
+      }
+
+      if (i === totalChunks - 1) {
+        return res;
+      }
+    }
+  }
 };
 
 export default api;

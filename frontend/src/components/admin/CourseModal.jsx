@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, BookOpen, AlertCircle, Loader2, Award, FileText, 
   GraduationCap, Check, User, Image as ImageIcon, Sparkles, 
-  CheckCircle2, Upload, Trash2, Globe, Camera
+  CheckCircle2, Upload, Trash2, Globe, Camera, Clock
 } from 'lucide-react';
+import MediaSourceInput from '../common/MediaSourceInput';
 import { AVATAR_PRESETS } from '../../avatarPresets';
 
 const PRESET_DOMAINS = [
@@ -59,6 +60,10 @@ export default function CourseModal({
     category: availableCategories[0] || 'Cloud Architecture',
     level: 'Advanced Level',
     duration: '',
+    access_duration_type: 'preset',
+    access_duration_preset: '6 Months',
+    access_duration_value: 6,
+    access_duration_unit: 'months',
     partner_type: 'Specialization',
     badge_text: '',
     thumbnail_url: '',
@@ -144,6 +149,24 @@ export default function CourseModal({
         const learnArr = Array.isArray(initialData.what_you_will_learn) ? initialData.what_you_will_learn : [];
         const inst = initialData.instructor || {};
 
+        const dType = initialData.access_duration_type || 'preset';
+        const dVal = initialData.access_duration_value || 6;
+        const dUnit = (initialData.access_duration_unit || 'months').toLowerCase();
+        let dPreset = '6 Months';
+        if (dType === 'custom') {
+          dPreset = 'custom';
+        } else if (dUnit === 'months' && dVal === 1) {
+          dPreset = '1 Month';
+        } else if (dUnit === 'months' && dVal === 3) {
+          dPreset = '3 Months';
+        } else if (dUnit === 'months' && dVal === 6) {
+          dPreset = '6 Months';
+        } else if (dUnit === 'months' && dVal === 12) {
+          dPreset = '12 Months';
+        } else {
+          dPreset = 'custom';
+        }
+
         setFormData({
           title: initialData.title || '',
           slug: initialData.slug || '',
@@ -153,6 +176,10 @@ export default function CourseModal({
           category: cat,
           level: initialData.level || 'Advanced Level',
           duration: initialData.duration || '',
+          access_duration_type: dType,
+          access_duration_preset: dPreset,
+          access_duration_value: dVal,
+          access_duration_unit: dUnit,
           partner_type: initialData.partner_type || 'Specialization',
           badge_text: initialData.badge_text || '',
           thumbnail_url: initialData.thumbnail_url || '',
@@ -506,117 +533,95 @@ export default function CourseModal({
                 </div>
               </div>
 
-              {/* Cover Thumbnail with Custom Upload Option */}
-              <div className="space-y-2">
-                <label className="font-semibold text-slate-800 block text-xs">
-                  Program Cover Thumbnail
-                </label>
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 rounded-xl text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => setThumbnailUploadTab('upload')}
-                      className={
-                        'flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ' +
-                        (thumbnailUploadTab === 'upload' ? 'bg-white text-[#0A7CB3] shadow-xs' : 'text-slate-600 hover:text-slate-900')
-                      }
+              {/* Course Access Duration (Required) */}
+              <div className="space-y-2 p-4 bg-sky-50/70 border border-sky-100 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#0A7CB3]" />
+                    <span>Course Access Duration <span className="text-rose-500">*</span></span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-[#0A7CB3] bg-sky-100/80 px-2.5 py-0.5 rounded-full border border-sky-200">
+                    {formData.access_duration_preset === 'custom'
+                      ? `${formData.access_duration_value} ${formData.access_duration_unit.charAt(0).toUpperCase() + formData.access_duration_unit.slice(1)}`
+                      : formData.access_duration_preset}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <select
+                      required
+                      value={formData.access_duration_preset}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setIsDirty(true);
+                        if (val === '1 Month') {
+                          setFormData(prev => ({ ...prev, access_duration_preset: val, access_duration_type: 'preset', access_duration_value: 1, access_duration_unit: 'months' }));
+                        } else if (val === '3 Months') {
+                          setFormData(prev => ({ ...prev, access_duration_preset: val, access_duration_type: 'preset', access_duration_value: 3, access_duration_unit: 'months' }));
+                        } else if (val === '6 Months') {
+                          setFormData(prev => ({ ...prev, access_duration_preset: val, access_duration_type: 'preset', access_duration_value: 6, access_duration_unit: 'months' }));
+                        } else if (val === '12 Months') {
+                          setFormData(prev => ({ ...prev, access_duration_preset: val, access_duration_type: 'preset', access_duration_value: 12, access_duration_unit: 'months' }));
+                        } else {
+                          setFormData(prev => ({ ...prev, access_duration_preset: 'custom', access_duration_type: 'custom' }));
+                        }
+                      }}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#0A7CB3]/20 focus:border-[#0A7CB3] outline-hidden text-xs font-semibold text-slate-800"
                     >
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Upload Image</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setThumbnailUploadTab('url')}
-                      className={
-                        'flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ' +
-                        (thumbnailUploadTab === 'url' ? 'bg-white text-[#0A7CB3] shadow-xs' : 'text-slate-600 hover:text-slate-900')
-                      }
-                    >
-                      <Globe className="w-3.5 h-3.5" />
-                      <span>Web URL</span>
-                    </button>
+                      <option value="1 Month">1 Month</option>
+                      <option value="3 Months">3 Months</option>
+                      <option value="6 Months">6 Months</option>
+                      <option value="12 Months">12 Months</option>
+                      <option value="custom">Custom Duration</option>
+                    </select>
                   </div>
 
-                  {thumbnailUploadTab === 'upload' ? (
-                    <div className="space-y-2">
+                  {formData.access_duration_preset === 'custom' && (
+                    <div className="flex items-center gap-2">
                       <input
-                        type="file"
-                        ref={thumbnailFileInputRef}
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            try {
-                              setUploadError('');
-                              const dataUri = await processImageFile(file, false);
-                              handleChange('thumbnail_url', dataUri);
-                            } catch (err) {
-                              setUploadError(String(err));
-                            }
-                          }
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                        value={formData.access_duration_value}
+                        onChange={(e) => {
+                          setIsDirty(true);
+                          handleChange('access_duration_value', Math.max(1, parseInt(e.target.value, 10) || 1));
                         }}
+                        placeholder="e.g. 45"
+                        className="w-24 p-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0A7CB3]/20 focus:border-[#0A7CB3] outline-hidden text-xs font-semibold text-slate-800"
                       />
-                      <div
-                        onClick={() => thumbnailFileInputRef.current?.click()}
-                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        onDrop={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const file = e.dataTransfer.files?.[0];
-                          if (file) {
-                            try {
-                              setUploadError('');
-                              const dataUri = await processImageFile(file, false);
-                              handleChange('thumbnail_url', dataUri);
-                            } catch (err) {
-                              setUploadError(String(err));
-                            }
-                          }
+                      <select
+                        value={formData.access_duration_unit}
+                        onChange={(e) => {
+                          setIsDirty(true);
+                          handleChange('access_duration_unit', e.target.value);
                         }}
-                        className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white hover:bg-blue-50/40 rounded-xl p-4 text-center cursor-pointer transition-colors space-y-1.5 group"
+                        className="flex-1 p-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0A7CB3]/20 focus:border-[#0A7CB3] outline-hidden text-xs font-semibold text-slate-800"
                       >
-                        <div className="w-9 h-9 rounded-full bg-blue-50 group-hover:bg-blue-100 text-[#0A7CB3] mx-auto flex items-center justify-center transition-colors">
-                          <Upload className="w-4 h-4" />
-                        </div>
-                        <div className="text-xs font-bold text-slate-800">
-                          Click to upload 16:9 cover image, or drag & drop
-                        </div>
-                        <p className="text-[11px] text-slate-500">
-                          PNG, JPG, WEBP (Up to 8MB · Scaled for responsive display)
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <input
-                      type="url"
-                      value={formData.thumbnail_url}
-                      onChange={(e) => handleChange('thumbnail_url', e.target.value)}
-                      placeholder="https://images.unsplash.com/photo-..."
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-xs"
-                    />
-                  )}
-
-                  {formData.thumbnail_url && (
-                    <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-900 group">
-                      <img
-                        src={formData.thumbnail_url}
-                        alt="Thumbnail preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleChange('thumbnail_url', '')}
-                        className="absolute top-2 right-2 bg-slate-900/80 hover:bg-rose-600 text-white p-1.5 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
-                        title="Remove cover image"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <option value="days">Days</option>
+                        <option value="months">Months</option>
+                        <option value="years">Years</option>
+                      </select>
                     </div>
                   )}
                 </div>
+
+                <p className="text-[11px] text-slate-500 leading-relaxed pt-1">
+                  Each student’s access starts when their enrolment becomes active. They can revisit course content without a viewing limit until access expires.
+                </p>
               </div>
+
+              {/* Cover Thumbnail with Direct Upload & URL Support */}
+              <MediaSourceInput
+                value={formData.thumbnail_url}
+                onChange={(url) => handleChange('thumbnail_url', url)}
+                category="course_image"
+                label="Program Cover Thumbnail"
+                helpText="Displayed on catalog hero, course brochures, and student dashboards."
+                placeholderUrl="https://images.unsplash.com/photo-..."
+              />
 
               <div className="pt-2 border-t border-slate-100">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">

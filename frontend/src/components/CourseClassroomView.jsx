@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Play, FileText, CheckCircle2, Lock, ArrowRight, BookOpen, Clock, 
   ChevronDown, ChevronUp, ChevronRight, Award, Check, 
-  Send, AlertCircle, User, GraduationCap, RefreshCw
+  Send, AlertCircle, AlertTriangle, User, GraduationCap, RefreshCw
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import { isBunnyStreamVideo, getVideoThumbnail, isDirectVideoFile, getEmbedVideoUrl } from '../videoUtils';
 import BunnyStreamPlayer from './BunnyStreamPlayer';
 import { api } from '../apiService';
+import MediaSourceInput from './common/MediaSourceInput';
+import { formatDate } from '../adminUtils';
 
 /**
  * Resilient Lesson Thumbnail Component
@@ -205,6 +207,12 @@ export default function CourseClassroomView({
 
   if (!course) return null;
 
+  const isAccessExpired = Boolean(
+    course?.is_expired ||
+    course?.access_status === 'expired' ||
+    (course?.expires_at && new Date(course.expires_at).getTime() < Date.now())
+  );
+
   // Calculate course progress percentage
   const totalLessonsCount = allLessons.length;
   const completedLessonIds = new Set(
@@ -226,6 +234,7 @@ export default function CourseClassroomView({
 
   const canPlayLesson = (lesson) => {
     if (!lesson) return false;
+    if (isAccessExpired && !lesson.is_free_preview) return false;
     if (isEnrolled) return true;
     return !!lesson.is_free_preview;
   };
@@ -381,6 +390,21 @@ export default function CourseClassroomView({
           )}
         </div>
       </header>
+
+      {/* Expired Course Access Notification Banner */}
+      {isAccessExpired && (
+        <div className="bg-rose-950/90 border-b border-rose-800 text-rose-200 px-4 sm:px-6 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>
+              <strong>Course Access Expired:</strong> Your enrolment access period for <em>{course.title}</em> concluded on {course.expires_at ? formatDate(course.expires_at) : 'expiry date'}. Stream playback and task submissions are locked. All learning history, grades, and certificates remain preserved.
+            </span>
+          </div>
+          <span className="font-mono text-[11px] bg-rose-900/60 px-2 py-0.5 rounded border border-rose-700 text-rose-300 shrink-0 self-start sm:self-auto">
+            Access Expired: {course.expires_at ? formatDate(course.expires_at) : 'Past'}
+          </span>
+        </div>
+      )}
 
       {/* Main Classroom Workspace - 2 Column Layout */}
       <div className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
@@ -550,20 +574,32 @@ export default function CourseClassroomView({
                   </div>
                   <div className="space-y-1.5 max-w-md">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-950/80 px-2.5 py-1 rounded-full border border-amber-800">
-                      Enrolled Only Lecture
+                      {isAccessExpired ? 'Access Expired' : 'Enrolled Only Lecture'}
                     </span>
                     <h3 className="text-xl font-bold text-white pt-1">{activeLesson?.title}</h3>
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      This lecture and its practical code evaluations are reserved for enrolled students of Aaroha Institute.
+                      {isAccessExpired
+                        ? `Course access concluded on ${course.expires_at ? formatDate(course.expires_at) : 'expiry date'}. Playback and downloads are locked.`
+                        : 'This lecture and its practical code evaluations are reserved for enrolled students of Aaroha Institute.'}
                     </p>
                   </div>
-                  <button
-                    onClick={() => onEnroll(course)}
-                    className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
-                  >
-                    <Award className="w-4 h-4" />
-                    <span>Enroll Now to Unlock All Lectures & Defense Labs</span>
-                  </button>
+                  {isAccessExpired ? (
+                    <button
+                      onClick={onBack}
+                      className="bg-[#132A4A] hover:bg-[#1A3860] border border-[#23456F] text-slate-200 text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Back to Dashboard</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onEnroll(course)}
+                      className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
+                    >
+                      <Award className="w-4 h-4" />
+                      <span>Enroll Now to Unlock All Lectures & Defense Labs</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -742,7 +778,17 @@ export default function CourseClassroomView({
                         </div>
 
                         {/* Submission Form (Enrolled Students Only) */}
-                        {isEnrolled ? (
+                        {isAccessExpired ? (
+                          <div className="p-3 bg-rose-950/40 rounded-xl border border-rose-900/60 text-xs text-rose-200 space-y-1">
+                            <div className="font-bold flex items-center gap-1.5 text-rose-300">
+                              <Lock size={14} />
+                              <span>Submission Locked (Course Access Expired)</span>
+                            </div>
+                            <p className="text-[11px] text-slate-300">
+                              New assignment submissions are locked because your enrolment access duration has ended. Your previously evaluated solutions and grades remain visible.
+                            </p>
+                          </div>
+                        ) : isEnrolled ? (
                           <form onSubmit={(e) => handleTaskSubmit(e, task.id)} className="space-y-3 pt-2 border-t border-[#1b3d63]">
                             <div>
                               <label className="font-semibold text-slate-300 block mb-1">Defense Solution Notes / Implementation Rationale:</label>
@@ -756,13 +802,13 @@ export default function CourseClassroomView({
                               />
                             </div>
                             <div>
-                              <label className="font-semibold text-slate-300 block mb-1">Artifact / Repository Link:</label>
-                              <input
-                                type="url"
+                              <MediaSourceInput
+                                category="task_submission"
+                                label="Deliverable Solution File or Repository Link"
+                                helpText="Upload solution PDF, code ZIP archive, or notebook up to 50MB, or supply an external repository URL."
                                 value={attachmentUrl}
-                                onChange={(e) => setAttachmentUrl(e.target.value)}
-                                placeholder="https://github.com/org/repo or https://aaroha-inc.com/artifacts/rfc.pdf"
-                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-blue-500"
+                                onChange={(url, meta) => setAttachmentUrl(url)}
+                                required={false}
                               />
                             </div>
                             <div className="flex items-center justify-between pt-1">

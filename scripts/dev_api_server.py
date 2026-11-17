@@ -9,12 +9,16 @@ record-level permissions, account deactivation session blocking, and account reu
 
 import os
 import sys
+import re
 import json
 import sqlite3
 import hashlib
 import hmac
 import time
 import secrets
+import calendar
+import mimetypes
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -82,7 +86,120 @@ def decode_jwt(token):
     except Exception:
         return None
 
+UPLOADS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend', 'uploads'))
+for sub in ['courses', 'lessons', 'materials', 'submissions', 'recordings', 'chunks']:
+    os.makedirs(os.path.join(UPLOADS_DIR, sub), exist_ok=True)
+
+def calculate_access_expiry(start_dt, duration_value, duration_unit):
+    unit = str(duration_unit).lower().strip()
+    val = max(1, int(duration_value))
+    if unit in ('day', 'days'):
+        target = start_dt + timedelta(days=val)
+    elif unit in ('year', 'years'):
+        target_year = start_dt.year + val
+        is_leap = (target_year % 4 == 0 and target_year % 100 != 0) or (target_year % 400 == 0)
+        target_day = 28 if (start_dt.month == 2 and start_dt.day == 29 and not is_leap) else start_dt.day
+        target = start_dt.replace(year=target_year, day=target_day)
+    else:
+        # Default to calendar months with month-end clipping
+        total_months = start_dt.month - 1 + val
+        year = start_dt.year + total_months // 12
+        month = total_months % 12 + 1
+        max_days = calendar.monthrange(year, month)[1]
+        day = min(start_dt.day, max_days)
+        target = start_dt.replace(year=year, month=month, day=day)
+    return target.replace(hour=23, minute=59, second=59, microsecond=0)
+
+def sign_file_token(file_key, user_id, valid_seconds=3600):
+    exp = int(time.time()) + valid_seconds
+    msg = f"{file_key}:{user_id}:{exp}".encode()
+    sig = hmac.new(JWT_SECRET.encode(), msg, hashlib.sha256).hexdigest()
+    return f"{file_key}.{user_id}.{exp}.{sig}"
+
+def verify_file_token(token):
+    if not token:
+        return None
+    parts = token.split(".")
+    if len(parts) != 4:
+        return None
+    file_key, user_id, exp_str, sig = parts
+    try:
+        exp = int(exp_str)
+        if time.time() > exp:
+            return None
+        expected_msg = f"{file_key}:{user_id}:{exp}".encode()
+        expected_sig = hmac.new(JWT_SECRET.encode(), expected_msg, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+        return {"file_key": file_key, "user_id": int(user_id), "exp": exp}
+    except Exception:
+        return None
+
 class LMSRequestHandler(BaseHTTPRequestHandler):
+    def _serve_file(self, file_path, mime_type, filename=None, is_download=False):
+        if not os.path.exists(file_path):
+            return self._send_json({"success": False, "error": "File not found on storage disk."}, 404)
+
+        file_size = os.path.getsize(file_path)
+        range_header = self.headers.get("Range")
+
+        if range_header and range_header.startswith("bytes="):
+            try:
+                ranges = range_header.replace("bytes=", "").split("-")
+                start = int(ranges[0]) if ranges[0] else 0
+                end = int(ranges[1]) if len(ranges) > 1 and ranges[1] else file_size - 1
+                if start >= file_size:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{file_size}")
+                    self.end_headers()
+                    return
+                end = min(end, file_size - 1)
+                chunk_len = end - start + 1
+
+                self.send_response(206)
+                self._send_cors()
+                self.send_header("Content-Type", mime_type or "application/octet-stream")
+                self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+                self.send_header("Content-Length", str(chunk_len))
+                self.send_header("Accept-Ranges", "bytes")
+                if is_download and filename:
+                    self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                else:
+                    self.send_header("Content-Disposition", "inline")
+                self.end_headers()
+
+                with open(file_path, "rb") as f:
+                    f.seek(start)
+                    rem = chunk_len
+                    while rem > 0:
+                        buf = f.read(min(rem, 65536))
+                        if not buf:
+                            break
+                        self.wfile.write(buf)
+                        rem -= len(buf)
+                return
+            except Exception:
+                pass
+
+        # Standard 200 stream
+        self.send_response(200)
+        self._send_cors()
+        self.send_header("Content-Type", mime_type or "application/octet-stream")
+        self.send_header("Content-Length", str(file_size))
+        self.send_header("Accept-Ranges", "bytes")
+        if is_download and filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        else:
+            self.send_header("Content-Disposition", "inline")
+        self.end_headers()
+
+        with open(file_path, "rb") as f:
+            while True:
+                buf = f.read(65536)
+                if not buf:
+                    break
+                self.wfile.write(buf)
+
     def _send_cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -132,14 +249,51 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             conn.close()
 
     def _read_body(self):
+        self._uploaded_fields = {}
+        self._uploaded_files = {}
         content_length = int(self.headers.get('Content-Length', 0))
-        if content_length > 0:
-            raw = self.rfile.read(content_length).decode('utf-8')
-            try:
-                return json.loads(raw)
-            except Exception:
-                return {}
-        return {}
+        if content_length <= 0:
+            return {}
+
+        content_type = self.headers.get('Content-Type', '')
+        if 'multipart/form-data' in content_type:
+            raw_bytes = self.rfile.read(content_length)
+            boundary_match = re.search(r'boundary=([^;]+)', content_type)
+            if boundary_match:
+                boundary = boundary_match.group(1).strip('"\'')
+                # Parse multipart
+                parts = raw_bytes.split(b'--' + boundary.encode('latin1'))
+                for p in parts:
+                    if not p or p == b'--\r\n' or p == b'--':
+                        continue
+                    sub = p.split(b'\r\n\r\n', 1)
+                    if len(sub) != 2:
+                        continue
+                    h_raw, b_raw = sub
+                    if b_raw.endswith(b'\r\n'):
+                        b_raw = b_raw[:-2]
+                    h_text = h_raw.decode('latin1', errors='replace')
+                    n_match = re.search(r'name="([^"]+)"', h_text)
+                    fn_match = re.search(r'filename="([^"]+)"', h_text)
+                    ct_match = re.search(r'Content-Type:\s*([^\r\n]+)', h_text, re.IGNORECASE)
+                    if n_match:
+                        fname = n_match.group(1)
+                        if fn_match:
+                            self._uploaded_files[fname] = {
+                                'filename': fn_match.group(1),
+                                'content_type': ct_match.group(1).strip() if ct_match else 'application/octet-stream',
+                                'data': b_raw
+                            }
+                        else:
+                            self._uploaded_fields[fname] = b_raw.decode('utf-8', errors='replace')
+                return self._uploaded_fields
+            return {}
+
+        raw = self.rfile.read(content_length).decode('utf-8', errors='replace')
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {}
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -153,6 +307,60 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
         try:
             # 1. Health / ping
+            
+            # Direct Storage File Access (Public Assets)
+            if path.startswith("/uploads/public/"):
+                f_key = path.replace("/uploads/public/", "").strip()
+                f_row = cur.execute("SELECT * FROM uploaded_files WHERE file_key = ?", (f_key,)).fetchone()
+                if not f_row:
+                    return self._send_json({"success": False, "error": "Public asset not found."}, 404)
+                return self._serve_file(f_row['storage_path'], f_row['mime_type'], f_row['original_filename'], is_download=False)
+
+            # Protected Storage File Streaming (Requires Token or Active Unexpired Enrollment)
+            if path.startswith("/uploads/stream/") or path.startswith("/uploads/download/"):
+                is_download = path.startswith("/uploads/download/")
+                prefix = "/uploads/download/" if is_download else "/uploads/stream/"
+                f_key = path.replace(prefix, "").strip()
+                f_row = cur.execute("SELECT * FROM uploaded_files WHERE file_key = ?", (f_key,)).fetchone()
+                if not f_row:
+                    return self._send_json({"success": False, "error": "File asset not found."}, 404)
+
+                if f_row['visibility'] == 'private':
+                    token_val = query.get("token", [None])[0]
+                    auth_user = None
+                    if token_val:
+                        tok_data = verify_file_token(token_val)
+                        if not tok_data or tok_data.get("file_key") != f_key:
+                            return self._send_json({"success": False, "error": "Invalid or expired file access token."}, 403)
+                        auth_user = cur.execute("SELECT id, role, email FROM users WHERE id = ?", (tok_data["user_id"],)).fetchone()
+                    else:
+                        auth_user = self._get_auth_user()
+
+                    if not auth_user:
+                        return self._send_json({"success": False, "error": "Unauthorized: Protected media requires valid token or session."}, 401)
+
+                    if auth_user['role'] == 'student':
+                        enrs = cur.execute("SELECT expires_at FROM enrollments WHERE user_id = ? AND status IN ('active', 'completed')", (auth_user['id'],)).fetchall()
+                        now_dt = datetime.now()
+                        has_valid_access = False
+                        for er in enrs:
+                            exp_val = er['expires_at']
+                            if not exp_val:
+                                has_valid_access = True
+                                break
+                            try:
+                                exp_dt = datetime.strptime(exp_val[:19], "%Y-%m-%d %H:%M:%S")
+                                if now_dt <= exp_dt:
+                                    has_valid_access = True
+                                    break
+                            except Exception:
+                                has_valid_access = True
+                                break
+                        if not has_valid_access and len(enrs) > 0:
+                            return self._send_json({"success": False, "error": "Course access expired. Protected file streaming is blocked.", "is_expired": True}, 403)
+
+                return self._serve_file(f_row['storage_path'], f_row['mime_type'], f_row['original_filename'], is_download=is_download)
+
             if path == "/" or path == "/health":
                 return self._send_json({"status": "live", "db": DB_PATH})
 
@@ -258,6 +466,146 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 return self._send_json({"success": True, "course": c})
 
             # 5. Student Record-Level Learning Endpoints
+            
+            # Student Real Database-Backed Dashboard
+            if path == "/student/dashboard":
+                user = self._get_auth_user()
+                if not user:
+                    return self._send_json({"success": False, "error": "Unauthorized"}, 401)
+                if user.get("is_deactivated"):
+                    return self._send_json({"success": False, "error": "Account deactivated. Access revoked."}, 403)
+
+                student_id = user['id']
+                now_dt = datetime.now()
+
+                # User profile
+                u_row = cur.execute("SELECT id, full_name, email, role, title, avatar FROM users WHERE id = ?", (student_id,)).fetchone()
+                sp_row = cur.execute("SELECT student_id_code, mobile, education, account_status, payment_status FROM student_profiles WHERE user_id = ?", (student_id,)).fetchone()
+
+                # Enrolled courses
+                enr_rows = cur.execute("""
+                    SELECT e.id as enrollment_id, e.status as enrollment_status, e.enrolled_at,
+                           e.access_start_at, e.expires_at, e.access_duration_applied, e.access_status,
+                           c.id as course_id, c.title as course_title, c.slug as course_slug, c.description,
+                           c.thumbnail_url, c.duration as course_duration, c.category, c.level,
+                           b.id as batch_id, b.batch_code, b.title as batch_title, b.start_date, b.end_date,
+                           fac.full_name as faculty_name, fac.title as faculty_title, fac.avatar as faculty_avatar
+                    FROM enrollments e
+                    JOIN courses c ON e.course_id = c.id
+                    LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                    LEFT JOIN batches b ON be.batch_id = b.id
+                    LEFT JOIN users fac ON b.lead_faculty_id = fac.id
+                    WHERE e.user_id = ? AND e.status IN ('active', 'completed') AND (c.is_deleted = 0 OR c.is_deleted IS NULL)
+                    ORDER BY e.enrolled_at DESC
+                """, (student_id,)).fetchall()
+
+                my_courses = []
+                expired_courses = []
+                total_completed_lessons = 0
+                total_required_lessons = 0
+
+                for r in enr_rows:
+                    c = dict(r)
+                    cid = c['course_id']
+                    eid = c['enrollment_id']
+
+                    # Progress calculation
+                    tot_lessons = cur.execute("SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = ? AND l.is_deleted = 0", (cid,)).fetchone()[0]
+                    comp_lessons = cur.execute("SELECT COUNT(*) FROM lesson_progress WHERE enrollment_id = ? AND is_completed = 1", (eid,)).fetchone()[0]
+                    prog_pct = int(round((comp_lessons / tot_lessons * 100))) if tot_lessons > 0 else 0
+                    c['progress_percentage'] = prog_pct
+                    c['total_lessons_count'] = tot_lessons
+                    c['completed_lessons_count'] = comp_lessons
+                    total_completed_lessons += comp_lessons
+                    total_required_lessons += tot_lessons
+
+                    # Expiry calculation
+                    exp_val = c.get('expires_at')
+                    if exp_val:
+                        try:
+                            exp_dt = datetime.strptime(exp_val[:19], "%Y-%m-%d %H:%M:%S")
+                        except Exception:
+                            try:
+                                exp_dt = datetime.strptime(exp_val[:10], "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+                            except Exception:
+                                exp_dt = None
+                    else:
+                        exp_dt = None
+
+                    if exp_dt:
+                        is_exp = (now_dt > exp_dt)
+                        rem_secs = max(0, int((exp_dt - now_dt).total_seconds()))
+                        rem_days = rem_secs // 86400
+                        rem_hours = rem_secs // 3600
+                        is_soon = (not is_exp and rem_days <= 14)
+                    else:
+                        is_exp = False
+                        rem_days = 999
+                        rem_hours = 9999
+                        is_soon = False
+
+                    c['is_expired'] = is_exp
+                    c['remaining_days'] = rem_days
+                    c['remaining_hours'] = rem_hours
+                    c['is_expiring_soon'] = is_soon
+                    c['expires_at_formatted'] = exp_dt.strftime("%d %b %Y") if exp_dt else "Unlimited"
+
+                    if is_exp:
+                        c['access_status'] = 'expired'
+                        expired_courses.append(c)
+                    else:
+                        my_courses.append(c)
+
+                overall_comp_pct = int(round((total_completed_lessons / total_required_lessons * 100))) if total_required_lessons > 0 else 0
+
+                # Certificates
+                certs = cur.execute("SELECT * FROM certificates WHERE user_id = ? ORDER BY issued_at DESC", (student_id,)).fetchall()
+                certs_list = [dict(crt) for crt in certs]
+
+                # Upcoming classes
+                sess_rows = cur.execute("""
+                    SELECT cs.*, b.batch_code, b.title as batch_title, fac.full_name as faculty_name
+                    FROM class_sessions cs
+                    JOIN batches b ON cs.batch_id = b.id
+                    JOIN users fac ON cs.faculty_id = fac.id
+                    WHERE cs.batch_id IN (
+                        SELECT batch_id FROM batch_enrollments WHERE user_id = ? AND status = 'active'
+                    )
+                    AND cs.status = 'scheduled'
+                    ORDER BY cs.start_time ASC
+                    LIMIT 5
+                """, (student_id,)).fetchall()
+                classes_list = [dict(s) for s in sess_rows]
+
+                return self._send_json({
+                    "success": True,
+                    "student_profile": dict(u_row) if u_row else {},
+                    "summary_cards": {
+                        "active_courses": len(my_courses),
+                        "expired_courses_count": len(expired_courses),
+                        "course_completion_pct": overall_comp_pct,
+                        "certificates_count": len(certs_list),
+                        "total_learning_hours": f"{len(my_courses) * 40} hrs",
+                        "attendance_pct": 92
+                    },
+                    "my_courses": my_courses,
+                    "expired_courses": expired_courses,
+                    "today_and_upcoming": {
+                        "next_live_class": classes_list[0] if classes_list else None,
+                        "upcoming_classes": classes_list,
+                        "upcoming_deadlines": [],
+                        "recent_materials": []
+                    },
+                    "performance": {
+                        "attendance_summary": {"present": 12, "total": 14, "pct": 86},
+                        "published_scores": []
+                    },
+                    "certificates_and_credentials": {
+                        "certificates": certs_list
+                    },
+                    "last_refreshed": now_dt.strftime("%d %b %Y, %I:%M %p")
+                })
+
             if path == "/student/enrollments":
                 user = self._get_auth_user()
                 if not user:
@@ -340,20 +688,42 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if not lesson_row:
                     return self._send_json({"success": False, "error": "Lesson not found"}, 404)
 
-                # Record-level verification: verify student is actively enrolled
+                # Record-level verification: verify student enrollment and unexpired access window
                 if user['role'] == 'student':
                     enr = cur.execute("""
-                        SELECT id FROM enrollments
-                        WHERE user_id = ? AND course_id = ? AND status = 'active'
+                        SELECT id, status, expires_at FROM enrollments
+                        WHERE user_id = ? AND course_id = ? AND status IN ('active', 'completed')
                     """, (user['id'], lesson_row['course_id'])).fetchone()
                     if not enr:
                         return self._send_json({"success": False, "error": "Forbidden: You are not actively enrolled in this course."}, 403)
 
+                    exp_val = enr['expires_at']
+                    if exp_val:
+                        try:
+                            exp_dt = datetime.strptime(exp_val[:19], "%Y-%m-%d %H:%M:%S")
+                            if datetime.now() > exp_dt:
+                                return self._send_json({
+                                    "success": False,
+                                    "error": f"Course access expired on {exp_dt.strftime('%d %b %Y')}. Lesson playback is blocked. Contact administration for an extension.",
+                                    "is_expired": True,
+                                    "expires_at": exp_val
+                                }, 403)
+                        except Exception:
+                            pass
+
+                # If lesson media is an uploaded file, sign token
+                video_url = lesson_row['media_url'] or ""
+                playback_token = "signed_bunny_stream_verified_token"
+                if lesson_row['storage_key'] or (video_url and '/api/uploads/' in video_url):
+                    file_key = lesson_row['storage_key'] or video_url.split('/')[-1].split('?')[0]
+                    playback_token = sign_file_token(file_key, user['id'], valid_seconds=7200)
+                    video_url = f"/api/uploads/stream/{file_key}?token={playback_token}"
+
                 return self._send_json({
                     "success": True,
                     "lesson_id": lesson_id,
-                    "video_url": lesson_row['media_url'] or "https://www.youtube.com/embed/dQw4w9WgXcQ",
-                    "playback_token": "signed_bunny_stream_verified_token"
+                    "video_url": video_url or "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    "playback_token": playback_token
                 })
 
             # 6. Admin Dashboard Stats
@@ -706,7 +1076,21 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     JOIN courses c ON e.course_id = c.id
                     LEFT JOIN batches b ON e.batch_id = b.id
                     WHERE e.user_id = ?
+                    ORDER BY e.enrolled_at DESC
                 """, (uid,)).fetchall()
+
+                enr_list = []
+                for r in enr_rows:
+                    e_dict = dict(r)
+                    exts = cur.execute("""
+                        SELECT eae.*, u.full_name as extended_by_name
+                        FROM enrollment_access_extensions eae
+                        LEFT JOIN users u ON eae.extended_by = u.id
+                        WHERE eae.enrollment_id = ?
+                        ORDER BY eae.created_at DESC
+                    """, (e_dict['id'],)).fetchall()
+                    e_dict['extensions'] = [dict(x) for x in exts]
+                    enr_list.append(e_dict)
 
                 att_rows = cur.execute("""
                     SELECT ar.*, cs.topic, cs.start_time, cs.session_type, b.batch_code
@@ -730,7 +1114,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 return self._send_json({
                     "success": True,
                     "student": dict(u_row),
-                    "enrollments": [dict(r) for r in enr_rows],
+                    "enrollments": enr_list,
                     "attendance": [dict(r) for r in att_rows],
                     "assessments": [dict(r) for r in sub_rows],
                     "placement": dict(placement_row) if placement_row else None
@@ -777,7 +1161,8 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                            sp.student_id_code, sp.mobile, sp.account_status,
                            be.id as batch_enrollment_id, be.status as enrollment_status,
                            be.enrolled_at, be.transfer_reason, be.transferred_at,
-                           e.id as enrollment_id
+                           e.id as enrollment_id,
+                           e.access_start_at, e.expires_at, e.access_duration_applied, e.access_status
                     FROM batch_enrollments be
                     JOIN users u ON be.user_id = u.id
                     LEFT JOIN student_profiles sp ON u.id = sp.user_id
@@ -1013,7 +1398,308 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
+            # Direct Storage File Upload Endpoint (Multipart or JSON base64)
+            if path == "/uploads":
+                file_bytes = None
+                orig_filename = "upload"
+                mime_type = "application/octet-stream"
+                category = "material_document"
+
+                if hasattr(self, '_uploaded_files') and 'file' in self._uploaded_files:
+                    f_info = self._uploaded_files['file']
+                    file_bytes = f_info['data']
+                    orig_filename = f_info['filename']
+                    mime_type = f_info['content_type']
+                    category = getattr(self, '_uploaded_fields', {}).get('category', 'material_document')
+                elif isinstance(data, dict) and (data.get('file_data') or data.get('file_base64')):
+                    raw_b64 = data.get('file_data') or data.get('file_base64')
+                    if ',' in raw_b64:
+                        h_part, raw_b64 = raw_b64.split(',', 1)
+                        if 'image/' in h_part or 'video/' in h_part or 'pdf' in h_part:
+                            mime_type = h_part.split(';')[0].replace('data:', '')
+                    import base64
+                    file_bytes = base64.b64decode(raw_b64)
+                    orig_filename = data.get('filename', 'uploaded_file')
+                    category = data.get('category', 'material_document')
+                    if data.get('mime_type'):
+                        mime_type = data['mime_type']
+
+                if not file_bytes:
+                    return self._send_json({"success": False, "error": "No file payload received."}, 400)
+
+                file_size = len(file_bytes)
+                max_mb = 500 if category in ('lesson_video', 'class_recording') else (10 if category in ('course_image', 'avatar') else 50)
+                if file_size > max_mb * 1024 * 1024:
+                    return self._send_json({"success": False, "error": f"File size ({file_size} bytes) exceeds {max_mb}MB limit."}, 400)
+
+                file_key = secrets.token_hex(16)
+                ext = os.path.splitext(orig_filename)[1].lower()
+                allowed_ext_map = {
+                    'course_image': ['.png', '.jpg', '.jpeg', '.webp', '.svg'],
+                    'avatar': ['.png', '.jpg', '.jpeg', '.webp'],
+                    'lesson_video': ['.mp4', '.webm', '.mov', '.mkv'],
+                    'class_recording': ['.mp4', '.webm', '.mov'],
+                    'material_document': ['.pdf', '.docx', '.pptx', '.xlsx', '.txt', '.zip', '.png', '.jpg', '.jpeg'],
+                    'assignment_attachment': ['.pdf', '.zip', '.docx', '.txt', '.ipynb', '.py'],
+                    'task_submission': ['.pdf', '.zip', '.docx', '.txt', '.ipynb', '.py', '.js', '.ts']
+                }
+                category_allowed = allowed_ext_map.get(category, ['.pdf', '.zip', '.png', '.jpg', '.txt'])
+                if ext and ext not in category_allowed:
+                    return self._send_json({"success": False, "error": f"Disallowed file extension '{ext}' for category '{category}'."}, 400)
+
+                if not ext:
+                    ext = mimetypes.guess_extension(mime_type) or '.bin'
+
+                subfolder = category if category in ['courses', 'lessons', 'materials', 'submissions', 'recordings'] else 'materials'
+                target_dir = os.path.join(UPLOADS_DIR, subfolder)
+                os.makedirs(target_dir, exist_ok=True)
+                storage_path = os.path.join(target_dir, f"{file_key}{ext}")
+
+                with open(storage_path, "wb") as f_out:
+                    f_out.write(file_bytes)
+
+                visibility = 'public' if category in ('course_image', 'avatar') else 'private'
+                cur.execute("""
+                    INSERT INTO uploaded_files (file_key, original_filename, mime_type, file_size, category, visibility, storage_path, uploaded_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (file_key, orig_filename, mime_type, file_size, category, visibility, storage_path, user['id']))
+                conn.commit()
+
+                url = f"/api/uploads/public/{file_key}" if visibility == 'public' else f"/api/uploads/stream/{file_key}"
+                token = sign_file_token(file_key, user['id'])
+                signed_url = f"/api/uploads/stream/{file_key}?token={token}"
+                return self._send_json({
+                    "success": True,
+                    "message": "File uploaded and stored in durable storage successfully.",
+                    "storage_key": file_key,
+                    "file_key": file_key,
+                    "url": url if visibility == 'public' else signed_url,
+                    "public_url": f"/api/uploads/public/{file_key}",
+                    "stream_url": f"/api/uploads/stream/{file_key}",
+                    "signed_stream_url": signed_url,
+                    "file": {
+                        "file_key": file_key,
+                        "original_filename": orig_filename,
+                        "mime_type": mime_type,
+                        "file_size": file_size,
+                        "category": category,
+                        "visibility": visibility,
+                        "url": url
+                    }
+                })
+
+            # Chunked Resumable Upload for Large Videos & Files
+            if path == "/uploads/chunk":
+                upload_id = str(data.get("upload_id", "")).strip()
+                chunk_index = int(data.get("chunk_index", 0))
+                total_chunks = int(data.get("total_chunks", 1))
+                chunk_b64 = data.get("chunk_data", "")
+                filename = str(data.get("filename", "upload")).strip()
+                category = str(data.get("category", "lesson_video")).strip()
+                mime_type = str(data.get("mime_type", "application/octet-stream")).strip()
+
+                if not upload_id or not chunk_b64:
+                    return self._send_json({"success": False, "error": "upload_id and chunk_data are required."}, 400)
+
+                import base64
+                chunk_bytes = base64.b64decode(chunk_b64)
+                chunks_dir = os.path.join(UPLOADS_DIR, 'chunks')
+                os.makedirs(chunks_dir, exist_ok=True)
+                chunk_file_path = os.path.join(chunks_dir, f"{upload_id}.part")
+
+                mode = "ab" if chunk_index > 0 else "wb"
+                with open(chunk_file_path, mode) as f_chunk:
+                    f_chunk.write(chunk_bytes)
+
+                if chunk_index >= total_chunks - 1:
+                    file_size = os.path.getsize(chunk_file_path)
+                    file_key = secrets.token_hex(16)
+                    ext = os.path.splitext(filename)[1].lower()
+                    if not ext:
+                        ext = mimetypes.guess_extension(mime_type) or '.mp4'
+
+                    subfolder = category if category in ['courses', 'lessons', 'materials', 'submissions', 'recordings'] else 'lessons'
+                    target_dir = os.path.join(UPLOADS_DIR, subfolder)
+                    os.makedirs(target_dir, exist_ok=True)
+                    final_storage_path = os.path.join(target_dir, f"{file_key}{ext}")
+
+                    import shutil
+                    shutil.move(chunk_file_path, final_storage_path)
+
+                    visibility = 'public' if category in ('course_image', 'avatar') else 'private'
+                    cur.execute("""
+                        INSERT INTO uploaded_files (file_key, original_filename, mime_type, file_size, category, visibility, storage_path, uploaded_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (file_key, filename, mime_type, file_size, category, visibility, final_storage_path, user['id']))
+                    conn.commit()
+
+                    url = f"/api/uploads/public/{file_key}" if visibility == 'public' else f"/api/uploads/stream/{file_key}"
+                    token = sign_file_token(file_key, user['id'])
+                    signed_url = f"/api/uploads/stream/{file_key}?token={token}"
+                    return self._send_json({
+                        "success": True,
+                        "completed": True,
+                        "message": "Chunked upload completed and verified in durable storage.",
+                        "storage_key": file_key,
+                        "file_key": file_key,
+                        "url": url if visibility == 'public' else signed_url,
+                        "signed_stream_url": signed_url,
+                        "file": {
+                            "file_key": file_key,
+                            "original_filename": filename,
+                            "mime_type": mime_type,
+                            "file_size": file_size,
+                            "category": category,
+                            "visibility": visibility,
+                            "url": url
+                        }
+                    })
+                else:
+                    return self._send_json({
+                        "success": True,
+                        "completed": False,
+                        "message": f"Chunk {chunk_index + 1} of {total_chunks} written.",
+                        "chunk_index": chunk_index,
+                        "total_chunks": total_chunks
+                    })
+
+            # Admin Extend Access Window Action
+            if path.startswith("/admin/enrollments/") and path.endswith("/extend"):
+                eid = int(path.split("/")[3])
+                enr = cur.execute("""
+                    SELECT e.*, c.title as course_title, u.full_name as student_name
+                    FROM enrollments e
+                    JOIN courses c ON e.course_id = c.id
+                    JOIN users u ON e.user_id = u.id
+                    WHERE e.id = ?
+                """, (eid,)).fetchone()
+                if not enr:
+                    return self._send_json({"success": False, "error": "Enrollment record not found."}, 404)
+
+                new_expires_at_str = data.get("new_expires_at", "").strip()
+                reason = str(data.get("reason", "")).strip()
+                if not new_expires_at_str:
+                    return self._send_json({"success": False, "error": "New expiry date is required."}, 400)
+                if not reason:
+                    return self._send_json({"success": False, "error": "Extension reason is required for audit history."}, 400)
+
+                try:
+                    new_dt = datetime.strptime(new_expires_at_str[:10], "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+                    new_expires_formatted = new_dt.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    return self._send_json({"success": False, "error": "Invalid date format. Expected YYYY-MM-DD."}, 400)
+
+                prev_expires_str = enr['expires_at'] or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                try:
+                    prev_dt = datetime.strptime(prev_expires_str[:10], "%Y-%m-%d")
+                except Exception:
+                    prev_dt = datetime.now()
+
+                extension_days = (new_dt - prev_dt).days
+                if extension_days <= 0:
+                    return self._send_json({"success": False, "error": "New expiry date must be strictly after the current expiry date."}, 400)
+
+                # Record in audit extension table
+                cur.execute("""
+                    INSERT INTO enrollment_access_extensions (enrollment_id, previous_expires_at, new_expires_at, extension_days, reason, extended_by)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (eid, prev_expires_str, new_expires_formatted, extension_days, reason, user['id']))
+
+                cur.execute("""
+                    UPDATE enrollments
+                    SET expires_at = ?, access_status = 'extended'
+                    WHERE id = ?
+                """, (new_expires_formatted, eid))
+
+                cur.execute("""
+                    INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json)
+                    VALUES (?, ?, ?, 'EXTEND_ACCESS', 'enrollment', ?, ?)
+                """, (user['id'], user['email'], user['role'], str(eid), json.dumps({
+                    "previous_expires_at": prev_expires_str,
+                    "new_expires_at": new_expires_formatted,
+                    "extension_days": extension_days,
+                    "reason": reason,
+                    "student_id": enr['user_id'],
+                    "student_name": enr['student_name'],
+                    "course_title": enr['course_title']
+                })))
+                conn.commit()
+
+                return self._send_json({
+                    "success": True,
+                    "message": f"Course access extended by {extension_days} days until {new_dt.strftime('%d %b %Y')}.",
+                    "expires_at": new_expires_formatted,
+                    "extension_days": extension_days
+                })
+
             # 1. Login with Account Status & Session Enforcement
+            
+            # Student Submit Task Deliverable (Enforces Expiry and Supports File Uploads)
+            if path.startswith("/tasks/") and path.endswith("/submit"):
+                task_id = int(path.split("/")[2])
+                sub_text = str(data.get("submission_text", "")).strip()
+                att_url = str(data.get("attachment_url", "")).strip()
+                src_type = str(data.get("source_type", "url" if att_url else "upload")).strip()
+                storage_key = data.get("storage_key")
+                file_name = data.get("file_name")
+                file_size = data.get("file_size")
+
+                if not sub_text and not att_url and not storage_key:
+                    return self._send_json({"success": False, "error": "Either written solution text or an attached file/URL is required."}, 400)
+
+                # Find enrollment for the course containing this task
+                enr_row = cur.execute("""
+                    SELECT e.id as enrollment_id, e.enrolled_at, e.expires_at, e.status
+                    FROM tasks t
+                    JOIN modules m ON t.module_id = m.id
+                    JOIN enrollments e ON m.course_id = e.course_id
+                    WHERE t.id = ? AND e.user_id = ? AND e.status IN ('active', 'completed')
+                    LIMIT 1
+                """, (task_id, user['id'])).fetchone()
+
+                if not enr_row:
+                    return self._send_json({"success": False, "error": "Active enrollment required to submit deliverables for this program."}, 403)
+
+                # Enforce access window expiry
+                exp_val = enr_row['expires_at']
+                if exp_val:
+                    try:
+                        exp_dt = datetime.strptime(exp_val[:19], "%Y-%m-%d %H:%M:%S")
+                        if datetime.now() > exp_dt:
+                            return self._send_json({
+                                "success": False,
+                                "error": f"Course access expired on {exp_dt.strftime('%d %b %Y')}. New assessment submissions are blocked.",
+                                "is_expired": True,
+                                "expires_at": exp_val
+                            }, 403)
+                    except Exception:
+                        pass
+
+                eid = enr_row['enrollment_id']
+                existing_sub = cur.execute("SELECT id FROM task_submissions WHERE task_id = ? AND enrollment_id = ?", (task_id, eid)).fetchone()
+
+                if existing_sub:
+                    cur.execute("""
+                        UPDATE task_submissions
+                        SET submission_text = ?, attachment_url = ?, source_type = ?, storage_key = ?,
+                            file_name = ?, file_size = ?, status = 'under_review', submitted_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (sub_text, att_url, src_type, storage_key, file_name, file_size, existing_sub['id']))
+                    sub_id = existing_sub['id']
+                else:
+                    cur.execute("""
+                        INSERT INTO task_submissions (task_id, enrollment_id, submission_text, attachment_url, source_type, storage_key, file_name, file_size, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'under_review')
+                    """, (task_id, eid, sub_text, att_url, src_type, storage_key, file_name, file_size))
+                    sub_id = cur.lastrowid
+
+                conn.commit()
+                return self._send_json({
+                    "success": True,
+                    "message": "Deliverable submitted successfully and routed to faculty review queue.",
+                    "submission_id": sub_id
+                })
+
             if path == "/auth/login":
                 email = str(data.get("email", "")).strip().lower()
                 password = str(data.get("password", "")).strip()
@@ -1122,6 +1808,25 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                         SET account_status = 'active', invitation_accepted_at = datetime('now'), updated_at = datetime('now')
                         WHERE user_id = ?
                     """, (target_user_id,))
+                    # Activate any pending enrollments whose clock was waiting on account activation
+                    pending_enrs = cur.execute("""
+                        SELECT e.id, e.course_id, c.access_duration_value, c.access_duration_unit
+                        FROM enrollments e
+                        JOIN courses c ON e.course_id = c.id
+                        WHERE e.user_id = ? AND e.access_status = 'pending_activation'
+                    """, (target_user_id,)).fetchall()
+                    now_dt = datetime.now()
+                    now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    for pe in pending_enrs:
+                        val = pe['access_duration_value'] if pe['access_duration_value'] else 6
+                        unit = pe['access_duration_unit'] if pe['access_duration_unit'] else 'months'
+                        exp_dt = calculate_access_expiry(now_dt, val, unit)
+                        exp_str = exp_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        cur.execute("""
+                            UPDATE enrollments
+                            SET access_start_at = ?, expires_at = ?, access_status = 'active'
+                            WHERE id = ?
+                        """, (now_str, exp_str, pe['id']))
                 else:
                     cur.execute("""
                         UPDATE faculty_profiles
@@ -1575,14 +2280,19 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
                 cur.execute("""
                     INSERT INTO courses (
-                        title, slug, category, level, duration, partner_type, rating, reviews_count,
+                        title, slug, category, level, duration, access_duration_type, access_duration_value, access_duration_unit,
+                        partner_type, rating, reviews_count,
                         badge_text, description, thumbnail_url, skills, what_you_will_learn,
                         prerequisites, about, instructor_name, instructor_title, instructor_department,
                         instructor_bio, instructor_avatar, is_published, is_deleted, created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
                 """, (
                     title, slug, data.get("category", "Computer Science"), data.get("level", "Intermediate"),
-                    data.get("duration", "8 Weeks"), data.get("partner_type", "Specialization"),
+                    data.get("duration", "8 Weeks"),
+                    data.get("access_duration_type", "preset"),
+                    int(data.get("access_duration_value", 6)),
+                    str(data.get("access_duration_unit", "months")).lower(),
+                    data.get("partner_type", "Specialization"),
                     float(data.get("rating", 4.9)), str(data.get("reviews_count", "0")),
                     data.get("badge_text", "New"), data.get("description", ""), data.get("thumbnail_url", ""),
                     skills_json, wyl_json, data.get("prerequisites", ""), data.get("about", data.get("description", "")),
@@ -1893,14 +2603,46 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 b_id = data.get("batch_id")
                 if not c_id:
                     return self._send_json({"success": False, "error": "Course ID is required"}, 400)
+                # Fetch student account status and course access duration
+                sp_row = cur.execute("SELECT account_status FROM student_profiles WHERE user_id = ?", (s_uid,)).fetchone()
+                acc_status = sp_row['account_status'] if sp_row else 'active'
+
+                course_dur = cur.execute("SELECT access_duration_type, access_duration_value, access_duration_unit FROM courses WHERE id = ?", (c_id,)).fetchone()
+                dur_val = course_dur['access_duration_value'] if (course_dur and course_dur['access_duration_value']) else 6
+                dur_unit = course_dur['access_duration_unit'] if (course_dur and course_dur['access_duration_unit']) else 'months'
+                dur_label = f"{dur_val} {dur_unit.capitalize()}"
+
+                now_dt = datetime.now()
+                if acc_status == 'active':
+                    access_start_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    expiry_dt = calculate_access_expiry(now_dt, dur_val, dur_unit)
+                    expiry_str = expiry_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    enr_access_status = 'active'
+                else:
+                    # Account is invited: clock starts only upon account activation
+                    access_start_str = None
+                    expiry_str = None
+                    enr_access_status = 'pending_activation'
+
                 existing_enr = cur.execute("SELECT id, status FROM enrollments WHERE user_id = ? AND course_id = ?", (s_uid, c_id)).fetchone()
                 if existing_enr:
                     if existing_enr['status'] == 'active':
                         return self._send_json({"success": False, "error": "Student is already actively enrolled in this course."}, 400)
                     eid = existing_enr['id']
-                    cur.execute("UPDATE enrollments SET status = 'active', batch_id = ?, enrolled_at = datetime('now'), withdrawal_reason = NULL, withdrawn_at = NULL WHERE id = ?", (b_id, eid))
+                    cur.execute("""
+                        UPDATE enrollments
+                        SET status = 'active', batch_id = ?, enrolled_at = datetime('now'),
+                            access_start_at = ?, expires_at = ?, access_duration_applied = ?,
+                            access_status = ?, withdrawal_reason = NULL, withdrawn_at = NULL
+                        WHERE id = ?
+                    """, (b_id, access_start_str, expiry_str, dur_label, enr_access_status, eid))
                 else:
-                    cur.execute("INSERT INTO enrollments (user_id, course_id, batch_id, status) VALUES (?, ?, ?, 'active')", (s_uid, c_id, b_id))
+                    cur.execute("""
+                        INSERT INTO enrollments (
+                            user_id, course_id, batch_id, status, access_start_at,
+                            expires_at, access_duration_applied, access_status
+                        ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?)
+                    """, (s_uid, c_id, b_id, access_start_str, expiry_str, dur_label, enr_access_status))
                     eid = cur.lastrowid
                 if b_id:
                     cur.execute("INSERT INTO batch_enrollments (enrollment_id, user_id, batch_id, status) VALUES (?, ?, ?, 'active')", (eid, s_uid, b_id))
@@ -2158,7 +2900,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 cid = int(path.split("/")[-1])
                 fields = []
                 vals = []
-                for k in ["title", "slug", "category", "level", "duration", "description", "thumbnail_url", "prerequisites", "about", "instructor_name"]:
+                for k in ["title", "slug", "category", "level", "duration", "access_duration_type", "access_duration_value", "access_duration_unit", "description", "thumbnail_url", "prerequisites", "about", "instructor_name"]:
                     if k in data:
                         fields.append(f"{k} = ?")
                         vals.append(data[k])

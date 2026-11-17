@@ -49,6 +49,9 @@ def init_db():
         instructor_department TEXT,
         instructor_bio TEXT,
         instructor_avatar TEXT,
+        access_duration_type TEXT NOT NULL DEFAULT 'preset',
+        access_duration_value INTEGER NOT NULL DEFAULT 6,
+        access_duration_unit TEXT NOT NULL DEFAULT 'months',
         is_published INTEGER NOT NULL DEFAULT 1,
         is_deleted INTEGER NOT NULL DEFAULT 0,
         deleted_at DATETIME DEFAULT NULL,
@@ -111,8 +114,11 @@ def init_db():
         batch_id INTEGER DEFAULT NULL,
         status TEXT NOT NULL DEFAULT 'active',
         enrolled_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        access_start_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         completed_at DATETIME,
         expires_at DATETIME,
+        access_duration_applied TEXT DEFAULT '6 Months',
+        access_status TEXT NOT NULL DEFAULT 'active',
         withdrawal_reason TEXT DEFAULT NULL,
         withdrawn_at DATETIME DEFAULT NULL,
         UNIQUE (user_id, course_id),
@@ -146,6 +152,33 @@ def init_db():
         FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE,
         FOREIGN KEY (enrollment_id) REFERENCES enrollments (id) ON DELETE CASCADE,
         FOREIGN KEY (graded_by) REFERENCES users (id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE enrollment_access_extensions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        enrollment_id INTEGER NOT NULL,
+        previous_expires_at DATETIME NOT NULL,
+        new_expires_at DATETIME NOT NULL,
+        extension_days INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        extended_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (enrollment_id) REFERENCES enrollments (id) ON DELETE CASCADE,
+        FOREIGN KEY (extended_by) REFERENCES users (id) ON DELETE RESTRICT
+    );
+
+    CREATE TABLE uploaded_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_key TEXT NOT NULL UNIQUE,
+        original_filename TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        file_size INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        visibility TEXT NOT NULL DEFAULT 'private',
+        storage_path TEXT NOT NULL,
+        uploaded_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (uploaded_by) REFERENCES users (id) ON DELETE RESTRICT
     );
 
     CREATE TABLE certificates (

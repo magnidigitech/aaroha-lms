@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS courses (
     instructor_department VARCHAR(150) NULL,
     instructor_bio TEXT NULL,
     instructor_avatar VARCHAR(500) NULL,
+    access_duration_type VARCHAR(20) NOT NULL DEFAULT 'preset',
+    access_duration_value INT UNSIGNED NOT NULL DEFAULT 6,
+    access_duration_unit VARCHAR(20) NOT NULL DEFAULT 'months',
     is_published TINYINT(1) NOT NULL DEFAULT 1,
     is_deleted TINYINT(1) NOT NULL DEFAULT 0,
     deleted_at DATETIME NULL DEFAULT NULL,
@@ -114,11 +117,48 @@ CREATE TABLE IF NOT EXISTS enrollments (
     course_id INT UNSIGNED NOT NULL,
     status ENUM('active', 'completed', 'dropped') NOT NULL DEFAULT 'active',
     enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    access_start_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP NULL DEFAULT NULL,
     expires_at TIMESTAMP NULL DEFAULT NULL,
+    access_duration_applied VARCHAR(50) NOT NULL DEFAULT '6 Months',
+    access_status ENUM('active', 'expired', 'extended', 'withdrawn') NOT NULL DEFAULT 'active',
+    withdrawal_reason TEXT NULL,
+    withdrawn_at DATETIME NULL,
     UNIQUE KEY uk_user_course (user_id, course_id),
     CONSTRAINT fk_enroll_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_enroll_course FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7b. Enrollment Access Extensions Table (Authorized Extension History)
+CREATE TABLE IF NOT EXISTS enrollment_access_extensions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    enrollment_id INT UNSIGNED NOT NULL,
+    previous_expires_at DATETIME NOT NULL,
+    new_expires_at DATETIME NOT NULL,
+    extension_days INT NOT NULL,
+    reason TEXT NOT NULL,
+    extended_by INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_eae_enrollment (enrollment_id),
+    CONSTRAINT fk_eae_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollments (id) ON DELETE CASCADE,
+    CONSTRAINT fk_eae_extended_by FOREIGN KEY (extended_by) REFERENCES users (id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7c. Uploaded Files Table (Durable Storage & Protected Media Registry)
+CREATE TABLE IF NOT EXISTS uploaded_files (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    file_key VARCHAR(191) NOT NULL UNIQUE,
+    original_filename VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    file_size BIGINT UNSIGNED NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    visibility ENUM('public', 'private') NOT NULL DEFAULT 'private',
+    storage_path TEXT NOT NULL,
+    uploaded_by INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_uf_key (file_key),
+    INDEX idx_uf_category (category),
+    CONSTRAINT fk_uf_uploader FOREIGN KEY (uploaded_by) REFERENCES users (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Lesson Progress Table

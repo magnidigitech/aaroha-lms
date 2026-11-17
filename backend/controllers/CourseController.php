@@ -420,18 +420,22 @@ class CourseController {
             $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $title));
         }
 
+        $accessDurationType = $data['access_duration_type'] ?? '6_months';
+        $accessDurationValue = isset($data['access_duration_value']) ? (int)$data['access_duration_value'] : ($accessDurationType === '1_month' ? 1 : ($accessDurationType === '3_months' ? 3 : ($accessDurationType === '6_months' ? 6 : ($accessDurationType === '12_months' ? 12 : 6))));
+        $accessDurationUnit = $data['access_duration_unit'] ?? 'months';
+
         $pdo = Database::getConnection();
 
         $stmt = $pdo->prepare("
             INSERT INTO courses 
-            (title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, prerequisites, about, instructor_name, instructor_title, instructor_department, instructor_bio, instructor_avatar, is_published, is_deleted, created_by, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            (title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, prerequisites, about, instructor_name, instructor_title, instructor_department, instructor_bio, instructor_avatar, is_published, is_deleted, created_by, access_duration_type, access_duration_value, access_duration_unit, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([
             $title, $slug, $category, $level, $duration, $partnerType, $badgeText, 
             $description, $thumbnailUrl, $skills, $whatYouWillLearn,
             $prerequisites, $about, $instructorName, $instructorTitle, $instructorDepartment, $instructorBio, $instructorAvatar,
-            $isPublished, $adminId
+            $isPublished, $adminId, $accessDurationType, $accessDurationValue, $accessDurationUnit
         ]);
         $newId = (int)$pdo->lastInsertId();
 
@@ -521,19 +525,23 @@ class CourseController {
         $instructorAvatar = array_key_exists('instructor_avatar', $data) ? trim((string)$data['instructor_avatar']) : ($existing['instructor_avatar'] ?? '');
         $isPublished = isset($data['is_published']) ? (int)(bool)$data['is_published'] : (int)$existing['is_published'];
 
+        $accessDurationType = $data['access_duration_type'] ?? ($existing['access_duration_type'] ?? '6_months');
+        $accessDurationValue = isset($data['access_duration_value']) ? (int)$data['access_duration_value'] : ($existing['access_duration_value'] ?? 6);
+        $accessDurationUnit = $data['access_duration_unit'] ?? ($existing['access_duration_unit'] ?? 'months');
+
         $stmt = $pdo->prepare("
             UPDATE courses SET
                 title = ?, slug = ?, category = ?, level = ?, duration = ?, partner_type = ?,
                 badge_text = ?, description = ?, thumbnail_url = ?, skills = ?, what_you_will_learn = ?,
                 prerequisites = ?, about = ?, instructor_name = ?, instructor_title = ?, instructor_department = ?, instructor_bio = ?, instructor_avatar = ?,
-                is_published = ?, updated_at = CURRENT_TIMESTAMP
+                is_published = ?, access_duration_type = ?, access_duration_value = ?, access_duration_unit = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND is_deleted = 0
         ");
         $stmt->execute([
             $title, $slug, $category, $level, $duration, $partnerType,
             $badgeText, $description, $thumbnailUrl, $skills, $whatYouWillLearn,
             $prerequisites, $about, $instructorName, $instructorTitle, $instructorDepartment, $instructorBio, $instructorAvatar,
-            $isPublished, $courseId
+            $isPublished, $accessDurationType, $accessDurationValue, $accessDurationUnit, $courseId
         ]);
 
         return [

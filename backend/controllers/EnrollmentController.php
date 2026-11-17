@@ -189,5 +189,65 @@ class EnrollmentController {
             'course_completed' => $courseCompleted
         ];
     }
+
+    // Admin / Coordinator: Extend individual student access duration
+    public static function extendAccess(int $enrollmentId, array $data, array $actor): array {
+        $pdo = Database::getConnection();
+
+        $stmt = $pdo->prepare("SELECT * FROM enrollments WHERE id = ?");
+        $stmt->execute([$enrollmentId]);
+        $enr = $stmt->fetch();
+        if (!$enr) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Enrollment record not found'];
+        }
+
+        $newExpiresAt = trim($data['new_expires_at'] ?? '');
+        $reason = trim($data['reason'] ?? '');
+
+        if (empty($newExpiresAt) || empty($reason)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Both new expiry date and reason for extension are required'];
+        }
+
+        // Format to YYYY-MM-DD 23:59:59 if needed
+        if (strlen($newExpiresAt) === 10) {
+            $newExpiresAt .= ' 23:59:59';
+        }
+
+        $prevExpiresAt = $enr['expires_at'];
+
+        $upd = $pdo->prepare("
+            UPDATE enrollments
+            SET expires_at = ?, access_status = 'extended', status = 'active'
+            WHERE id = ?
+        ");
+        $upd->execute([$newExpiresAt, $enrollmentId]);
+
+        $prevTs = $prevExpiresAt ? strtotime($prevExpiresAt) : time();
+        $newTs = strtotime($newExpiresAt);
+        $diffDays = max(1, (int)round(($newTs - $prevTs) / 86400));
+
+        $insExt = $pdo->prepare("
+            INSERT INTO enrollment_access_extensions (
+                enrollment_id, extended_by, previous_expires_at,
+                new_expires_at, extension_days, reason, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        ");
+        $insExt->execute([
+            $enrollmentId,
+            $actor['id'] ?? null,
+            $prevExpiresAt,
+            $newExpiresAt,
+            $diffDays,
+            $reason
+        ]);
+
+        return [
+            'success' => true,
+            'message' => 'Course access duration successfully extended.',
+            'new_expires_at' => $newExpiresAt
+        ];
+    }
 }
 

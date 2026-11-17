@@ -4,6 +4,7 @@ import {
   ExternalLink, Trash2, Eye, Calendar, Clock, Layers, BookOpen, X
 } from 'lucide-react';
 import { formatDate } from '../../adminUtils';
+import MediaSourceInput from '../common/MediaSourceInput';
 
 export default function AdminMaterialsTab({
   materials = [],
@@ -238,13 +239,21 @@ export default function AdminMaterialsTab({
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Resource Link / File URL *</label>
-                <input
-                  type="url"
-                  placeholder="https://assets.aaroha-inc.com/... or https://github.com/..."
+                <MediaSourceInput
+                  category="material_document"
+                  label="Resource Document File or External URL"
+                  helpText="Upload PDF, DOCX, PPTX, XLSX, TXT, or ZIP up to 50MB, or supply an external resource URL."
                   value={newMaterial.file_url || newMaterial.external_url}
-                  onChange={e => setNewMaterial({ ...newMaterial, file_url: e.target.value, external_url: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-blue-500"
+                  onChange={(url, meta) => {
+                    setNewMaterial(prev => ({
+                      ...prev,
+                      file_url: url,
+                      external_url: meta?.source_type === 'url' ? url : '',
+                      source_type: meta?.source_type || (url.startsWith('http') ? 'url' : 'upload'),
+                      storage_key: meta?.storage_key || null
+                    }));
+                  }}
+                  required
                 />
               </div>
 

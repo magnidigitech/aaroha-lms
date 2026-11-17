@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BookOpen, CheckCircle2, Clock, Calendar, Award, 
-  Briefcase, Video, FileText, ChevronRight, AlertCircle, ArrowRight,
+  Briefcase, Video, FileText, ChevronRight, AlertCircle, AlertTriangle, Lock, ArrowRight,
   ExternalLink, Download, Search, Filter, HelpCircle, UserCheck, Play
 } from 'lucide-react';
 import { formatDateTime, formatDate } from '../../adminUtils';
@@ -21,6 +21,7 @@ export default function StudentDashboardView({
 
   const summary = dashboardData.summary_cards || {};
   const myCourses = dashboardData.my_courses || [];
+  const expiredCourses = dashboardData.expired_courses || [];
   const todayUpcoming = dashboardData.today_and_upcoming || {};
   const nextClass = todayUpcoming.next_live_class;
   const upcomingClasses = todayUpcoming.upcoming_classes || [];
@@ -270,7 +271,8 @@ export default function StudentDashboardView({
           { id: 'schedule', label: 'Schedule & Live Classes' },
           { id: 'performance', label: 'Academic Performance' },
           { id: 'certificates', label: 'Digital Certificates (' + certificates.length + ')' },
-          { id: 'placement', label: 'Placement Readiness' }
+          { id: 'placement', label: 'Placement Readiness' },
+          { id: 'expired', label: 'Expired Courses (' + expiredCourses.length + ')' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -382,6 +384,37 @@ export default function StudentDashboardView({
                       </div>
                     </div>
 
+                    {/* Course Access Window Indicator */}
+                    {course.expires_at && (
+                      <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 flex-wrap ${
+                        course.is_expiring_soon
+                          ? 'bg-amber-50 border-amber-200 text-amber-900'
+                          : 'bg-slate-50 border-slate-100 text-slate-700'
+                      }`}>
+                        <div className="flex items-center gap-1.5">
+                          {course.is_expiring_soon ? (
+                            <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                          ) : (
+                            <Clock size={14} className="text-slate-400 shrink-0" />
+                          )}
+                          <span className="text-[11px]">
+                            Access Duration: <strong>{course.access_duration_applied || 'Standard'}</strong>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          {course.is_expiring_soon ? (
+                            <span className="font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md text-[10.5px] uppercase tracking-wide flex items-center gap-1">
+                              Expiring Soon • {course.remaining_days}d left
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-500">
+                              Expires: <strong>{course.expires_at_formatted || formatDate(course.expires_at)}</strong> ({course.remaining_days}d left)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="text-xs bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
                       <div className="truncate mr-2">
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">Up Next</span>
@@ -408,6 +441,101 @@ export default function StudentDashboardView({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* SECTION: EXPIRED COURSES (READ-ONLY HISTORY) */}
+      {(activeTab === 'all' || activeTab === 'expired') && expiredCourses.length > 0 && (
+        <div className="space-y-4">
+          <div className="border-t border-slate-200 pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200">
+                  <Lock size={15} />
+                </div>
+                <h2 className="text-lg font-black text-slate-900 tracking-tight">Expired Courses (Read-Only History)</h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Programs where your access duration has ended. Protected playback and submissions are locked, but your learning records, grades, and certificates remain intact.
+              </p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 self-start sm:self-auto">
+              {expiredCourses.length} Archived {expiredCourses.length === 1 ? 'Program' : 'Programs'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {expiredCourses.map(course => (
+              <div
+                key={course.course_id}
+                className="bg-white rounded-3xl border border-rose-200/80 p-5 sm:p-6 shadow-2xs space-y-4 flex flex-col justify-between opacity-95"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 mb-1">
+                        <Lock size={10} /> Access Expired • {course.batch_code || 'Cohort'}
+                      </div>
+                      <h3 className="text-base font-black text-slate-900 tracking-tight leading-snug">
+                        {course.course_title}
+                      </h3>
+                    </div>
+                    {course.thumbnail_url && (
+                      <img
+                        src={course.thumbnail_url}
+                        alt={course.course_title}
+                        className="w-16 h-12 object-cover rounded-xl shrink-0 border border-slate-200 grayscale-30"
+                      />
+                    )}
+                  </div>
+
+                  <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
+                    <span>Enrolled: <strong>{formatDate(course.enrolled_at)}</strong></span>
+                    <span>•</span>
+                    <span>Expired On: <strong className="text-rose-700">{course.expires_at_formatted || formatDate(course.expires_at)}</strong></span>
+                  </div>
+
+                  {/* Final Progress & Status */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                      <span>Final Progress: {course.completed_lessons_count || 0} of {course.total_lessons_count || 0} lessons</span>
+                      <span className="font-bold text-slate-700">{course.progress_percentage || 0}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-slate-400 h-2 rounded-full"
+                        style={{ width: `${course.progress_percentage || 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+                    <div className="font-semibold text-slate-800 flex items-center gap-1">
+                      <CheckCircle2 size={13} className="text-emerald-600" />
+                      <span>Permanent Academic Record Preserved</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Evaluated defense solutions, attendance logs, and earned completion credentials are preserved in your portfolio.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-rose-600 flex items-center gap-1">
+                    <Lock size={12} /> Playback Locked
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenCourse && onOpenCourse(course.course_id)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>View Record Summary</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

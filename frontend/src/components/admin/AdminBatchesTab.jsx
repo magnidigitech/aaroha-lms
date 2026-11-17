@@ -5,7 +5,7 @@ import {
   Edit3, UserMinus, UserPlus, Check, ChevronDown, Archive, Trash2, RotateCcw,
   AlertTriangle, ShieldAlert
 } from 'lucide-react';
-import { formatDate } from '../../adminUtils';
+import { formatDate, getAccessWindowInfo } from '../../adminUtils';
 import api from '../../apiService';
 
 export default function AdminBatchesTab({
@@ -964,12 +964,16 @@ export default function AdminBatchesTab({
                       <th className="py-2.5 px-3">Student Name</th>
                       <th className="py-2.5 px-3">Contact</th>
                       <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Access Expiry</th>
                       <th className="py-2.5 px-3">Enrolled At</th>
                       <th className="py-2.5 px-3 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {rosterStudents.map((s) => (
+                    {rosterStudents.map((s) => {
+                      const win = getAccessWindowInfo(s.expires_at);
+                      const isPending = s.access_status === 'pending_activation';
+                      return (
                       <tr key={s.user_id} className="hover:bg-slate-50/60">
                         <td className="py-2.5 px-3 font-medium text-slate-900">
                           {s.full_name}
@@ -985,6 +989,25 @@ export default function AdminBatchesTab({
                             {s.enrollment_status}
                           </span>
                         </td>
+                        <td className="py-2.5 px-3">
+                          {isPending ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              Pending Activation
+                            </span>
+                          ) : win.isExpired ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                              Expired ({formatDate(s.expires_at)})
+                            </span>
+                          ) : win.isExpiringSoon ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              {formatDate(s.expires_at)} ({win.remainingDays}d)
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-700 font-medium">
+                              {s.expires_at ? formatDate(s.expires_at) : 'Active'}
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-3 text-slate-500">{formatDate(s.enrolled_at)}</td>
                         <td className="py-2.5 px-3 text-right">
                           <button
@@ -996,7 +1019,8 @@ export default function AdminBatchesTab({
                           </button>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

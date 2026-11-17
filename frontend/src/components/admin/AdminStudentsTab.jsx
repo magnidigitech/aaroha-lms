@@ -6,7 +6,7 @@ import {
   Calendar, Clock, ExternalLink, X, ShieldAlert, UserMinus, UserPlus, AlertCircle,
   RotateCcw, Trash2, Archive, ChevronDown
 } from 'lucide-react';
-import { exportToCsv, formatDate, formatDateTime } from '../../adminUtils';
+import { exportToCsv, formatDate, formatDateTime, calculateAccessExpiry, getAccessWindowInfo } from '../../adminUtils';
 import api from '../../apiService';
 
 export default function AdminStudentsTab({
@@ -304,6 +304,15 @@ export default function AdminStudentsTab({
     isOpen: false,
     enrollment: null,
     target_batch_id: '',
+    reason: '',
+    isSubmitting: false,
+    error: ''
+  });
+
+  const [extendAccessModal, setExtendAccessModal] = useState({
+    isOpen: false,
+    enrollment: null,
+    new_expires_at: '',
     reason: '',
     isSubmitting: false,
     error: ''
@@ -620,6 +629,31 @@ export default function AdminStudentsTab({
       await onViewStudentDetail(selectedStudentDetail.student.user_id);
     } catch (err) {
       setTransferDrawerModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to transfer batch.' }));
+    }
+  };
+
+  const handleExecuteExtendAccess = async (e) => {
+    e.preventDefault();
+    if (!extendAccessModal.enrollment || !extendAccessModal.new_expires_at || !extendAccessModal.reason.trim()) return;
+
+    try {
+      setExtendAccessModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
+      const eid = extendAccessModal.enrollment.id || extendAccessModal.enrollment.enrollment_id;
+      // Convert date string to standard YYYY-MM-DD 23:59:59 if needed
+      let formattedExpiry = extendAccessModal.new_expires_at;
+      if (formattedExpiry.length === 10) {
+        formattedExpiry += ' 23:59:59';
+      }
+      await api.adminExtendAccess(eid, {
+        new_expires_at: formattedExpiry,
+        reason: extendAccessModal.reason.trim()
+      });
+      setExtendAccessModal({ isOpen: false, enrollment: null, new_expires_at: '', reason: '', isSubmitting: false, error: '' });
+      if (selectedStudentDetail?.student?.user_id) {
+        await onViewStudentDetail(selectedStudentDetail.student.user_id);
+      }
+    } catch (err) {
+      setExtendAccessModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to extend access.' }));
     }
   };
 
@@ -1501,6 +1535,45 @@ export default function AdminStudentsTab({
                 </select>
               </div>
 
+              {(() => {
+                const selectedCourse = courses.find(c => String(c.id) === String(enrollDrawerModal.course_id));
+                if (!selectedCourse) return null;
+                const isAccountActive = selectedStudentDetail?.student?.account_status === 'active';
+                const dt = selectedCourse.access_duration_type || '6_months';
+                let durText = '6 Months';
+                let val = 6;
+                let unit = 'months';
+                if (dt === '1_month') { durText = '1 Month'; val = 1; }
+                else if (dt === '3_months') { durText = '3 Months'; val = 3; }
+                else if (dt === '6_months') { durText = '6 Months'; val = 6; }
+                else if (dt === '12_months') { durText = '12 Months'; val = 12; }
+                else if (dt === 'custom') {
+                  val = selectedCourse.access_duration_value || 1;
+                  unit = selectedCourse.access_duration_unit || 'months';
+                  durText = `${val} ${unit.charAt(0).toUpperCase() + unit.slice(1)}`;
+                }
+                const expDate = calculateAccessExpiry(new Date(), val, unit);
+                const expPreview = formatDate(expDate);
+
+                return (
+                  <div className="p-3 rounded-lg bg-sky-50 border border-sky-200 text-sky-950 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-sky-900">Course Access Duration:</span>
+                      <span className="font-bold text-[#0a7cb3]">{durText}</span>
+                    </div>
+                    {isAccountActive ? (
+                      <p className="text-[11px] text-sky-800">
+                        Student account is active. Access will start immediately upon confirmation and will expire on <strong>{expPreview}</strong>.
+                      </p>
+                    ) : (
+                      <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded border border-amber-200">
+                        <strong>Pending Account Activation:</strong> This student has not yet activated their login. The {durText} access window clock will start automatically on the day they activate their account.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -1661,6 +1734,125 @@ export default function AdminStudentsTab({
                   className="px-4 py-2 rounded-lg bg-[#0a7cb3] hover:bg-[#086491] disabled:opacity-40 text-white font-semibold cursor-pointer"
                 >
                   {transferDrawerModal.isSubmitting ? 'Transferring...' : 'Execute Transfer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL 8: EXTEND ENROLMENT ACCESS DURATION                     */}
+      {/* ------------------------------------------------------------- */}
+      {extendAccessModal.isOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-sky-50 border border-sky-200 text-[#0a7cb3] flex items-center justify-center">
+                  <Clock size={16} />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Extend Course Access</h2>
+                  <p className="text-slate-500 text-[11px]">Individual student access window extension</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExtendAccessModal(prev => ({ ...prev, isOpen: false }))}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {extendAccessModal.error && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                {extendAccessModal.error}
+              </div>
+            )}
+
+            <form onSubmit={handleExecuteExtendAccess} className="space-y-3">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
+                <div className="text-slate-500">Course & Student:</div>
+                <div className="font-semibold text-slate-900 text-xs">
+                  {extendAccessModal.enrollment?.course_title}
+                </div>
+                <div className="text-[11px] text-slate-600">
+                  Student: <strong>{selectedStudentDetail?.student?.full_name}</strong> ({selectedStudentDetail?.student?.email})
+                </div>
+                <div className="text-[11px] text-slate-500 pt-1">
+                  Current Expiry: <strong className="text-slate-800">{extendAccessModal.enrollment?.expires_at ? formatDate(extendAccessModal.enrollment.expires_at) : 'Pending Activation'}</strong>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">New Access Expiry Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={extendAccessModal.new_expires_at}
+                  onChange={e => setExtendAccessModal(prev => ({ ...prev, new_expires_at: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-hidden focus:border-[#0a7cb3]"
+                />
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-[10.5px] text-slate-500 font-medium">Quick Add:</span>
+                  {[
+                    { label: '+1 Month', val: 1, unit: 'months' },
+                    { label: '+3 Months', val: 3, unit: 'months' },
+                    { label: '+6 Months', val: 6, unit: 'months' }
+                  ].map(q => (
+                    <button
+                      key={q.label}
+                      type="button"
+                      onClick={() => {
+                        const curExp = extendAccessModal.enrollment?.expires_at ? new Date(extendAccessModal.enrollment.expires_at) : new Date();
+                        const base = curExp > new Date() ? curExp : new Date();
+                        const nextD = calculateAccessExpiry(base, q.val, q.unit);
+                        const yyyy = nextD.getFullYear();
+                        const mm = String(nextD.getMonth() + 1).padStart(2, '0');
+                        const dd = String(nextD.getDate()).padStart(2, '0');
+                        setExtendAccessModal(prev => ({ ...prev, new_expires_at: `${yyyy}-${mm}-${dd}` }));
+                      }}
+                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[10.5px] font-medium cursor-pointer"
+                    >
+                      {q.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Reason for Extension *</label>
+                <textarea
+                  required
+                  rows="3"
+                  placeholder="State the academic, medical, or administrative reason for granting additional access time..."
+                  value={extendAccessModal.reason}
+                  onChange={e => setExtendAccessModal(prev => ({ ...prev, reason: e.target.value }))}
+                  className="w-full p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-hidden focus:border-[#0a7cb3]"
+                />
+              </div>
+
+              <div className="p-3 bg-sky-50 border border-sky-200 rounded-lg text-[11px] text-sky-900">
+                <strong>Progress Protection:</strong> Extending access will immediately restore or prolong full course access without resetting completed lessons, assignment scores, or attendance records.
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={extendAccessModal.isSubmitting}
+                  onClick={() => setExtendAccessModal(prev => ({ ...prev, isOpen: false }))}
+                  className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={extendAccessModal.isSubmitting || !extendAccessModal.new_expires_at || !extendAccessModal.reason.trim()}
+                  className="px-4 py-2 rounded-lg bg-[#0a7cb3] hover:bg-[#086491] disabled:opacity-40 text-white font-semibold cursor-pointer"
+                >
+                  {extendAccessModal.isSubmitting ? 'Extending...' : 'Confirm Extension'}
                 </button>
               </div>
             </form>
@@ -1882,8 +2074,14 @@ export default function AdminStudentsTab({
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {(selectedStudentDetail.enrollments || []).map(e => (
-                        <div key={e.enrollment_id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                      {(selectedStudentDetail.enrollments || []).map(e => {
+                        const win = getAccessWindowInfo(e.expires_at);
+                        const isPending = e.access_status === 'pending_activation';
+                        const enrStatus = e.status || e.enrollment_status;
+                        const eid = e.id || e.enrollment_id;
+
+                        return (
+                        <div key={eid} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <h3 className="font-bold text-slate-900 text-sm">{e.course_title}</h3>
@@ -1891,21 +2089,57 @@ export default function AdminStudentsTab({
                                 {e.batch_code || 'Unassigned Batch'}
                               </span>
                             </div>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
-                              e.enrollment_status === 'active'
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : e.enrollment_status === 'transferred'
-                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                : 'bg-rose-100 text-rose-800 border border-rose-200'
-                            }`}>
-                              {e.enrollment_status}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${
+                                enrStatus === 'active'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : enrStatus === 'transferred'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  : 'bg-rose-100 text-rose-800 border border-rose-200'
+                              }`}>
+                                {enrStatus}
+                              </span>
+
+                              {isPending ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                  Pending Activation
+                                </span>
+                              ) : win.isExpired ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                                  Access Expired
+                                </span>
+                              ) : win.isExpiringSoon ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                                  <AlertTriangle size={10} /> Expiring Soon ({win.remainingDays}d)
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  Access Active ({win.remainingDays}d)
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 text-slate-500 text-[11px] pt-1 border-t border-slate-200/60">
-                            <div>Delivery: <strong className="text-slate-800">{e.delivery_mode || 'Online Live'}</strong></div>
-                            <div>Enrolled Date: <strong className="text-slate-800">{formatDate(e.enrolled_at)}</strong></div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-500 text-[11px] pt-1 border-t border-slate-200/60">
+                            <div>Duration: <strong className="text-slate-800">{e.access_duration_applied || '6 Months'}</strong></div>
+                            <div>Access Start: <strong className="text-slate-800">{e.access_start_at ? formatDate(e.access_start_at) : (isPending ? 'Upon Activation' : 'Immediate')}</strong></div>
+                            <div>Access Expiry: <strong className="text-slate-800">{e.expires_at ? formatDate(e.expires_at) : (isPending ? 'Upon Activation' : 'No Expiry')}</strong></div>
+                            <div>Status: <strong className={win.isExpired ? 'text-rose-600' : (win.isExpiringSoon ? 'text-amber-600' : 'text-slate-800')}>{isPending ? 'Pending' : (win.isExpired ? 'Expired' : `${win.remainingDays}d left`)}</strong></div>
                           </div>
+
+                          {e.extensions && e.extensions.length > 0 && (
+                            <div className="p-2.5 rounded-lg bg-sky-50/70 border border-sky-100 text-[11px] text-sky-950 space-y-1">
+                              <div className="font-semibold text-sky-900 flex items-center gap-1">
+                                <Clock size={12} className="text-[#0a7cb3]" />
+                                <span>Access Extension History ({e.extensions.length})</span>
+                              </div>
+                              {e.extensions.map((ext, idx) => (
+                                <div key={idx} className="pl-2 border-l-2 border-sky-300 text-[10.5px] text-slate-700">
+                                  Extended to <strong>{formatDate(ext.new_expires_at)}</strong> by {ext.extended_by_name || 'Admin'} on {formatDate(ext.created_at)}: <em>"{ext.reason}"</em>
+                                </div>
+                              ))}
+                            </div>
+                          )}
 
                           {e.transfer_from_batch_id && (
                             <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[11px]">
@@ -1913,46 +2147,72 @@ export default function AdminStudentsTab({
                             </div>
                           )}
 
-                          {e.enrollment_status === 'withdrawn' && (
+                          {enrStatus === 'withdrawn' && (
                             <div className="p-2 rounded bg-rose-50 border border-rose-200 text-rose-900 text-[11px]">
                               Withdrawn: {e.withdrawal_reason || 'Administrative withdrawal'}. Historical attendance and submissions remain intact.
                             </div>
                           )}
 
-                          {/* Actions for Active Enrolments */}
-                          {e.enrollment_status === 'active' && (
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
-                              <button
-                                type="button"
-                                onClick={() => setTransferDrawerModal({
+                          {/* Actions: Extend Access, Transfer, Withdraw */}
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const curExp = e.expires_at ? new Date(e.expires_at) : new Date();
+                                const base = curExp > new Date() ? curExp : new Date();
+                                const nextD = calculateAccessExpiry(base, 1, 'months');
+                                const yyyy = nextD.getFullYear();
+                                const mm = String(nextD.getMonth() + 1).padStart(2, '0');
+                                const dd = String(nextD.getDate()).padStart(2, '0');
+                                setExtendAccessModal({
                                   isOpen: true,
                                   enrollment: e,
-                                  target_batch_id: '',
+                                  new_expires_at: `${yyyy}-${mm}-${dd}`,
                                   reason: '',
                                   isSubmitting: false,
                                   error: ''
-                                })}
-                                className="px-2.5 py-1 rounded bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1 cursor-pointer"
-                              >
-                                <Layers size={12} /> Transfer Batch
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setWithdrawDrawerModal({
-                                  isOpen: true,
-                                  enrollment: e,
-                                  reason: '',
-                                  isSubmitting: false,
-                                  error: ''
-                                })}
-                                className="px-2.5 py-1 rounded bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-700 font-semibold text-xs flex items-center gap-1 cursor-pointer"
-                              >
-                                <UserMinus size={12} /> Withdraw
-                              </button>
-                            </div>
-                          )}
+                                });
+                              }}
+                              className="px-2.5 py-1 rounded bg-white hover:bg-sky-50 border border-slate-200 hover:border-sky-300 text-sky-700 font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                            >
+                              <Clock size={12} /> Extend Access
+                            </button>
+
+                            {enrStatus === 'active' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setTransferDrawerModal({
+                                    isOpen: true,
+                                    enrollment: e,
+                                    target_batch_id: '',
+                                    reason: '',
+                                    isSubmitting: false,
+                                    error: ''
+                                  })}
+                                  className="px-2.5 py-1 rounded bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Layers size={12} /> Transfer Batch
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setWithdrawDrawerModal({
+                                    isOpen: true,
+                                    enrollment: e,
+                                    reason: '',
+                                    isSubmitting: false,
+                                    error: ''
+                                  })}
+                                  className="px-2.5 py-1 rounded bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-rose-700 font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                                >
+                                  <UserMinus size={12} /> Withdraw
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   )}
 

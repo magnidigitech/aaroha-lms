@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ListTodo, AlertCircle, Loader2 } from 'lucide-react';
+import MediaSourceInput from '../common/MediaSourceInput';
 
 /**
  * Reusable Accessible Assignment/Project Modal (Create & Edit)
@@ -19,7 +20,8 @@ export default function AssignmentModal({
     instructions: '',
     task_type: 'text_response',
     max_score: 100,
-    passing_score: 75
+    passing_score: 75,
+    attachment_url: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -38,7 +40,8 @@ export default function AssignmentModal({
           instructions: initialData.instructions || '',
           task_type: initialData.task_type || 'text_response',
           max_score: initialData.max_score || 100,
-          passing_score: initialData.passing_score || 75
+          passing_score: initialData.passing_score || 75,
+          attachment_url: initialData.attachment_url || ''
         });
       } else {
         setFormData({
@@ -46,7 +49,8 @@ export default function AssignmentModal({
           instructions: '',
           task_type: 'text_response',
           max_score: 100,
-          passing_score: 75
+          passing_score: 75,
+          attachment_url: ''
         });
       }
       setErrors({});
@@ -242,6 +246,19 @@ export default function AssignmentModal({
               }`}
             />
             {errors.instructions && <p className="text-red-600 text-[11px] mt-1">{errors.instructions}</p>}
+          </div>
+
+          <div>
+            <MediaSourceInput
+              category="assignment_attachment"
+              label="Starter Template / Supplementary Materials (Optional)"
+              helpText="Upload project starter repository ZIP, architectural specification PDF, or starter code notebook."
+              value={formData.attachment_url}
+              onChange={(url, meta) => {
+                handleChange('attachment_url', url);
+              }}
+              required={false}
+            />
           </div>
 
           {/* Footer Actions */}

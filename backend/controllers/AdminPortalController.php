@@ -343,6 +343,7 @@ class AdminPortalController {
         // 2. Enrollments & Batches
         $stmt = $pdo->prepare("
             SELECT e.id as enrollment_id, e.status as enrollment_status, e.enrolled_at, e.completed_at,
+                   e.access_start_at, e.expires_at, e.access_duration_applied, e.access_status,
                    c.id as course_id, c.title as course_title, c.category, c.level, c.duration,
                    b.id as batch_id, b.batch_code, b.title as batch_title, b.delivery_mode, b.start_date, b.end_date,
                    be.status as batch_enrollment_status, be.transfer_from_batch_id, be.transfer_reason
@@ -354,6 +355,19 @@ class AdminPortalController {
         ");
         $stmt->execute([(int)$userId]);
         $enrollments = $stmt->fetchAll();
+
+        foreach ($enrollments as &$enr) {
+            $extStmt = $pdo->prepare("
+                SELECT eae.*, u.full_name as extended_by_name
+                FROM enrollment_access_extensions eae
+                LEFT JOIN users u ON eae.extended_by = u.id
+                WHERE eae.enrollment_id = ?
+                ORDER BY eae.created_at DESC
+            ");
+            $extStmt->execute([(int)$enr['enrollment_id']]);
+            $enr['extensions'] = $extStmt->fetchAll();
+        }
+        unset($enr);
 
         // 3. Attendance Records
         $stmt = $pdo->prepare("
@@ -573,6 +587,41 @@ class AdminPortalController {
         }
     }
 
+    public static function calculateAccessExpiry(string $startDate, int $value, string $unit): string {
+        $dt = new DateTime($startDate);
+        $unit = strtolower($unit);
+        if ($unit === 'days' || $unit === 'day') {
+            $dt->modify("+$value days");
+            $dt->setTime(23, 59, 59);
+            return $dt->format('Y-m-d H:i:s');
+        }
+        if ($unit === 'years' || $unit === 'year') {
+            $year = (int)$dt->format('Y') + $value;
+            $month = (int)$dt->format('m');
+            $day = (int)$dt->format('d');
+            $isLeap = ($year % 4 === 0 && $year % 100 !== 0) || ($year % 400 === 0);
+            if ($month === 2 && $day === 29 && !$isLeap) {
+                $day = 28;
+            }
+            $dt->setDate($year, $month, $day);
+            $dt->setTime(23, 59, 59);
+            return $dt->format('Y-m-d H:i:s');
+        }
+        $year = (int)$dt->format('Y');
+        $month = (int)$dt->format('n');
+        $day = (int)$dt->format('j');
+
+        $totalMonths = ($month - 1) + $value;
+        $targetYear = $year + intdiv($totalMonths, 12);
+        $targetMonth = ($totalMonths % 12) + 1;
+        $maxDays = cal_days_in_month(CAL_GREGORIAN, $targetMonth, $targetYear);
+        $targetDay = min($day, $maxDays);
+
+        $dt->setDate($targetYear, $targetMonth, $targetDay);
+        $dt->setTime(23, 59, 59);
+        return $dt->format('Y-m-d H:i:s');
+    }
+
     public static function enrollStudentCourse($studentId, $data, $actor) {
         $pdo = Database::getConnection();
         $studentId = (int)$studentId;
@@ -584,6 +633,29 @@ class AdminPortalController {
             return ['success' => false, 'error' => 'Course ID is required.'];
         }
 
+        $spStmt = $pdo->prepare("SELECT account_status FROM student_profiles WHERE user_id = ?");
+        $spStmt->execute([$studentId]);
+        $spRow = $spStmt->fetch();
+        $accStatus = $spRow['account_status'] ?? 'active';
+
+        $cStmt = $pdo->prepare("SELECT access_duration_type, access_duration_value, access_duration_unit FROM courses WHERE id = ?");
+        $cStmt->execute([$courseId]);
+        $cRow = $cStmt->fetch();
+        $durVal = !empty($cRow['access_duration_value']) ? (int)$cRow['access_duration_value'] : 6;
+        $durUnit = !empty($cRow['access_duration_unit']) ? strtolower($cRow['access_duration_unit']) : 'months';
+        $durLabel = $durVal . ' ' . ucfirst($durUnit);
+
+        $nowStr = date('Y-m-d H:i:s');
+        if ($accStatus === 'active') {
+            $accessStart = $nowStr;
+            $accessExpiry = self::calculateAccessExpiry($nowStr, $durVal, $durUnit);
+            $enrAccessStatus = 'active';
+        } else {
+            $accessStart = null;
+            $accessExpiry = null;
+            $enrAccessStatus = 'pending_activation';
+        }
+
         $pdo->beginTransaction();
         try {
             $check = $pdo->prepare("SELECT id FROM enrollments WHERE user_id = ? AND course_id = ? LIMIT 1");
@@ -592,14 +664,21 @@ class AdminPortalController {
 
             if ($existing) {
                 $enrollmentId = (int)$existing['id'];
-                $pdo->prepare("UPDATE enrollments SET status = 'active', batch_id = COALESCE(?, batch_id) WHERE id = ?")
-                    ->execute([$batchId, $enrollmentId]);
+                $pdo->prepare("
+                    UPDATE enrollments
+                    SET status = 'active', batch_id = COALESCE(?, batch_id),
+                        access_start_at = ?, expires_at = ?, access_duration_applied = ?,
+                        access_status = ?, withdrawal_reason = NULL, withdrawn_at = NULL
+                    WHERE id = ?
+                ")->execute([$batchId, $accessStart, $accessExpiry, $durLabel, $enrAccessStatus, $enrollmentId]);
             } else {
                 $stmt = $pdo->prepare("
-                    INSERT INTO enrollments (user_id, course_id, batch_id, status, enrolled_at)
-                    VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)
+                    INSERT INTO enrollments (
+                        user_id, course_id, batch_id, status, enrolled_at,
+                        access_start_at, expires_at, access_duration_applied, access_status
+                    ) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$studentId, $courseId, $batchId]);
+                $stmt->execute([$studentId, $courseId, $batchId, $accessStart, $accessExpiry, $durLabel, $enrAccessStatus]);
                 $enrollmentId = (int)$pdo->lastInsertId();
             }
 

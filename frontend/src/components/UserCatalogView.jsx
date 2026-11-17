@@ -53,12 +53,15 @@ export default function UserCatalogView({
 
   return (
     <div className="w-full pb-24">
-      {/* Full-Width Homepage Hero Section */}
-      <section className="relative w-full min-h-[calc(100svh-4rem)] sm:min-h-[calc(100svh-4.5rem)] flex items-center bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100/40">
-        {/* Full-bleed Background Photograph Layer */}
+      {/* Full-Width Homepage Hero Section - Layer 1: Base background */}
+      <section className="relative w-full min-h-[calc(100svh-4rem)] sm:min-h-[calc(100svh-4.5rem)] flex items-center bg-gradient-to-r from-slate-50 via-sky-50/30 to-slate-100/40 overflow-hidden">
+        {/* Layer 2: Decorative animation restricted to empty space */}
+        <HeroTechBackground className="z-10" />
+
+        {/* Layer 3: Photograph and its blending gradient */}
         <div 
           aria-hidden="true" 
-          className="absolute inset-0 pointer-events-none select-none overflow-hidden z-0"
+          className="absolute inset-0 pointer-events-none select-none overflow-hidden z-20"
         >
           {/* High-quality photograph positioned to the right */}
           <img
@@ -85,11 +88,8 @@ export default function UserCatalogView({
           />
         </div>
 
-        {/* Subtle Technology Network Animation Layer */}
-        <HeroTechBackground />
-
-        {/* Centered Content Container with Responsive Side Padding */}
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 relative z-10">
+        {/* Layer 4: Text and interactive content */}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 relative z-30">
           <div className="max-w-xl lg:max-w-2xl space-y-4 sm:space-y-6">
             {/* Small Label */}
             <div className="inline-flex items-center text-xs font-bold uppercase tracking-wider text-[#0A7CB3]">
