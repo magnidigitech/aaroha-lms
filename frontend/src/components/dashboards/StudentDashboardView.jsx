@@ -223,7 +223,7 @@ export default function StudentDashboardView({
       </div>
 
       {/* Live Class Alert Banner (When Meeting Available) */}
-      {nextClass && (
+      {nextClass && myCourses.length > 0 && (
         <div className="bg-gradient-to-r from-blue-900 to-[#0A7CB3] rounded-3xl p-5 sm:p-7 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
@@ -321,22 +321,46 @@ export default function StudentDashboardView({
             </div>
           </div>
 
-          {filteredCourses.length === 0 ? (
+          {myCourses.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#0A7CB3] flex items-center justify-center mx-auto shadow-2xs">
+                <BookOpen size={32} />
+              </div>
+              <div className="space-y-1.5 max-w-md mx-auto">
+                <div className="text-base font-bold text-slate-900">No courses assigned yet. Please contact your coordinator.</div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  You are currently not enrolled in any academic curriculum or cohort batches. Once your academic coordinator assigns your courses, your syllabus, lecture schedules, and materials will appear here.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                {onOpenTicketModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenTicketModal}
+                    className="px-4 py-2.5 rounded-xl bg-[#0A7CB3] text-white text-xs font-bold hover:bg-[#086491] transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <HelpCircle size={15} />
+                    Contact Academic Coordinator
+                  </button>
+                )}
+                {onExploreCatalog && (
+                  <button
+                    type="button"
+                    onClick={onExploreCatalog}
+                    className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+                  >
+                    Explore Specialization Catalog
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : filteredCourses.length === 0 ? (
             <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-3">
               <BookOpen size={36} className="mx-auto text-slate-300" />
-              <div className="text-sm font-bold text-slate-800">No enrolled programs found</div>
+              <div className="text-sm font-bold text-slate-800">No matching courses found</div>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
-                You do not have any active course enrollments matching this filter. Explore accredited specializations in our catalog.
+                No enrolled courses match the current filter or search criteria.
               </p>
-              {onExploreCatalog && (
-                <button
-                  type="button"
-                  onClick={onExploreCatalog}
-                  className="px-4 py-2 rounded-xl bg-[#0A7CB3] text-white text-xs font-bold hover:bg-[#086491] transition-colors cursor-pointer"
-                >
-                  Explore Course Catalog
-                </button>
-              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

@@ -581,6 +581,31 @@ class CourseController {
         ];
     }
 
+    public static function archiveCourse(int $courseId, int $userId, string $userRole) {
+        $pdo = Database::getConnection();
+        $auth = self::checkCourseOwnership($pdo, $courseId, $userId, $userRole);
+        if (!$auth['allowed']) {
+            self::setHttpStatus($auth['code']);
+            return ['success' => false, 'error' => $auth['error']];
+        }
+
+        try {
+            $stmt = $pdo->prepare("UPDATE courses SET is_published = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([$courseId]);
+
+            self::syncArchiveToSqlite($courseId);
+
+            return [
+                'success' => true,
+                'message' => 'Course successfully archived. Existing student enrollments and cohort batches remain active, but the course is hidden from public discovery and new enrollments.',
+                'course_id' => $courseId
+            ];
+        } catch (\Throwable $e) {
+            self::setHttpStatus(500);
+            return ['success' => false, 'error' => 'Database operation failed: ' . $e->getMessage()];
+        }
+    }
+
     public static function deleteCourse(int $courseId, int $userId, string $userRole) {
         $pdo = Database::getConnection();
         $auth = self::checkCourseOwnership($pdo, $courseId, $userId, $userRole);
@@ -590,23 +615,151 @@ class CourseController {
         }
 
         try {
-            // Soft-delete course row only (no cascading deletes); relational joins in PlaybackController,
-            // listPublished, and getDetails automatically exclude descendant modules, lessons, and tasks.
-            $stmt = $pdo->prepare("UPDATE courses SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
-            $stmt->execute([$courseId]);
+            // Mandatory dependency checks across batches, enrollments, certificates, and fee plans
+            $bStmt = $pdo->prepare("SELECT COUNT(*) FROM batches WHERE course_id = ?");
+            $bStmt->execute([$courseId]);
+            $batchesCount = (int)$bStmt->fetchColumn();
 
-            // Synchronize soft-deletion to fallback SQLite database if file exists
-            self::syncDeleteToSqlite($courseId);
+            $eStmt = $pdo->prepare("SELECT COUNT(*) FROM enrollments WHERE course_id = ?");
+            $eStmt->execute([$courseId]);
+            $enrCount = (int)$eStmt->fetchColumn();
+
+            $cStmt = $pdo->prepare("SELECT COUNT(*) FROM certificates WHERE course_id = ?");
+            $cStmt->execute([$courseId]);
+            $certCount = (int)$cStmt->fetchColumn();
+
+            $fStmt = $pdo->prepare("SELECT COUNT(*) FROM fee_plans WHERE course_id = ?");
+            $fStmt->execute([$courseId]);
+            $feeCount = (int)$fStmt->fetchColumn();
+
+            if ($batchesCount > 0 || $enrCount > 0 || $certCount > 0 || $feeCount > 0) {
+                self::setHttpStatus(409);
+                return [
+                    'success' => false,
+                    'error' => "Cannot permanently delete course: {$batchesCount} cohort batch(es), {$enrCount} student enrollment(s), and {$certCount} certificate(s) depend on it. Academic integrity rules require retaining historical records. Please unpublish or archive the course instead.",
+                    'conflict_code' => 'COURSE_HAS_DEPENDENCIES',
+                    'dependencies' => [
+                        'batches' => $batchesCount,
+                        'enrollments' => $enrCount,
+                        'certificates' => $certCount,
+                        'fee_plans' => $feeCount
+                    ]
+                ];
+            }
+
+            // Eligible zero-dependency course: delete disposable course-owned children in a transaction
+            $pdo->beginTransaction();
+
+            // Fetch module IDs
+            $mStmt = $pdo->prepare("SELECT id FROM modules WHERE course_id = ?");
+            $mStmt->execute([$courseId]);
+            $moduleIds = $mStmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $lessonCount = 0;
+            $taskCount = 0;
+
+            if (!empty($moduleIds)) {
+                $inClause = implode(',', array_map('intval', $moduleIds));
+
+                // Fetch lesson IDs
+                $lStmt = $pdo->query("SELECT id FROM lessons WHERE module_id IN ($inClause)");
+                $lessonIds = $lStmt ? $lStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                $lessonCount = count($lessonIds);
+
+                // Fetch task IDs
+                $tStmt = $pdo->query("SELECT id FROM tasks WHERE module_id IN ($inClause)");
+                $taskIds = $tStmt ? $tStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                $taskCount = count($taskIds);
+
+                if (!empty($taskIds)) {
+                    $tIn = implode(',', array_map('intval', $taskIds));
+                    $pdo->exec("DELETE FROM task_submissions WHERE task_id IN ($tIn)");
+                    $pdo->exec("DELETE FROM tasks WHERE id IN ($tIn)");
+                }
+
+                if (!empty($lessonIds)) {
+                    $lIn = implode(',', array_map('intval', $lessonIds));
+                    $pdo->exec("DELETE FROM lesson_progress WHERE lesson_id IN ($lIn)");
+                    $pdo->exec("DELETE FROM lessons WHERE id IN ($lIn)");
+                }
+
+                $pdo->exec("DELETE FROM modules WHERE id IN ($inClause)");
+            }
+
+            $pdo->prepare("DELETE FROM learning_materials WHERE course_id = ?")->execute([$courseId]);
+            $pdo->prepare("DELETE FROM courses WHERE id = ?")->execute([$courseId]);
+
+            $pdo->commit();
+
+            // Synchronize permanent deletion to SQLite fallback
+            self::syncPermanentDeleteToSqlite($courseId);
 
             return [
                 'success' => true,
-                'message' => 'Course successfully archived. Historical enrollments and student records have been preserved.',
-                'course_id' => $courseId
+                'message' => "Course permanently deleted. Cleaned up " . count($moduleIds) . " module(s), {$lessonCount} lecture(s), and {$taskCount} assignment(s).",
+                'affected_records' => [
+                    'modules' => count($moduleIds),
+                    'lessons' => $lessonCount,
+                    'tasks' => $taskCount
+                ]
             ];
         } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             self::setHttpStatus(500);
             return ['success' => false, 'error' => 'Database operation failed: ' . $e->getMessage()];
         }
+    }
+
+    private static function syncArchiveToSqlite(int $courseId): void {
+        try {
+            if (!extension_loaded('pdo_sqlite') || !class_exists('PDO') || !in_array('sqlite', PDO::getAvailableDrivers())) {
+                return;
+            }
+            $sqliteCandidates = [
+                __DIR__ . '/../config/lms.sqlite',
+                __DIR__ . '/../../database/lms.sqlite',
+                dirname(__DIR__, 2) . '/database/lms.sqlite',
+                __DIR__ . '/lms.sqlite',
+            ];
+            foreach ($sqliteCandidates as $cand) {
+                if (file_exists($cand) && is_writable($cand)) {
+                    try {
+                        $sqlitePdo = new PDO("sqlite:{$cand}", null, null, [
+                            PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                        ]);
+                        $stmt = $sqlitePdo->prepare("UPDATE courses SET is_published = 0, updated_at = datetime('now') WHERE id = ?");
+                        $stmt->execute([$courseId]);
+                    } catch (\Throwable $sqle) {}
+                }
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    private static function syncPermanentDeleteToSqlite(int $courseId): void {
+        try {
+            if (!extension_loaded('pdo_sqlite') || !class_exists('PDO') || !in_array('sqlite', PDO::getAvailableDrivers())) {
+                return;
+            }
+            $sqliteCandidates = [
+                __DIR__ . '/../config/lms.sqlite',
+                __DIR__ . '/../../database/lms.sqlite',
+                dirname(__DIR__, 2) . '/database/lms.sqlite',
+                __DIR__ . '/lms.sqlite',
+            ];
+            foreach ($sqliteCandidates as $cand) {
+                if (file_exists($cand) && is_writable($cand)) {
+                    try {
+                        $sqlitePdo = new PDO("sqlite:{$cand}", null, null, [
+                            PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                        ]);
+                        $sqlitePdo->exec("DELETE FROM modules WHERE course_id = $courseId");
+                        $sqlitePdo->exec("DELETE FROM courses WHERE id = $courseId");
+                    } catch (\Throwable $sqle) {}
+                }
+            }
+        } catch (\Throwable $e) {}
     }
 
     private static function syncDeleteToSqlite(int $courseId): void {
@@ -1047,7 +1200,7 @@ class CourseController {
             return ['success' => false, 'error' => 'Only administrators can restore archived courses.'];
         }
 
-        $stmt = $pdo->prepare("UPDATE courses SET is_deleted = 0 WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE courses SET is_deleted = 0, is_published = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
         $stmt->execute([$courseId]);
 
         $pdo->prepare("UPDATE modules SET is_deleted = 0 WHERE course_id = ?")->execute([$courseId]);

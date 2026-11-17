@@ -47,11 +47,30 @@ export default function AdminCoursesTab({
     }
   };
 
-  // Archive Course
+  // Archive Course (Safe Archival preserving history)
   const handleArchiveCourse = async (course) => {
-    if (onUpdateCourse) {
-      await onUpdateCourse(course.id, { is_published: false });
+    try {
+      await api.adminArchiveCourse(course.id);
+      if (onUpdateCourse) await onUpdateCourse(course.id, { is_published: false });
+    } catch (err) {
+      alert('Failed to archive course: ' + err.message);
     }
+  };
+
+  const triggerArchiveCourse = (course) => {
+    setDeleteModal({
+      isOpen: true,
+      actionType: 'archive',
+      title: 'Archive Course',
+      itemName: course.title,
+      itemType: 'Course',
+      affectedChildren: 'This will hide the course from the public directory and new student enrollment selectors.',
+      studentImpact: 'Existing student enrollments and cohort batches remain active and valid. Enrolled learners retain full access to their materials and credentials.',
+      confirmButtonText: 'Archive Course',
+      onConfirm: async () => {
+        await handleArchiveCourse(course);
+      }
+    });
   };
 
   // Delete confirmation modal state
@@ -138,12 +157,13 @@ export default function AdminCoursesTab({
 
     setDeleteModal({
       isOpen: true,
-      title: 'Delete Course',
+      actionType: 'delete',
+      title: 'Permanently Delete Course',
       itemName: course.title,
       itemType: 'Course',
-      affectedChildren: `This will remove ${modCount} module(s), ${lessonCount} lecture(s), and ${taskCount} assignment(s).`,
-      studentImpact: 'No active batches or students depend on this course. The course will be permanently removed.',
-      confirmButtonText: 'Delete Course',
+      affectedChildren: `This will permanently remove the course and its ${modCount} module(s), ${lessonCount} lecture(s), and ${taskCount} assignment(s).`,
+      studentImpact: 'Zero dependencies verified: No cohort batches, student enrollments, or certificates depend on this course. The record will be permanently deleted.',
+      confirmButtonText: 'Permanently Delete',
       onConfirm: async () => {
         if (onDeleteCourse) await onDeleteCourse(course.id);
       }
@@ -286,7 +306,7 @@ export default function AdminCoursesTab({
                   {course.is_published ? (
                     <button
                       type="button"
-                      onClick={() => handleArchiveCourse(course)}
+                      onClick={() => triggerArchiveCourse(course)}
                       className="px-2.5 py-1.5 bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-slate-700 hover:text-amber-800 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
                       title="Archive Course (hides from active listings while preserving all historical records)"
                     >
@@ -857,6 +877,7 @@ export default function AdminCoursesTab({
       {/* MODAL 5: Delete/Archive Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
+        actionType={deleteModal.actionType || 'archive'}
         title={deleteModal.title}
         itemName={deleteModal.itemName}
         itemType={deleteModal.itemType}

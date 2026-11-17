@@ -535,7 +535,10 @@ export const api = {
     body: JSON.stringify(data)
   }),
 
-  // Course Restore & Task Closure
+  // Course Archive & Restore
+  adminArchiveCourse: (courseId) => request(`/admin/courses/${courseId}/archive`, {
+    method: 'POST'
+  }),
   adminRestoreCourse: (courseId) => request(`/admin/courses/${courseId}/restore`, {
     method: 'POST'
   }),

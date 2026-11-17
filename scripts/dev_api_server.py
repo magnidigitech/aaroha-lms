@@ -698,7 +698,14 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     cid = c['course_id']
                     eid = c['enrollment_id']
 
-                    # Progress calculation
+                    # Fallbacks for unassigned cohorts
+                    c['batch_code'] = c.get('batch_code') or 'Self-Paced / Standard'
+                    c['batch_title'] = c.get('batch_title') or c.get('course_title')
+                    c['faculty_name'] = c.get('faculty_name') or 'Academic Coordinator'
+                    c['start_date'] = c.get('start_date') or (c.get('enrolled_at') or '')[:10]
+                    c['expected_end_date'] = c.get('end_date') or (c.get('expires_at') or '')[:10] or 'Self-Paced'
+
+                    # Progress calculation & next lesson
                     tot_lessons = cur.execute("SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = ? AND l.is_deleted = 0", (cid,)).fetchone()[0]
                     comp_lessons = cur.execute("SELECT COUNT(*) FROM lesson_progress WHERE enrollment_id = ? AND is_completed = 1", (eid,)).fetchone()[0]
                     prog_pct = int(round((comp_lessons / tot_lessons * 100))) if tot_lessons > 0 else 0
@@ -708,9 +715,20 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     total_completed_lessons += comp_lessons
                     total_required_lessons += tot_lessons
 
+                    # Find next uncompleted lesson
+                    next_l = cur.execute("""
+                        SELECT l.id, l.title FROM lessons l
+                        JOIN modules m ON l.module_id = m.id
+                        WHERE m.course_id = ? AND l.is_deleted = 0
+                          AND l.id NOT IN (SELECT lesson_id FROM lesson_progress WHERE enrollment_id = ? AND is_completed = 1)
+                        ORDER BY m.sequence_order ASC, l.sequence_order ASC LIMIT 1
+                    """, (cid, eid)).fetchone()
+                    c['next_lesson_title'] = next_l[1] if next_l else 'All Course Lessons Completed'
+                    c['next_lesson_id'] = next_l[0] if next_l else None
+
                     # Expiry calculation
                     exp_val = c.get('expires_at')
-                    if exp_val:
+                    if exp_val and isinstance(exp_val, str):
                         try:
                             exp_dt = datetime.strptime(exp_val[:19], "%Y-%m-%d %H:%M:%S")
                         except Exception:
@@ -745,7 +763,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     else:
                         my_courses.append(c)
 
-                overall_comp_pct = int(round((total_completed_lessons / total_required_lessons * 100))) if total_required_lessons > 0 else 0
+                overall_comp_pct = int(round((total_completed_lessons / total_required_lessons * 100))) if total_required_lessons > 0 else None
 
                 # Certificates
                 certs = cur.execute("SELECT * FROM certificates WHERE user_id = ? ORDER BY issued_at DESC", (student_id,)).fetchall()
@@ -756,7 +774,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     SELECT cs.*, b.batch_code, b.title as batch_title, fac.full_name as faculty_name
                     FROM class_sessions cs
                     JOIN batches b ON cs.batch_id = b.id
-                    JOIN users fac ON cs.faculty_id = fac.id
+                    LEFT JOIN users fac ON cs.faculty_id = fac.id
                     WHERE cs.batch_id IN (
                         SELECT batch_id FROM batch_enrollments WHERE user_id = ? AND status = 'active'
                     )
@@ -766,30 +784,121 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 """, (student_id,)).fetchall()
                 classes_list = [dict(s) for s in sess_rows]
 
+                # Real Attendance Summary
+                att_rows = cur.execute("""
+                    SELECT ar.status
+                    FROM attendance_records ar
+                    JOIN class_sessions cs ON ar.session_id = cs.id
+                    WHERE ar.user_id = ? AND cs.status != 'cancelled'
+                """, (student_id,)).fetchall()
+                total_marked = len(att_rows)
+                present_count = sum(1 for r in att_rows if r[0] == 'present')
+                late_count = sum(1 for r in att_rows if r[0] == 'late')
+                absent_count = sum(1 for r in att_rows if r[0] == 'absent')
+                att_pct = int(round(((present_count + (late_count * 0.75)) / total_marked) * 100)) if total_marked > 0 else "Not available yet"
+
+                # Real Tasks, Submissions & Assessments
+                task_rows = cur.execute("""
+                    SELECT t.id, t.title, t.max_score, t.passing_score, c.title as course_title,
+                           ts.id as submission_id, ts.status as sub_status, ts.score, ts.graded_at
+                    FROM tasks t
+                    JOIN modules m ON t.module_id = m.id
+                    JOIN courses c ON m.course_id = c.id
+                    JOIN enrollments e ON c.id = e.course_id
+                    LEFT JOIN task_submissions ts ON t.id = ts.task_id AND ts.enrollment_id = e.id
+                    WHERE e.user_id = ? AND e.status = 'active' AND (t.is_deleted = 0 OR t.is_deleted IS NULL)
+                    ORDER BY t.id ASC
+                """, (student_id,)).fetchall()
+
+                awaiting_submission_count = 0
+                upcoming_deadlines = []
+                published_scores = []
+                for tr in task_rows:
+                    t_dict = dict(tr)
+                    if not t_dict.get('submission_id'):
+                        awaiting_submission_count += 1
+                        upcoming_deadlines.append({
+                            "task_id": t_dict['id'],
+                            "task_title": t_dict['title'],
+                            "course_title": t_dict['course_title'],
+                            "max_score": t_dict['max_score'] or 100,
+                            "passing_score": t_dict['passing_score'] or 70,
+                            "status": "pending_submission"
+                        })
+                    elif t_dict.get('score') is not None or t_dict.get('sub_status') in ('passed', 'failed', 'graded'):
+                        published_scores.append({
+                            "task_id": t_dict['id'],
+                            "task_title": t_dict['title'],
+                            "course_title": t_dict['course_title'],
+                            "score": t_dict['score'],
+                            "max_score": t_dict['max_score'] or 100,
+                            "status": t_dict['sub_status'],
+                            "graded_at": t_dict['graded_at']
+                        })
+
+                # Real Outstanding Fees
+                fee_rows = cur.execute("SELECT net_fee FROM fee_plans WHERE user_id = ?", (student_id,)).fetchall()
+                total_net_fee = sum(float(r[0]) for r in fee_rows)
+                pay_rows = cur.execute("SELECT p.amount, p.is_refund FROM payments p JOIN fee_plans fp ON p.fee_plan_id = fp.id WHERE fp.user_id = ?", (student_id,)).fetchall()
+                total_paid = sum(float(r[0]) if not r[1] else -float(r[0]) for r in pay_rows)
+                outstanding_fees = max(0.0, total_net_fee - total_paid)
+
+                # Real Recent Materials
+                mat_rows = cur.execute("""
+                    SELECT lm.id, lm.title, lm.material_type, lm.file_url, lm.created_at, c.title as course_title
+                    FROM learning_materials lm
+                    JOIN courses c ON lm.course_id = c.id
+                    JOIN enrollments e ON c.id = e.course_id
+                    WHERE e.user_id = ? AND lm.is_published = 1 AND (lm.destination IS NULL OR lm.destination IN ('private_lms', 'both'))
+                    ORDER BY lm.created_at DESC LIMIT 5
+                """, (student_id,)).fetchall()
+                recent_materials = [dict(m) for m in mat_rows]
+
+                stu_profile = dict(u_row) if u_row else {}
+                if sp_row:
+                    stu_profile.update(dict(sp_row))
+                if not stu_profile.get("student_id_code"):
+                    stu_profile["student_id_code"] = f"STU-{student_id:04d}"
+
                 return self._send_json({
                     "success": True,
-                    "student_profile": dict(u_row) if u_row else {},
+                    "student_profile": stu_profile,
+                    "user": stu_profile,
                     "summary_cards": {
                         "active_courses": len(my_courses),
                         "expired_courses_count": len(expired_courses),
-                        "course_completion_pct": overall_comp_pct,
+                        "course_completion_pct": overall_comp_pct if overall_comp_pct is not None else "Not available yet",
+                        "attendance_pct": att_pct,
+                        "assignments_awaiting_submission": awaiting_submission_count,
+                        "upcoming_assessments": len(upcoming_deadlines),
+                        "outstanding_fees": outstanding_fees,
                         "certificates_count": len(certs_list),
-                        "total_learning_hours": f"{len(my_courses) * 40} hrs",
-                        "attendance_pct": 92
+                        "total_learning_hours": f"{len(my_courses) * 40} hrs"
                     },
                     "my_courses": my_courses,
                     "expired_courses": expired_courses,
                     "today_and_upcoming": {
                         "next_live_class": classes_list[0] if classes_list else None,
                         "upcoming_classes": classes_list,
-                        "upcoming_deadlines": [],
-                        "recent_materials": []
+                        "upcoming_deadlines": upcoming_deadlines,
+                        "recent_materials": recent_materials
                     },
                     "performance": {
-                        "attendance_summary": {"present": 12, "total": 14, "pct": 86},
-                        "published_scores": []
+                        "attendance_summary": {
+                            "total_marked": total_marked,
+                            "present_count": present_count,
+                            "late_count": late_count,
+                            "absent_count": absent_count,
+                            "attendance_pct": att_pct
+                        },
+                        "published_scores": published_scores,
+                        "calculation_method": "Simple average of published deliverables"
                     },
                     "certificates_and_credentials": {
+                        "certificates": certs_list
+                    },
+                    "fees_and_certificates": {
+                        "outstanding_fees": outstanding_fees,
                         "certificates": certs_list
                     },
                     "last_refreshed": now_dt.strftime("%d %b %Y, %I:%M %p")
@@ -2543,33 +2652,84 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 conn.commit()
                 return self._send_json({"success": True, "message": "Course created successfully", "course_id": cid, "course": {"id": cid, "title": title, "slug": slug}})
 
-            # 11. Create Batch (With Unique Code & Validation)
+            # 11. Create Batch (With Robust Validation & Uniqueness Gates)
             if path == "/admin/batches":
+                raw_course_id = data.get("course_id")
+                if not raw_course_id:
+                    return self._send_json({"success": False, "error": "Parent course is required.", "field": "course_id"}, 400)
+                try:
+                    course_id = int(raw_course_id)
+                except (ValueError, TypeError):
+                    return self._send_json({"success": False, "error": "Invalid course ID format.", "field": "course_id"}, 400)
+
+                course_row = cur.execute("SELECT id, title FROM courses WHERE id = ? AND (is_deleted = 0 OR is_deleted IS NULL)", (course_id,)).fetchone()
+                if not course_row:
+                    return self._send_json({"success": False, "error": "Selected parent course does not exist or has been removed.", "field": "course_id"}, 400)
+
                 code = str(data.get("batch_code", "")).strip().upper()
+                if not code:
+                    return self._send_json({"success": False, "error": "Batch code is required.", "field": "batch_code"}, 400)
+                if len(code) < 3 or len(code) > 50:
+                    return self._send_json({"success": False, "error": "Batch code must be between 3 and 50 characters.", "field": "batch_code"}, 400)
+
                 title = str(data.get("title", "")).strip()
-                course_id = data.get("course_id")
-                start_date = data.get("start_date", "")
-                end_date = data.get("end_date", "")
-                if not code or not title or not course_id:
-                    return self._send_json({"success": False, "error": "Course, batch code, and title are required"}, 400)
+                if not title:
+                    return self._send_json({"success": False, "error": "Batch title is required.", "field": "title"}, 400)
+
+                start_date = str(data.get("start_date", "")).strip()
+                end_date = str(data.get("end_date", "")).strip()
                 if not start_date or not end_date:
-                    return self._send_json({"success": False, "error": "Start date and end date are required"}, 400)
+                    return self._send_json({"success": False, "error": "Start date and end date are required.", "field": "start_date" if not start_date else "end_date"}, 400)
+                try:
+                    s_dt = datetime.strptime(start_date[:10], "%Y-%m-%d").date()
+                    e_dt = datetime.strptime(end_date[:10], "%Y-%m-%d").date()
+                except Exception:
+                    return self._send_json({"success": False, "error": "Invalid date format. Expected YYYY-MM-DD.", "field": "start_date"}, 400)
+                if e_dt < s_dt:
+                    return self._send_json({"success": False, "error": "Batch end date must be on or after start date.", "field": "end_date"}, 400)
 
-                # Check duplicate batch code
-                dup = cur.execute("SELECT id FROM batches WHERE UPPER(batch_code) = ? AND is_deleted = 0", (code,)).fetchone()
+                # Check duplicate batch code (Return HTTP 409 Conflict)
+                dup = cur.execute("SELECT id FROM batches WHERE UPPER(batch_code) = ? AND (is_deleted = 0 OR is_deleted IS NULL)", (code,)).fetchone()
                 if dup:
-                    return self._send_json({"success": False, "error": f"Batch code '{code}' already exists. Please choose a unique batch code."}, 400)
+                    return self._send_json({"success": False, "error": f"Batch code '{code}' already exists. Please choose a unique batch code.", "field": "batch_code"}, 409)
 
-                lead_fac = data.get("lead_faculty_id") or None
+                # Safe capacity handling
+                raw_capacity = data.get("capacity", 30)
+                try:
+                    capacity = int(raw_capacity)
+                    if capacity <= 0 or capacity > 1000:
+                        return self._send_json({"success": False, "error": "Batch capacity must be a positive integer between 1 and 1000.", "field": "capacity"}, 400)
+                except (ValueError, TypeError):
+                    return self._send_json({"success": False, "error": "Batch capacity must be a positive integer between 1 and 1000.", "field": "capacity"}, 400)
+
+                # Safe lead faculty handling
+                raw_lead_fac = data.get("lead_faculty_id")
+                lead_fac = None
+                if raw_lead_fac not in (None, "", "null"):
+                    try:
+                        lead_fac = int(raw_lead_fac)
+                        fac_row = cur.execute("SELECT id, role FROM users WHERE id = ?", (lead_fac,)).fetchone()
+                        if not fac_row:
+                            return self._send_json({"success": False, "error": "Selected lead faculty member does not exist.", "field": "lead_faculty_id"}, 400)
+                    except (ValueError, TypeError):
+                        return self._send_json({"success": False, "error": "Invalid faculty ID format.", "field": "lead_faculty_id"}, 400)
+
+                delivery_mode = data.get("delivery_mode") or "Online Live"
+                allowed_modes = ["Online Live", "In-Person", "Hybrid", "Self-Paced"]
+                if delivery_mode not in allowed_modes:
+                    delivery_mode = "Online Live"
+
+                timezone = str(data.get("timezone") or "Asia/Kolkata").strip()
+
                 cur.execute("""
                     INSERT INTO batches (course_id, batch_code, title, start_date, end_date, capacity, delivery_mode, timezone, coordinator_id, lead_faculty_id, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'upcoming')
-                """, (course_id, code, title, start_date, end_date, int(data.get('capacity', 30)), data.get('delivery_mode', 'Online Live'), data.get('timezone', 'Asia/Kolkata'), user['id'], lead_fac))
+                """, (course_id, code, title, str(s_dt), str(e_dt), capacity, delivery_mode, timezone, user['id'], lead_fac))
                 bid = cur.lastrowid
                 if lead_fac:
                     cur.execute("INSERT OR REPLACE INTO faculty_batch_assignments (faculty_id, batch_id, role, assigned_at) VALUES (?, ?, 'Primary Faculty', datetime('now'))", (lead_fac, bid))
                 cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'CREATE_BATCH', 'batch', ?, ?)",
-                            (user['id'], user['email'], user['role'], str(bid), json.dumps({"batch_code": code, "title": title})))
+                            (user['id'], user['email'], user['role'], str(bid), json.dumps({"batch_code": code, "title": title, "course_id": course_id, "capacity": capacity})))
                 conn.commit()
                 return self._send_json({"success": True, "message": "Batch created successfully", "batch_id": bid})
 
@@ -3048,6 +3208,47 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 conn.commit()
                 return self._send_json({"success": True, "message": "Follow-up logged"})
 
+            # 22. Archive Course (Dedicated safe archival endpoint)
+            if (path.startswith("/courses/") or path.startswith("/admin/courses/")) and path.endswith("/archive"):
+                parts = path.split("/")
+                cid_str = parts[-2]
+                if cid_str.isdigit():
+                    cid = int(cid_str)
+                    course_row = cur.execute("SELECT id, title FROM courses WHERE id = ?", (cid,)).fetchone()
+                    if not course_row:
+                        return self._send_json({"success": False, "error": "Course not found."}, 404)
+                    cur.execute("UPDATE courses SET is_published = 0 WHERE id = ?", (cid,))
+                    cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at) VALUES (?, ?, ?, 'ARCHIVE_COURSE', 'course', ?, ?, datetime('now'))",
+                                (user['id'], user['email'], user['role'], str(cid), json.dumps({"course_id": cid, "title": course_row['title']})))
+                    conn.commit()
+                    return self._send_json({
+                        "success": True,
+                        "message": "Course successfully archived. Existing student enrollments and cohort batches remain active, but the course is hidden from public discovery and new enrollments.",
+                        "course_id": cid
+                    })
+
+            # 23. Restore Course
+            if (path.startswith("/courses/") or path.startswith("/admin/courses/")) and path.endswith("/restore"):
+                parts = path.split("/")
+                cid_str = parts[-2]
+                if cid_str.isdigit():
+                    cid = int(cid_str)
+                    course_row = cur.execute("SELECT id, title FROM courses WHERE id = ?", (cid,)).fetchone()
+                    if not course_row:
+                        return self._send_json({"success": False, "error": "Course not found."}, 404)
+                    cur.execute("UPDATE courses SET is_published = 1, is_deleted = 0 WHERE id = ?", (cid,))
+                    cur.execute("UPDATE modules SET is_deleted = 0 WHERE course_id = ?", (cid,))
+                    cur.execute("UPDATE lessons SET is_deleted = 0 WHERE module_id IN (SELECT id FROM modules WHERE course_id = ?)", (cid,))
+                    cur.execute("UPDATE tasks SET is_deleted = 0 WHERE module_id IN (SELECT id FROM modules WHERE course_id = ?)", (cid,))
+                    cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at) VALUES (?, ?, ?, 'RESTORE_COURSE', 'course', ?, ?, datetime('now'))",
+                                (user['id'], user['email'], user['role'], str(cid), json.dumps({"course_id": cid, "title": course_row['title']})))
+                    conn.commit()
+                    return self._send_json({
+                        "success": True,
+                        "message": "Course and syllabus curriculum successfully restored from archive.",
+                        "course_id": cid
+                    })
+
             # Default fallback for POST
             return self._send_json({"success": True, "message": "Action accepted"})
         except Exception as e:
@@ -3296,12 +3497,107 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 conn.commit()
                 return self._send_json({"success": True, "message": "Follow-up status updated"})
 
-            # Update User Role
+            # Update User Role (With Strict Permissions, Last Super Admin Lockout Guard & Profile Integrity)
             if path.startswith("/admin/users/") and path.endswith("/role"):
+                actor_role = str(user.get('role', '')).lower()
+                if actor_role not in ('admin', 'super_admin'):
+                    return self._send_json({"success": False, "error": "Forbidden: Administrative authority required to modify user roles."}, 403)
+
                 u_id = int(path.split("/")[3])
-                cur.execute("UPDATE users SET role = ? WHERE id = ?", (data['role'], u_id))
+                target_row = cur.execute("SELECT * FROM users WHERE id = ?", (u_id,)).fetchone()
+                if not target_row:
+                    return self._send_json({"success": False, "error": "Target user not found.", "field": "user_id"}, 404)
+                target_user = dict(target_row)
+                prev_role = str(target_user.get("role", "")).lower()
+
+                new_role = str(data.get("role", "")).strip().lower()
+                ALLOWED_ROLES = ["super_admin", "admin", "coordinator", "faculty", "instructor", "student", "placement_officer", "counselor", "accounts"]
+                if new_role not in ALLOWED_ROLES:
+                    return self._send_json({
+                        "success": False,
+                        "error": f"Invalid role specified. Allowed roles: {', '.join(ALLOWED_ROLES)}",
+                        "field": "role"
+                    }, 400)
+
+                # Only Super Admin can modify or grant Super Admin role
+                if (new_role == "super_admin" or prev_role == "super_admin") and actor_role != "super_admin":
+                    return self._send_json({
+                        "success": False,
+                        "error": "Forbidden: Only an active Super Administrator can assign or modify Super Administrator authority.",
+                        "field": "role"
+                    }, 403)
+
+                # Protect against locking out the last active Super Admin
+                if prev_role == "super_admin" and new_role != "super_admin":
+                    active_sa_count = cur.execute("""
+                        SELECT COUNT(*) FROM users
+                        WHERE role = 'super_admin' AND (status != 'deactivated' OR status IS NULL) AND (is_archived = 0 OR is_archived IS NULL)
+                    """).fetchone()[0]
+                    if active_sa_count <= 1:
+                        return self._send_json({
+                            "success": False,
+                            "error": "Operation prohibited: Cannot demote the last remaining active Super Administrator. System requires at least one active Super Administrator.",
+                            "field": "role"
+                        }, 409)
+
+                # Update authorized roles JSON without erasing history
+                try:
+                    auth_roles = json.loads(target_user.get("authorized_roles_json") or "[]")
+                except Exception:
+                    auth_roles = []
+                if not isinstance(auth_roles, list):
+                    auth_roles = []
+                if prev_role and prev_role not in auth_roles:
+                    auth_roles.append(prev_role)
+                if new_role not in auth_roles:
+                    auth_roles.append(new_role)
+
+                # Profile record synchronizations (Ensure profile exists; never delete historical records)
+                if new_role == "student":
+                    sp = cur.execute("SELECT id FROM student_profiles WHERE user_id = ?", (u_id,)).fetchone()
+                    if not sp:
+                        stu_code = f"STU-{u_id:04d}"
+                        cur.execute("""
+                            INSERT INTO student_profiles (user_id, student_id_code, account_status, admission_status, enrollment_status)
+                            VALUES (?, ?, 'active', 'enrolled', 'active')
+                        """, (u_id, stu_code))
+                elif new_role in ("faculty", "instructor"):
+                    fp = cur.execute("SELECT id FROM faculty_profiles WHERE user_id = ?", (u_id,)).fetchone()
+                    if not fp:
+                        fac_code = f"FAC-{u_id:04d}"
+                        cur.execute("""
+                            INSERT INTO faculty_profiles (user_id, faculty_id_code, account_status, bio)
+                            VALUES (?, ?, 'active', 'Faculty Fellow')
+                        """, (u_id, fac_code))
+                elif new_role == "placement_officer":
+                    pp = cur.execute("SELECT id FROM placement_profiles WHERE user_id = ?", (u_id,)).fetchone()
+                    if not pp:
+                        cur.execute("""
+                            INSERT INTO placement_profiles (user_id, target_roles, readiness_score, placement_status)
+                            VALUES (?, 'Corporate Placements', 100, 'active')
+                        """, (u_id,))
+
+                # Persist role and authorized roles
+                cur.execute("UPDATE users SET role = ?, authorized_roles_json = ? WHERE id = ?", (new_role, json.dumps(auth_roles), u_id))
+                cur.execute("""
+                    INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at)
+                    VALUES (?, ?, ?, 'UPDATE_USER_ROLE', 'user', ?, ?, datetime('now'))
+                """, (user['id'], user['email'], user['role'], str(u_id), json.dumps({
+                    "previous_role": prev_role,
+                    "new_role": new_role,
+                    "authorized_roles": auth_roles
+                })))
                 conn.commit()
-                return self._send_json({"success": True, "message": f"User role updated to {data['role']}"})
+
+                refreshed_user = cur.execute("SELECT id, full_name, email, role, title, avatar, authorized_roles_json FROM users WHERE id = ?", (u_id,)).fetchone()
+                u_res = dict(refreshed_user) if refreshed_user else target_user
+                u_res["authorized_roles"] = auth_roles
+
+                return self._send_json({
+                    "success": True,
+                    "message": f"User role successfully updated from {prev_role} to {new_role}.",
+                    "user": u_res
+                })
 
             # Update Placement Profile
             if path.startswith("/admin/placement/profiles/"):
@@ -3407,21 +3703,80 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
-            # Delete Course (With Mandatory Dependency Checks)
+            # Delete Course (Permanently delete eligible zero-dependency courses; HTTP 409 Conflict if dependencies exist)
             if (path.startswith("/courses/") or path.startswith("/admin/courses/")) and path.split("/")[-1].isdigit():
                 cid = int(path.split("/")[-1])
-                batches_count = cur.execute("SELECT COUNT(*) FROM batches WHERE course_id = ? AND is_deleted = 0", (cid,)).fetchone()[0]
-                enr_count = cur.execute("SELECT COUNT(*) FROM enrollments WHERE course_id = ? AND status != 'withdrawn'", (cid,)).fetchone()[0]
-                if batches_count > 0 or enr_count > 0:
+                course_row = cur.execute("SELECT id, title FROM courses WHERE id = ?", (cid,)).fetchone()
+                if not course_row:
+                    return self._send_json({"success": False, "error": "Course not found."}, 404)
+
+                batches_count = cur.execute("SELECT COUNT(*) FROM batches WHERE course_id = ?", (cid,)).fetchone()[0]
+                enr_count = cur.execute("SELECT COUNT(*) FROM enrollments WHERE course_id = ?", (cid,)).fetchone()[0]
+                cert_count = cur.execute("SELECT COUNT(*) FROM certificates WHERE course_id = ?", (cid,)).fetchone()[0]
+                fee_count = cur.execute("SELECT COUNT(*) FROM fee_plans WHERE course_id = ?", (cid,)).fetchone()[0]
+
+                if batches_count > 0 or enr_count > 0 or cert_count > 0 or fee_count > 0:
                     return self._send_json({
                         "success": False,
-                        "error": f"Cannot delete course: {batches_count} active cohort batch(es) and {enr_count} student enrollment(s) depend on it. Please unpublish or archive the course instead."
-                    }, 400)
-                cur.execute("UPDATE courses SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?", (cid,))
-                cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'DELETE_COURSE', 'course', ?, ?)",
-                            (user['id'], user['email'], user['role'], str(cid), json.dumps({"deleted": True})))
+                        "error": f"Cannot permanently delete course: {batches_count} cohort batch(es), {enr_count} student enrollment(s), and {cert_count} certificate(s) depend on it. Academic integrity rules require retaining historical records. Please unpublish or archive the course instead.",
+                        "conflict_code": "COURSE_HAS_DEPENDENCIES",
+                        "dependencies": {
+                            "batches": batches_count,
+                            "enrollments": enr_count,
+                            "certificates": cert_count,
+                            "fee_plans": fee_count
+                        }
+                    }, 409)
+
+                # Eligible zero-dependency course: delete disposable course-owned children in a transaction
+                mod_rows = cur.execute("SELECT id FROM modules WHERE course_id = ?", (cid,)).fetchall()
+                mod_ids = [r[0] for r in mod_rows]
+                lesson_count = 0
+                task_count = 0
+
+                if mod_ids:
+                    placeholders = ",".join("?" * len(mod_ids))
+                    lesson_rows = cur.execute(f"SELECT id FROM lessons WHERE module_id IN ({placeholders})", mod_ids).fetchall()
+                    task_rows = cur.execute(f"SELECT id FROM tasks WHERE module_id IN ({placeholders})", mod_ids).fetchall()
+                    lesson_ids = [r[0] for r in lesson_rows]
+                    task_ids = [r[0] for r in task_rows]
+                    lesson_count = len(lesson_ids)
+                    task_count = len(task_ids)
+
+                    if task_ids:
+                        t_placeholders = ",".join("?" * len(task_ids))
+                        cur.execute(f"DELETE FROM task_submissions WHERE task_id IN ({t_placeholders})", task_ids)
+                        cur.execute(f"DELETE FROM tasks WHERE id IN ({t_placeholders})", task_ids)
+
+                    if lesson_ids:
+                        l_placeholders = ",".join("?" * len(lesson_ids))
+                        cur.execute(f"DELETE FROM lesson_progress WHERE lesson_id IN ({l_placeholders})", lesson_ids)
+                        cur.execute(f"DELETE FROM lessons WHERE id IN ({l_placeholders})", lesson_ids)
+
+                    cur.execute(f"DELETE FROM modules WHERE id IN ({placeholders})", mod_ids)
+
+                cur.execute("DELETE FROM learning_materials WHERE course_id = ?", (cid,))
+                cur.execute("DELETE FROM courses WHERE id = ?", (cid,))
+                cur.execute("""
+                    INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at)
+                    VALUES (?, ?, ?, 'PERMANENT_DELETE_COURSE', 'course', ?, ?, datetime('now'))
+                """, (user['id'], user['email'], user['role'], str(cid), json.dumps({
+                    "course_id": cid,
+                    "title": course_row['title'],
+                    "modules_deleted": len(mod_ids),
+                    "lessons_deleted": lesson_count,
+                    "tasks_deleted": task_count
+                })))
                 conn.commit()
-                return self._send_json({"success": True, "message": "Course deleted successfully"})
+                return self._send_json({
+                    "success": True,
+                    "message": f"Course permanently deleted. Cleaned up {len(mod_ids)} module(s), {lesson_count} lecture(s), and {task_count} assignment(s).",
+                    "affected_records": {
+                        "modules": len(mod_ids),
+                        "lessons": lesson_count,
+                        "tasks": task_count
+                    }
+                })
 
             # Remove Student from Batch (Withdraw)
             if path.startswith("/admin/batches/") and "/students/" in path:

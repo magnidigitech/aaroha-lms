@@ -1708,6 +1708,30 @@ class AdminPortalController {
             return ['success' => false, 'error' => 'Course, Batch Code, Title, Start Date and End Date are mandatory.'];
         }
 
+        // Validate course existence
+        $cCheck = $pdo->prepare("SELECT id FROM courses WHERE id = ? AND (is_deleted = 0 OR is_deleted IS NULL)");
+        $cCheck->execute([$courseId]);
+        if (!$cCheck->fetch()) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Selected parent course does not exist or has been removed.', 'field' => 'course_id'];
+        }
+
+        // Validate capacity
+        if ($capacity <= 0 || $capacity > 1000) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Batch capacity must be a positive integer between 1 and 1000.', 'field' => 'capacity'];
+        }
+
+        // Validate lead faculty if provided
+        if ($leadFacultyId) {
+            $fCheck = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+            $fCheck->execute([$leadFacultyId]);
+            if (!$fCheck->fetch()) {
+                http_response_code(400);
+                return ['success' => false, 'error' => 'Selected lead faculty member does not exist.', 'field' => 'lead_faculty_id'];
+            }
+        }
+
         // Validate date ranges
         if (strtotime($endDate) <= strtotime($startDate)) {
             http_response_code(400);
@@ -2767,4 +2791,114 @@ class AdminPortalController {
         ];
     }
 
+    public static function updateUserRole(int $userId, array $data, array $actor) {
+        $pdo = Database::getConnection();
+
+        $actorRole = strtolower(trim($actor['role'] ?? ''));
+        if (!in_array($actorRole, ['admin', 'super_admin'])) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Administrative authority required to modify user roles.'];
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $targetUser = $stmt->fetch();
+        if (!$targetUser) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Target user not found.', 'field' => 'user_id'];
+        }
+
+        $prevRole = strtolower(trim($targetUser['role'] ?? ''));
+        $newRole = strtolower(trim($data['role'] ?? ''));
+
+        $allowedRoles = ['super_admin', 'admin', 'coordinator', 'faculty', 'instructor', 'student', 'placement_officer', 'counselor', 'accounts'];
+        if (!in_array($newRole, $allowedRoles)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Invalid role specified. Allowed roles: ' . implode(', ', $allowedRoles), 'field' => 'role'];
+        }
+
+        // Only Super Admin can modify or grant Super Admin
+        if (($newRole === 'super_admin' || $prevRole === 'super_admin') && $actorRole !== 'super_admin') {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Only an active Super Administrator can assign or modify Super Administrator authority.', 'field' => 'role'];
+        }
+
+        // Protect against locking out the last active Super Admin
+        if ($prevRole === 'super_admin' && $newRole !== 'super_admin') {
+            $saCountStmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'super_admin' AND (status != 'deactivated' OR status IS NULL) AND (is_archived = 0 OR is_archived IS NULL)");
+            $activeSaCount = (int)$saCountStmt->fetchColumn();
+            if ($activeSaCount <= 1) {
+                http_response_code(409);
+                return [
+                    'success' => false,
+                    'error' => 'Operation prohibited: Cannot demote the last remaining active Super Administrator. System requires at least one active Super Administrator.',
+                    'field' => 'role'
+                ];
+            }
+        }
+
+        $authRoles = [];
+        if (!empty($targetUser['authorized_roles_json'])) {
+            $authRoles = json_decode($targetUser['authorized_roles_json'], true) ?: [];
+        }
+        if (!in_array($prevRole, $authRoles) && !empty($prevRole)) {
+            $authRoles[] = $prevRole;
+        }
+        if (!in_array($newRole, $authRoles)) {
+            $authRoles[] = $newRole;
+        }
+
+        $pdo->beginTransaction();
+        try {
+            // Profile synchronization without erasing past records
+            if ($newRole === 'student') {
+                $spStmt = $pdo->prepare("SELECT id FROM student_profiles WHERE user_id = ?");
+                $spStmt->execute([$userId]);
+                if (!$spStmt->fetch()) {
+                    $stuCode = sprintf('STU-%04d', $userId);
+                    $pdo->prepare("INSERT INTO student_profiles (user_id, student_id_code, account_status, admission_status, enrollment_status) VALUES (?, ?, 'active', 'enrolled', 'active')")->execute([$userId, $stuCode]);
+                }
+            } elseif (in_array($newRole, ['faculty', 'instructor'])) {
+                $fpStmt = $pdo->prepare("SELECT id FROM faculty_profiles WHERE user_id = ?");
+                $fpStmt->execute([$userId]);
+                if (!$fpStmt->fetch()) {
+                    $facCode = sprintf('FAC-%04d', $userId);
+                    $pdo->prepare("INSERT INTO faculty_profiles (user_id, faculty_id_code, account_status, bio) VALUES (?, ?, 'active', 'Faculty Fellow')")->execute([$userId, $facCode]);
+                }
+            } elseif ($newRole === 'placement_officer') {
+                $ppStmt = $pdo->prepare("SELECT id FROM placement_profiles WHERE user_id = ?");
+                $ppStmt->execute([$userId]);
+                if (!$ppStmt->fetch()) {
+                    $pdo->prepare("INSERT INTO placement_profiles (user_id, target_roles, readiness_score, placement_status) VALUES (?, 'Corporate Placements', 100, 'active')")->execute([$userId]);
+                }
+            }
+
+            $updateStmt = $pdo->prepare("UPDATE users SET role = ?, authorized_roles_json = ? WHERE id = ?");
+            $updateStmt->execute([$newRole, json_encode($authRoles), $userId]);
+
+            AuditLogger::log('UPDATE_USER_ROLE', 'user', $userId, [
+                'previous_role' => $prevRole,
+                'new_role' => $newRole,
+                'authorized_roles' => $authRoles
+            ], $actor);
+
+            $pdo->commit();
+
+            return [
+                'success' => true,
+                'message' => "User role successfully updated from {$prevRole} to {$newRole}.",
+                'user' => [
+                    'id' => $userId,
+                    'full_name' => $targetUser['full_name'],
+                    'email' => $targetUser['email'],
+                    'role' => $newRole,
+                    'authorized_roles' => $authRoles
+                ]
+            ];
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Database operation failed: ' . $e->getMessage()];
+        }
+    }
 }

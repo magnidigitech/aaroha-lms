@@ -121,6 +121,7 @@ class DashboardController {
             : null;
 
         // 1.2 Today and Upcoming Live Classes
+        $fourHoursAgo = date('Y-m-d H:i:s', strtotime('-4 hours'));
         $classStmt = $pdo->prepare("
             SELECT cs.id, cs.topic, cs.description, cs.start_time, cs.end_time, cs.session_type, 
                    cs.meeting_link, cs.status, cs.recording_url,
@@ -128,14 +129,14 @@ class DashboardController {
             FROM class_sessions cs
             JOIN batches b ON cs.batch_id = b.id
             JOIN batch_enrollments be ON b.id = be.batch_id
-            JOIN users fac ON cs.faculty_id = fac.id
+            LEFT JOIN users fac ON cs.faculty_id = fac.id
             WHERE be.user_id = ? AND be.status = 'active'
               AND cs.status != 'cancelled'
-              AND cs.end_time >= datetime('now', '-4 hours')
+              AND cs.end_time >= ?
             ORDER BY cs.start_time ASC
             LIMIT 5
         ");
-        $classStmt->execute([$studentId]);
+        $classStmt->execute([$studentId, $fourHoursAgo]);
         $upcomingClasses = $classStmt->fetchAll();
 
         // Check if a class is live right now
@@ -315,7 +316,7 @@ class DashboardController {
               AND lm.destination IN ('private_lms', 'both')
               AND lm.status = 'published'
               AND lm.approval_status = 'approved'
-              AND (lm.scheduled_release_at IS NULL OR lm.scheduled_release_at <= datetime('now'))
+              AND (lm.scheduled_release_at IS NULL OR lm.scheduled_release_at <= ?)
               AND (
                   (lm.audience_type = 'all_students') OR
                   (lm.audience_type = 'course_enrolled' AND lm.audience_id = c.id) OR
@@ -325,7 +326,7 @@ class DashboardController {
             ORDER BY lm.created_at DESC
             LIMIT 5
         ");
-        $matStmt->execute([$studentId, $studentId, $studentId]);
+        $matStmt->execute([$studentId, $now, $studentId, $studentId]);
         $recentMaterials = $matStmt->fetchAll();
 
         // 1.9 Announcements & Notifications (Audience Scoped & Decoupled Delivery)
@@ -352,14 +353,14 @@ class DashboardController {
             'role' => 'student',
             'user' => [
                 'id' => $studentId,
-                'full_name' => $student['full_name'],
-                'display_name' => $student['display_name'] ?: $student['full_name'],
+                'full_name' => $student ? $student['full_name'] : 'Student Fellow',
+                'display_name' => ($student && !empty($student['display_name'])) ? $student['display_name'] : ($student['full_name'] ?? 'Student'),
                 'role' => 'student',
-                'student_id_code' => $student['student_id_code'] ?: 'STU-' . str_pad($studentId, 4, '0', STR_PAD_LEFT),
-                'email' => $student['email'],
-                'avatar' => $student['avatar'] ?: '/avatars/3d/memo_13.png',
-                'title' => $student['title'] ?: 'Learner Fellow',
-                'timezone' => $student['timezone'] ?: 'Asia/Kolkata'
+                'student_id_code' => ($student && !empty($student['student_id_code'])) ? $student['student_id_code'] : 'STU-' . str_pad($studentId, 4, '0', STR_PAD_LEFT),
+                'email' => $student['email'] ?? $actor['email'] ?? '',
+                'avatar' => ($student && !empty($student['avatar'])) ? $student['avatar'] : '/avatars/3d/memo_13.png',
+                'title' => ($student && !empty($student['title'])) ? $student['title'] : 'Learner Fellow',
+                'timezone' => ($student && !empty($student['timezone'])) ? $student['timezone'] : 'Asia/Kolkata'
             ],
             'summary_cards' => [
                 'active_courses' => count($enrolledCourses),

@@ -101,6 +101,10 @@ try {
         $admin = AuthMiddleware::requireAdmin();
         $response = AuthController::adminCreateUser($inputData, $admin);
     }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/admin/users/(\d+)/role$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = AdminPortalController::updateUserRole((int)$matches[1], $inputData, $admin);
+    }
 
     // -------------------------------------------------------------
     // COURSE CATALOG & DETAILS (PUBLIC & GUEST)
@@ -126,7 +130,7 @@ try {
         $admin = AuthMiddleware::requireAdmin();
         $response = CourseController::updateCourse((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
     }
-    elseif ($requestMethod === 'DELETE' && preg_match('#^/courses/(\d+)$#', $path, $matches)) {
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/(?:admin/)?courses/(\d+)$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
         $response = CourseController::deleteCourse((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
     }
@@ -171,6 +175,10 @@ try {
     elseif ($requestMethod === 'DELETE' && preg_match('#^/tasks/(\d+)$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
         $response = CourseController::deleteTask((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
+    }
+    elseif (($requestMethod === 'POST' || $requestMethod === 'PUT') && preg_match('#^/(?:admin/)?courses/(\d+)/archive$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CourseController::archiveCourse((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
     }
     elseif (($requestMethod === 'POST' || $requestMethod === 'PUT') && preg_match('#^/(?:admin/)?courses/(\d+)/restore$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
