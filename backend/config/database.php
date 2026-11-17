@@ -82,33 +82,56 @@ class Database {
                 self::$pdo = new PDO($dsn, $username, $password, $options);
                 self::$pdo->exec("SET NAMES {$charset} COLLATE utf8mb4_unicode_ci");
 
-                // Auto-provision MySQL schema & seeds if database is empty
+                // Auto-provision MySQL schema & seeds for missing tables
                 try {
-                    $tableCheck = self::$pdo->query("SHOW TABLES LIKE 'courses'")->fetch();
-                    if (!$tableCheck) {
+                    $existingTables = self::$pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+                    $requiredTables = ['courses', 'users', 'student_profiles', 'faculty_profiles', 'batches', 'batch_enrollments', 'enrollments'];
+                    $missingTables = array_diff($requiredTables, $existingTables);
+
+                    if (!empty($missingTables)) {
                         $schemaFiles = [
                             __DIR__ . '/schema.sql',
                             __DIR__ . '/../../database/schema.sql',
                             dirname(__DIR__, 2) . '/database/schema.sql'
                         ];
-                        $seedFiles = [
-                            __DIR__ . '/seeds_dev.sql',
-                            __DIR__ . '/../../database/seeds_dev.sql',
-                            dirname(__DIR__, 2) . '/database/seeds_dev.sql'
-                        ];
                         foreach ($schemaFiles as $sf) {
                             if (file_exists($sf)) {
-                                self::$pdo->exec(file_get_contents($sf));
+                                $sql = file_get_contents($sf);
+                                $stmts = array_filter(array_map('trim', explode(';', $sql)));
+                                foreach ($stmts as $stmt) {
+                                    if ($stmt) {
+                                        try { self::$pdo->exec($stmt); } catch (Exception $e) {}
+                                    }
+                                }
                                 break;
                             }
                         }
-                        foreach ($seedFiles as $sf) {
-                            if (file_exists($sf)) {
-                                self::$pdo->exec(file_get_contents($sf));
-                                break;
+                    }
+
+                    // Ensure baseline seed accounts (Admin, Faculty, Student) exist if users table is empty
+                    try {
+                        $userCount = (int)self::$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+                        if ($userCount === 0) {
+                            $seedFiles = [
+                                __DIR__ . '/seeds_dev.sql',
+                                __DIR__ . '/../../database/seeds_dev.sql',
+                                dirname(__DIR__, 2) . '/database/seeds_dev.sql'
+                            ];
+                            foreach ($seedFiles as $sf) {
+                                if (file_exists($sf)) {
+                                    $sql = file_get_contents($sf);
+                                    $stmts = array_filter(array_map('trim', explode(';', $sql)));
+                                    foreach ($stmts as $stmt) {
+                                        if ($stmt) {
+                                            try { self::$pdo->exec($stmt); } catch (Exception $e) {}
+                                        }
+                                    }
+                                    break;
+                                }
                             }
                         }
-                    } else {
+                    } catch (Exception $seedErr) {}
+                } catch (Exception $initErr) {}
                         // Non-destructive column migrations for courses
                         try {
                             $cols = self::$pdo->query("SHOW COLUMNS FROM courses")->fetchAll(PDO::FETCH_COLUMN);
@@ -402,8 +425,6 @@ class Database {
                                 self::$pdo->exec("UPDATE tasks SET is_deleted = 0 WHERE id IN (2001, 2002, 2003)");
                             }
                         } catch (Exception $colErr) {}
-                    }
-                } catch (Exception $initErr) {}
             } catch (PDOException $e) {
                 // If local sqlite file exists, seamlessly fallback to maintain 100% operational uptime
                 if ($resolvedSqlite && file_exists($resolvedSqlite)) {
