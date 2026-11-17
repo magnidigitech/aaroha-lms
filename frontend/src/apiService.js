@@ -1,7 +1,28 @@
 // Aaroha LMS - Production API Service Adapter
 // Connects to the Hostinger PHP 8 REST API (/api/...)
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || '/api';
+
+export class ApiError extends Error {
+  constructor(message, status = 0, details = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.field = details.field || null;
+    this.validation_errors = details.validation_errors || details.fields || null;
+    this.code = details.code || null;
+    this.isHtmlResponse = details.isHtmlResponse || false;
+    this.endpoint = details.endpoint || '';
+    this.rawResponse = details.rawResponse || null;
+  }
+
+  get isUnauthorized() { return this.status === 401; }
+  get isForbidden() { return this.status === 403; }
+  get isNotFound() { return this.status === 404; }
+  get isValidation() { return this.status === 400 || this.status === 422; }
+  get isConflict() { return this.status === 409; }
+  get isServer() { return this.status >= 500; }
+}
 
 function getAuthHeader() {
   const token = localStorage.getItem('aaroha_token');
@@ -9,8 +30,12 @@ function getAuthHeader() {
 }
 
 async function request(endpoint, options = {}) {
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
+
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
   const headers = {
-    'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
     'Expires': '0',
@@ -18,33 +43,116 @@ async function request(endpoint, options = {}) {
     ...options.headers
   };
 
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   try {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const res = await fetch(url, {
       cache: 'no-store',
       ...options,
       headers
     });
 
-    const contentType = res.headers.get('content-type') || '';
+    // 1. Handle HTTP 204 No Content
+    if (res.status === 204) {
+      return { success: true, status: 204 };
+    }
+
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
     let data;
+
+    // 2. Parse JSON responses
     if (contentType.includes('application/json')) {
-      data = await res.json();
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new ApiError('Failed to parse server JSON response.', res.status, {
+          endpoint: cleanEndpoint,
+          rawResponse: jsonErr.message
+        });
+      }
+
+      if (!res.ok) {
+        const errorMsg = data?.error || data?.message || `Request failed with status ${res.status}`;
+        throw new ApiError(errorMsg, res.status, {
+          field: data?.field,
+          validation_errors: data?.validation_errors || data?.fields,
+          code: data?.code,
+          endpoint: cleanEndpoint,
+          rawResponse: data
+        });
+      }
+
+      return data;
+    }
+
+    // 3. Handle Non-JSON / HTML responses safely (prevent raw HTML leakage)
+    const rawText = await res.text();
+    const isHtml = /<html|<!doctype|<body|<head/i.test(rawText);
+
+    let friendlyMessage;
+    if (isHtml) {
+      if (res.status === 404) {
+        friendlyMessage = 'The requested service endpoint was not found on the server (HTTP 404).';
+      } else if (res.status === 401) {
+        friendlyMessage = 'Your session has expired. Please sign in again (HTTP 401).';
+      } else if (res.status === 403) {
+        friendlyMessage = 'You do not have permission to access this resource (HTTP 403).';
+      } else if (res.status === 409) {
+        friendlyMessage = 'The requested action conflicts with an existing record (HTTP 409).';
+      } else if (res.status === 500) {
+        friendlyMessage = 'An unexpected server error occurred (HTTP 500). Please try again.';
+      } else if (res.status === 502 || res.status === 503 || res.status === 504) {
+        friendlyMessage = `The server is temporarily unavailable or undergoing maintenance (HTTP ${res.status}).`;
+      } else {
+        friendlyMessage = `Server communication error (HTTP ${res.status}). Please check network connection.`;
+      }
     } else {
-      const text = await res.text();
-      data = { error: text || `HTTP ${res.status} ${res.statusText}` };
+      // Clean plain text: if short (< 200 chars) use it, else generic message
+      friendlyMessage = (rawText && rawText.length < 200 && !rawText.includes('\n'))
+        ? rawText.trim()
+        : `Request returned non-JSON response (HTTP ${res.status}).`;
     }
 
     if (!res.ok) {
-      throw new Error(data.error || `Request failed with status ${res.status}`);
+      throw new ApiError(friendlyMessage, res.status, {
+        isHtmlResponse: isHtml,
+        endpoint: cleanEndpoint,
+        rawResponse: rawText.slice(0, 300)
+      });
     }
-    return data;
+
+    return { success: true, text: rawText };
   } catch (err) {
-    console.warn(`[Aaroha API Adapter] [${options.method || 'GET'}] ${endpoint}:`, err.message);
-    throw err;
+    if (err instanceof ApiError) {
+      console.warn(`[Aaroha API Adapter] [${options.method || 'GET'}] ${cleanEndpoint} failed (${err.status}): ${err.message}`);
+      throw err;
+    }
+    console.warn(`[Aaroha API Adapter] [${options.method || 'GET'}] ${cleanEndpoint} error:`, err.message);
+    throw new ApiError(err.message || 'Network request failed', 0, { endpoint: cleanEndpoint });
   }
 }
 
 export const api = {
+  // Blob and Binary Downloads
+  downloadBlob: (endpoint, options = {}) => {
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${API_BASE_URL}${cleanEndpoint}`;
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...getAuthHeader(),
+        ...options.headers
+      }
+    }).then(async (res) => {
+      if (!res.ok) {
+        throw new ApiError(`Download failed with status ${res.status}`, res.status, { endpoint: cleanEndpoint });
+      }
+      return await res.blob();
+    });
+  },
+
   // Authentication
   login: async (email, password) => {
     const res = await request('/auth/login', {

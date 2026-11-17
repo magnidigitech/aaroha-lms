@@ -60,6 +60,13 @@ jobs:
           rm -f deploy_payload/api/config/env.php
           # Create deployment verification marker
           echo "{\"commit\":\"${GITHUB_SHA}\",\"deployed_at\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\",\"build\":\"production\"}" > deploy_payload/version.json
+          # Validate deployment payload integrity
+          test -f deploy_payload/index.html || { echo "ERROR: index.html missing from payload!"; exit 1; }
+          test -f deploy_payload/.htaccess || { echo "ERROR: root .htaccess missing from payload!"; exit 1; }
+          test -f deploy_payload/api/index.php || { echo "ERROR: api/index.php missing from payload!"; exit 1; }
+          test -f deploy_payload/api/.htaccess || { echo "ERROR: api/.htaccess missing from payload!"; exit 1; }
+          test -f deploy_payload/version.json || { echo "ERROR: version.json missing from payload!"; exit 1; }
+          echo "Deployment payload validation passed successfully."
 
       - name: Deploy to Hostinger via Native Python FTP
         env:

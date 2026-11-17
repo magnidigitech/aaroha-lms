@@ -627,13 +627,13 @@ export default function AdminBatchesTab({
             </div>
 
             {formError && (
-              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-                <AlertCircle size={15} className="shrink-0" />
-                <span>{formError}</span>
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 max-w-full overflow-hidden">
+                <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-600" />
+                <span className="break-words break-all max-w-full overflow-hidden leading-relaxed">{formError}</span>
               </div>
             )}
 
-            <form onSubmit={handleCreateSubmit} className="space-y-3">
+            <form onSubmit={handleCreateSubmit} noValidate className="space-y-3">
               <div>
                 <label className="block text-slate-700 font-medium mb-1">Parent Course *</label>
                 <select
@@ -778,13 +778,13 @@ export default function AdminBatchesTab({
             </div>
 
             {formError && (
-              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-                <AlertCircle size={15} className="shrink-0" />
-                <span>{formError}</span>
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 max-w-full overflow-hidden">
+                <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-600" />
+                <span className="break-words break-all max-w-full overflow-hidden leading-relaxed">{formError}</span>
               </div>
             )}
 
-            <form onSubmit={handleEditSubmit} className="space-y-3">
+            <form onSubmit={handleEditSubmit} noValidate className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-medium mb-1">Batch Code *</label>
@@ -1226,7 +1226,7 @@ export default function AdminBatchesTab({
             ) : null}
 
             {deleteBatchModal.error && (
-              <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+              <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs break-words break-all max-w-full overflow-hidden leading-relaxed">
                 {deleteBatchModal.error}
               </div>
             )}
@@ -1324,7 +1324,7 @@ export default function AdminBatchesTab({
             )}
 
             {cleanupModal.error && (
-              <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+              <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs break-words break-all max-w-full overflow-hidden leading-relaxed">
                 {cleanupModal.error}
               </div>
             )}

@@ -52,9 +52,23 @@ $response = null;
 
 try {
     // -------------------------------------------------------------
+    // API HEALTH & STATUS CHECK
+    // -------------------------------------------------------------
+    if ($requestMethod === 'GET' && in_array($path, ['', '/', '/health', '/api', '/index.php'])) {
+        $response = [
+            'success' => true,
+            'status' => 'healthy',
+            'service' => 'aaroha-lms-api',
+            'environment' => 'production',
+            'timestamp' => date('c'),
+            'version' => '1.0.0'
+        ];
+    }
+
+    // -------------------------------------------------------------
     // AUTHENTICATION ROUTES
     // -------------------------------------------------------------
-    if ($requestMethod === 'POST' && $path === '/auth/register') {
+    elseif ($requestMethod === 'POST' && $path === '/auth/register') {
         $response = AuthController::register($inputData);
     }
     // Single-Use Cryptographic Invitation Verification
@@ -109,7 +123,7 @@ try {
     // -------------------------------------------------------------
     // COURSE CATALOG & DETAILS (PUBLIC & GUEST)
     // -------------------------------------------------------------
-    elseif ($requestMethod === 'GET' && $path === '/courses') {
+    elseif ($requestMethod === 'GET' && ($path === '/courses' || $path === '/admin/courses')) {
         $response = CourseController::listPublished();
     }
     elseif ($requestMethod === 'GET' && preg_match('#^/courses/([^/]+)$#', $path, $matches)) {
@@ -260,13 +274,30 @@ try {
     // -------------------------------------------------------------
     // ACCREDITED CERTIFICATES (FACULTY ISSUANCE & VERIFICATION)
     // -------------------------------------------------------------
-    elseif ($requestMethod === 'POST' && preg_match('#^/courses/(\d+)/certificates$#', $path, $matches)) {
+    elseif ($requestMethod === 'GET' && ($path === '/admin/certificates' || $path === '/certificates')) {
         $admin = AuthMiddleware::requireAdmin();
-        $response = CertificateController::issueCertificate((int)$matches[1], $inputData, $admin);
+        $response = CertificateController::adminListAllCertificates();
+    }
+    elseif ($requestMethod === 'GET' && $path === '/admin/certificates/eligibility') {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CertificateController::adminGetEligibility($_GET);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/certificates/preview') {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CertificateController::adminPreviewCertificate($inputData, $admin);
+    }
+    elseif ($requestMethod === 'POST' && ($path === '/admin/certificates/issue' || preg_match('#^/courses/(\d+)/certificates$#', $path, $matches))) {
+        $admin = AuthMiddleware::requireAdmin();
+        $cid = !empty($matches[1]) ? (int)$matches[1] : (int)($inputData['course_id'] ?? 0);
+        $response = CertificateController::issueCertificate($cid, $inputData, $admin);
     }
     elseif ($requestMethod === 'GET' && preg_match('#^/courses/(\d+)/certificates$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
         $response = CertificateController::getCourseCertificates((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/(?:admin/)?certificates/(\d+)/revoke$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = CertificateController::adminRevokeCertificate((int)$matches[1], $inputData, $admin);
     }
     elseif ($requestMethod === 'POST' && preg_match('#^/(?:admin/)?certificates/(\d+)/reissue$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
@@ -526,6 +557,10 @@ try {
         $actor = AuthMiddleware::requireAdmin();
         $response = AdminPortalController::deleteBatch((int)$matches[1], $actor);
     }
+    elseif ($requestMethod === 'POST' && $path === '/admin/batches/cleanup-test-batches') {
+        $actor = AuthMiddleware::requireAdmin();
+        $response = AdminPortalController::cleanupTestBatches($actor);
+    }
     // Schedule
     elseif ($requestMethod === 'GET' && $path === '/admin/schedule') {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty', 'student']);
@@ -590,6 +625,14 @@ try {
     elseif ($requestMethod === 'GET' && $path === '/admin/placement') {
         $actor = AuthMiddleware::requirePlacement();
         $response = AdminPortalController::getPlacementData();
+    }
+    elseif ($requestMethod === 'PUT' && preg_match('#^/admin/placement/profiles/(\d+)$#', $path, $matches)) {
+        $actor = AuthMiddleware::requirePlacement();
+        $response = AdminPortalController::updatePlacementProfile((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && $path === '/admin/placement/jobs') {
+        $actor = AuthMiddleware::requirePlacement();
+        $response = AdminPortalController::createJobOpening($inputData, $actor);
     }
     // Support & Feedback
     elseif ($requestMethod === 'GET' && $path === '/admin/support') {

@@ -2901,4 +2901,60 @@ class AdminPortalController {
             return ['success' => false, 'error' => 'Database operation failed: ' . $e->getMessage()];
         }
     }
+
+    public static function cleanupTestBatches(array $actor): array {
+        $pdo = Database::getConnection();
+        $actorRole = strtolower(trim($actor['role'] ?? ''));
+        if (!in_array($actorRole, ['super_admin', 'admin'])) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Super Administrator authorization required for batch test cleanup.'];
+        }
+        $stmt = $pdo->query("SELECT id FROM batches WHERE id >= 14");
+        $batches = $stmt->fetchAll();
+        $ids = array_column($batches, 'id');
+        if (!empty($ids)) {
+            $inClause = implode(',', array_fill(0, count($ids), '?'));
+            $pdo->prepare("DELETE FROM class_sessions WHERE batch_id IN ($inClause)")->execute($ids);
+            $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE batch_id IN ($inClause)")->execute($ids);
+            $pdo->prepare("DELETE FROM batch_enrollments WHERE batch_id IN ($inClause)")->execute($ids);
+            $pdo->prepare("DELETE FROM batches WHERE id IN ($inClause)")->execute($ids);
+        }
+        return [
+            'success' => true,
+            'message' => 'Cleaned up ' . count($ids) . ' disposable test batches.',
+            'deleted_batch_ids' => $ids
+        ];
+    }
+
+    public static function updatePlacementProfile(int $userId, array $data, array $actor): array {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("
+            UPDATE placement_profiles 
+            SET readiness_score = ?, placement_status = ? 
+            WHERE user_id = ?
+        ");
+        $readiness = (int)($data['readiness_score'] ?? 80);
+        $status = trim($data['placement_status'] ?? 'training');
+        $stmt->execute([$readiness, $status, $userId]);
+        return ['success' => true, 'message' => 'Placement profile updated'];
+    }
+
+    public static function createJobOpening(array $data, array $actor): array {
+        $pdo = Database::getConnection();
+        $company = trim($data['company_name'] ?? '');
+        $title = trim($data['job_title'] ?? '');
+        if (!$company || !$title) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Company name and job title are required.'];
+        }
+        $desc = trim($data['job_description'] ?? '');
+        $loc = trim($data['location'] ?? 'Remote / Bengaluru');
+        $pkg = trim($data['package_range'] ?? '12 - 18 LPA');
+        $stmt = $pdo->prepare("
+            INSERT INTO job_openings (company_name, job_title, job_description, location, package_range, status)
+            VALUES (?, ?, ?, ?, ?, 'active')
+        ");
+        $stmt->execute([$company, $title, $desc, $loc, $pkg]);
+        return ['success' => true, 'message' => 'Job opening published', 'job_id' => (int)$pdo->lastInsertId()];
+    }
 }

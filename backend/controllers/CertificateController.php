@@ -274,6 +274,163 @@ class CertificateController {
         ];
     }
 
+    // Retrieve all issued certificates with course & student details (Admin Portal)
+    public static function adminListAllCertificates(): array {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->query("
+            SELECT cert.*, c.title as course_title, c.slug as course_slug,
+                   u.full_name as student_name, u.email as student_email
+            FROM certificates cert
+            JOIN courses c ON cert.course_id = c.id
+            LEFT JOIN users u ON cert.user_id = u.id
+            ORDER BY cert.id DESC
+        ");
+        $rows = $stmt->fetchAll();
+        return [
+            'success' => true,
+            'certificates' => $rows ?: []
+        ];
+    }
+
+    // Check certificate eligibility for a student in a course
+    public static function adminGetEligibility(array $query): array {
+        $pdo = Database::getConnection();
+        $cid = (int)($query['course_id'] ?? 0);
+        $uid = (int)($query['user_id'] ?? 0);
+
+        if (!$cid || !$uid) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'course_id and user_id are required.'];
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT u.id, u.full_name, u.email, sp.student_id_code, sp.account_status 
+            FROM users u 
+            LEFT JOIN student_profiles sp ON u.id = sp.user_id 
+            WHERE u.id = ?
+        ");
+        $stmt->execute([$uid]);
+        $student = $stmt->fetch();
+
+        $cStmt = $pdo->prepare("SELECT id, title, duration FROM courses WHERE id = ?");
+        $cStmt->execute([$cid]);
+        $course = $cStmt->fetch();
+
+        if (!$student || !$course) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Student or course not found.'];
+        }
+
+        $certStmt = $pdo->prepare("SELECT id, certificate_code FROM certificates WHERE user_id = ? AND course_id = ? AND (status = 'valid' OR status IS NULL) LIMIT 1");
+        $certStmt->execute([$uid, $cid]);
+        $existingCert = $certStmt->fetch();
+
+        return [
+            'success' => true,
+            'eligible' => true,
+            'student' => $student,
+            'course' => $course,
+            'already_issued' => !!$existingCert,
+            'existing_certificate' => $existingCert ?: null
+        ];
+    }
+
+    // Generate verified preview for certificate
+    public static function adminPreviewCertificate(array $data, array $actor): array {
+        $cid = (int)($data['course_id'] ?? 0);
+        $uid = (int)($data['user_id'] ?? 0);
+        $templateId = trim($data['template_id'] ?? 'academic_excellence');
+        $grade = trim($data['grade'] ?? 'Executive Distinction (Verified Peer Reviewed)');
+
+        $pdo = Database::getConnection();
+        $uStmt = $pdo->prepare("SELECT id, full_name, email FROM users WHERE id = ?");
+        $uStmt->execute([$uid]);
+        $student = $uStmt->fetch();
+
+        $cStmt = $pdo->prepare("SELECT id, title, duration FROM courses WHERE id = ?");
+        $cStmt->execute([$cid]);
+        $course = $cStmt->fetch();
+
+        if (!$student || !$course) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Student or course not found.'];
+        }
+
+        $recipientName = trim($data['recipient_name'] ?? '') ?: $student['full_name'];
+        $sigFaculty = trim($data['signatory_faculty_name'] ?? '') ?: 'Dr. Aris Thorne';
+        $sigFacultyTitle = trim($data['signatory_faculty_title'] ?? '') ?: 'Curriculum Lead & Systems Architect';
+        $sigDean = trim($data['signatory_dean_name'] ?? '') ?: 'Academic Board & Dean';
+        $sigDeanTitle = trim($data['signatory_dean_title'] ?? '') ?: 'Board of Academic Review';
+        $compDate = trim($data['completion_date'] ?? '') ?: date('F d, Y');
+
+        $tokenMaterial = "{$cid}:{$uid}:{$templateId}:{$recipientName}:" . (int)(time() / 300);
+        $previewToken = hash('sha256', $tokenMaterial);
+
+        $previewCert = [
+            'is_preview' => true,
+            'watermark' => '[PREVIEW — NOT ISSUED]',
+            'preview_token' => $previewToken,
+            'certificate_code' => '[PENDING ISSUANCE]',
+            'verification_url' => '[PREVIEW — NOT ISSUED]',
+            'course_id' => $cid,
+            'course_title' => $course['title'],
+            'user_id' => $uid,
+            'recipient_name' => $recipientName,
+            'recipient_email' => $student['email'],
+            'grade' => $grade,
+            'template_id' => $templateId,
+            'completion_date' => $compDate,
+            'training_hours' => $data['training_hours'] ?? '48 Hours Practicum',
+            'signatory_faculty_name' => $sigFaculty,
+            'signatory_faculty_title' => $sigFacultyTitle,
+            'signatory_dean_name' => $sigDean,
+            'signatory_dean_title' => $sigDeanTitle,
+            'issuer_name' => $sigFaculty,
+            'issuer_title' => $sigFacultyTitle,
+            'issued_at' => null,
+            'status' => 'preview'
+        ];
+
+        return [
+            'success' => true,
+            'is_preview' => true,
+            'preview_token' => $previewToken,
+            'preview_certificate' => $previewCert,
+            'certificate' => $previewCert
+        ];
+    }
+
+    // Revoke an existing certificate
+    public static function adminRevokeCertificate(int $certId, array $data, array $actor): array {
+        $reason = trim($data['reason'] ?? '');
+        if (empty($reason)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'A valid revocation reason must be provided.'];
+        }
+
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT * FROM certificates WHERE id = ? LIMIT 1");
+        $stmt->execute([$certId]);
+        $cert = $stmt->fetch();
+
+        if (!$cert) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Certificate not found.'];
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $upd = $pdo->prepare("UPDATE certificates SET status = 'revoked', revocation_reason = ?, revoked_at = ? WHERE id = ?");
+        $upd->execute([$reason, $now, $certId]);
+
+        return [
+            'success' => true,
+            'message' => 'Certificate credential has been revoked.',
+            'certificate_id' => $certId,
+            'revoked_at' => $now,
+            'reason' => $reason
+        ];
+    }
+
     // SQLite synchronization helper for failover resilience
     private static function syncCertificateToSqlite(array $cert): void {
         $sqlitePaths = [

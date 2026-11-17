@@ -3,6 +3,7 @@
 
 Options -Indexes
 RewriteEngine On
+RewriteBase /api/
 
 # 1. Block Direct HTTP Access to Secrets, Database Files, Tests, Backups, and Hidden Files
 # Hidden files & dot directories (.env, .git, .htaccess, etc.)
@@ -30,7 +31,11 @@ RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 # 3. Route all legitimate API requests to index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [QSA,L]
+RewriteRule ^.*$ index.php [QSA,L]
+
+# Fallback structured JSON for web server 404s/500s within /api
+ErrorDocument 404 '{"success":false,"error":"API endpoint not found","code":404}'
+ErrorDocument 500 '{"success":false,"error":"Internal server error","code":500}'
 
 # 4. Enforce Strict No-Cache on all dynamic API responses
 <IfModule mod_headers.c>

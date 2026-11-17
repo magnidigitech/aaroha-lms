@@ -355,9 +355,9 @@ export default function ProfileSettingsModal({
           </div>
         )}
         {errorMsg && (
-          <div className="px-6 py-2.5 bg-rose-50 border-b border-rose-100 text-rose-800 text-xs font-semibold flex items-center gap-2">
+          <div className="px-6 py-2.5 bg-rose-50 border-b border-rose-100 text-rose-800 text-xs font-semibold flex items-center gap-2 max-w-full overflow-hidden">
             <AlertCircle size={15} className="text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
+            <span className="break-words break-all max-w-full overflow-hidden">{errorMsg}</span>
           </div>
         )}
 
@@ -716,15 +716,15 @@ export default function ProfileSettingsModal({
                 </div>
               ) : formState === 'error' ? (
                 <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between">
-                    <div>
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between gap-3 max-w-full overflow-hidden">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                       <div className="font-bold">Unable to load institutional profile</div>
-                      <div className="text-[11px] text-amber-700">{loadError}</div>
+                      <div className="text-[11px] text-amber-700 break-words break-all max-w-full overflow-hidden leading-relaxed max-h-20 overflow-y-auto">{loadError}</div>
                     </div>
                     <button
                       type="button"
                       onClick={loadProfileData}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors"
+                      className="shrink-0 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors"
                     >
                       Retry
                     </button>
