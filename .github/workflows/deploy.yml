@@ -38,13 +38,16 @@ jobs:
 
       - name: Prepare Deployment Payload
         run: |
-          mkdir -p deploy_payload/api/config deploy_payload/database
+          mkdir -p deploy_payload/api deploy_payload/database
           # Copy compiled frontend into root of deployment payload
           cp -r frontend/dist/* deploy_payload/
           # Copy root .htaccess for SPA routing
           cp frontend/public/.htaccess deploy_payload/.htaccess
           # Copy backend API files into api/
           cp -r backend/* deploy_payload/api/
+          # Explicitly ensure all core config files exist in api/config/
+          mkdir -p deploy_payload/api/config
+          cp backend/config/*.php deploy_payload/api/config/ 2>/dev/null || true
           # Ensure backend .htaccess and config .htaccess are copied explicitly
           cp backend/.htaccess deploy_payload/api/.htaccess
           cp backend/config/.htaccess deploy_payload/api/config/.htaccess
@@ -65,6 +68,8 @@ jobs:
           test -f deploy_payload/.htaccess || { echo "ERROR: root .htaccess missing from payload!"; exit 1; }
           test -f deploy_payload/api/index.php || { echo "ERROR: api/index.php missing from payload!"; exit 1; }
           test -f deploy_payload/api/.htaccess || { echo "ERROR: api/.htaccess missing from payload!"; exit 1; }
+          test -f deploy_payload/api/config/jwt.php || { echo "ERROR: api/config/jwt.php missing from payload!"; exit 1; }
+          test -f deploy_payload/api/config/database.php || { echo "ERROR: api/config/database.php missing from payload!"; exit 1; }
           test -f deploy_payload/version.json || { echo "ERROR: version.json missing from payload!"; exit 1; }
           echo "Deployment payload validation passed successfully."
 
