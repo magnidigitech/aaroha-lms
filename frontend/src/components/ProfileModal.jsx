@@ -6,7 +6,7 @@ export default function ProfileModal(props) {
     <ProfileSettingsModal
       {...props}
       onSaveSuccess={(updatedUser) => {
-        if (props.onSaveProfile) props.onSaveProfile(updatedUser);
+        if (props.onSaveProfile) props.onSaveProfile({ ...updatedUser, _alreadySaved: true });
       }}
     />
   );

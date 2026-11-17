@@ -16,6 +16,14 @@ import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress
 import { CheckCircle2 } from 'lucide-react';
 import aarohaLogo from './assets/aaroha_logo.webp';
 import { api } from './apiService';
+import {
+  ROUTES,
+  HOMEPAGE_ROUTE,
+  getAuthorizedDashboardView,
+  isFacultyRole,
+  getViewFromUrl,
+  updateViewUrl
+} from './routes';
 
 export default function App() {
   const [users, setUsers] = useState(() => {
@@ -30,8 +38,12 @@ export default function App() {
   // Persist authentication across page refresh with instant hydration
   const [currentUser, setCurrentUser] = useState(() => {
     try {
+      const saved = localStorage.getItem('aaroha_user');
+      if (saved) {
+        return JSON.parse(saved);
+      }
       const params = new URLSearchParams(window.location.search);
-      const urlRole = params.get('role') || (params.get('view') === 'admin' ? 'super_admin' : null);
+      const urlRole = params.get('role');
       if (urlRole) {
         return {
           id: 1,
@@ -42,48 +54,39 @@ export default function App() {
           avatar: '/avatars/3d/memo_13.png'
         };
       }
-      const saved = localStorage.getItem('aaroha_user');
-      return saved ? JSON.parse(saved) : null;
+      return null;
     } catch (e) {
       return null;
     }
   });
 
-  const isFacultyRole = (r) => ['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty', 'instructor'].includes(r);
-
   const [activeView, setActiveView] = useState(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      const urlView = params.get('view');
-      if (urlView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin', 'degrees'].includes(urlView)) {
-        return urlView;
-      }
+      const urlView = getViewFromUrl();
+      const savedUser = localStorage.getItem('aaroha_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
 
-      // Clean up legacy localStorage aaroha_view and aaroha_selected_course_id
+      // Clean up legacy localStorage
       localStorage.removeItem('aaroha_view');
       localStorage.removeItem('aaroha_selected_course_id');
 
-      // sessionStorage is tab-scoped:
-      // - Preserved on page reloads (F5) within an active tab
-      // - Restored by Chrome when user restores tabs (e.g. "Continue where you left off" or Ctrl+Shift+T)
-      // - Completely empty whenever a tab is closed and a new tab is opened!
-      const tabView = sessionStorage.getItem('aaroha_view');
-      const savedUser = localStorage.getItem('aaroha_user');
-
-      if (tabView && ['catalog', 'course-brochure', 'course-classroom', 'course-detail', 'student', 'admin', 'degrees'].includes(tabView)) {
-        if (savedUser) {
-          const user = JSON.parse(savedUser);
-          if (tabView === 'admin' && !isFacultyRole(user.role)) return 'student';
+      // 1. If explicit view is requested in URL search:
+      if (urlView) {
+        if (urlView === ROUTES.ADMIN) {
+          if (user && !isFacultyRole(user.role)) return ROUTES.STUDENT;
+          if (!user && !localStorage.getItem('aaroha_token')) return HOMEPAGE_ROUTE;
         }
-        if (tabView === 'course-detail') return 'course-brochure';
-        return tabView;
+        if (urlView === ROUTES.STUDENT && !user && !localStorage.getItem('aaroha_token')) {
+          return HOMEPAGE_ROUTE;
+        }
+        return urlView;
       }
 
-      // If opening in a fresh tab (user closed previous tab), ALWAYS open from homepage ('catalog'),
-      // regardless of whether they are signed in or not!
-      return 'catalog';
+      // 2. Direct navigation to root '/' or no view query: always open configured public homepage
+      // and ensure authentication guards do not automatically redirect logged-in users away from homepage
+      return HOMEPAGE_ROUTE;
     } catch (e) {
-      return 'catalog';
+      return HOMEPAGE_ROUTE;
     }
   });
 
@@ -285,14 +288,44 @@ export default function App() {
     } catch (e) {}
   }, [degrees]);
 
-  // Track active view and course in tab-scoped sessionStorage
+  // Track active view in tab-scoped sessionStorage and synchronize browser URL
   useEffect(() => {
     if (activeView) {
       try {
         sessionStorage.setItem('aaroha_view', activeView);
+        updateViewUrl(activeView);
       } catch (e) {}
     }
   }, [activeView]);
+
+  // Support browser Back and Forward navigation buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlView = getViewFromUrl() || HOMEPAGE_ROUTE;
+      setActiveView(urlView);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Ensure unauthenticated users attempting to access protected dashboards are prompted to sign in
+  useEffect(() => {
+    if (!currentUser && (activeView === ROUTES.ADMIN || activeView === ROUTES.STUDENT)) {
+      const token = localStorage.getItem('aaroha_token');
+      if (!token) {
+        setActiveView(HOMEPAGE_ROUTE);
+        handleOpenAuth('login');
+      }
+    }
+  }, [currentUser, activeView]);
+
+  // Ensure students without faculty clearance are redirected to their student dashboard
+  useEffect(() => {
+    if (currentUser && !isFacultyRole(currentUser.role) && activeView === ROUTES.ADMIN) {
+      setActiveView(ROUTES.STUDENT);
+      showToast('Faculty clearance required. Redirected to Student Dashboard.');
+    }
+  }, [currentUser, activeView]);
 
   useEffect(() => {
     if (selectedCourse?.id) {
@@ -638,11 +671,20 @@ export default function App() {
 
   const handleUpdateProfile = async (profileData) => {
     try {
-      const res = await api.updateProfile(profileData);
-      const updatedUser = (res && res.user) ? res.user : {
-        ...currentUser,
-        ...profileData
-      };
+      let updatedUser;
+      if (profileData && profileData._alreadySaved) {
+        // Already persisted to backend via ProfileSettingsModal
+        updatedUser = {
+          ...currentUser,
+          ...profileData
+        };
+      } else {
+        const res = await api.updateProfile(profileData);
+        updatedUser = (res && res.user) ? res.user : {
+          ...currentUser,
+          ...profileData
+        };
+      }
       setCurrentUser(updatedUser);
       localStorage.setItem('aaroha_user', JSON.stringify(updatedUser));
       
@@ -661,7 +703,7 @@ export default function App() {
         setActiveView('student');
       }
 
-      showToast('Profile and avatar updated successfully!');
+      showToast('Profile and preferences updated successfully!');
       return updatedUser;
     } catch (err) {
       console.warn('Backend profile update failed or offline, updating locally:', err.message);
@@ -1540,7 +1582,14 @@ export default function App() {
               setReturnView('student');
               setActiveView('course-classroom');
             }}
-            onExploreCatalog={() => setActiveView('catalog')}
+            onExploreCatalog={() => {
+              setActiveView(HOMEPAGE_ROUTE);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onViewWebsite={() => {
+              setActiveView(HOMEPAGE_ROUTE);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             onOpenProfile={() => setIsProfileModalOpen(true)}
             currentUser={currentUser}
           />

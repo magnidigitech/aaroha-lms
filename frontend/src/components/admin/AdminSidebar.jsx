@@ -74,7 +74,8 @@ export default function AdminSidebar({
   isCollapsed = false,
   onToggleCollapse,
   isMobileOpen = false,
-  onCloseMobile
+  onCloseMobile,
+  onViewWebsite
 }) {
   // Collapsible section state (default all open)
   const [collapsedSections, setCollapsedSections] = useState({});
@@ -104,16 +105,33 @@ export default function AdminSidebar({
         } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         aria-label="Main Navigation"
       >
-        {/* Brand Header with Unchanged Aaroha Logo */}
+        {/* Brand Header with Aaroha Logo Linking to Public Homepage */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 bg-white shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <img
-              src={aarohaLogo}
-              alt="Aaroha LMS"
-              className="h-7 w-auto object-contain shrink-0"
-            />
+          <div
+            onClick={() => {
+              if (onViewWebsite) onViewWebsite();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="flex items-center gap-3 overflow-hidden cursor-pointer select-none group"
+            title="Aaroha Technologies - Return to Public Homepage"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                if (onViewWebsite) onViewWebsite();
+                if (onCloseMobile) onCloseMobile();
+              }
+            }}
+          >
+            <div className="bg-white hover:bg-slate-50 p-1 rounded-lg border border-transparent group-hover:border-slate-200 transition-all flex items-center shrink-0">
+              <img
+                src={aarohaLogo}
+                alt="Aaroha LMS"
+                className="h-7 w-auto object-contain"
+              />
+            </div>
             {!isCollapsed && (
-              <span className="font-semibold text-slate-900 text-sm tracking-tight truncate">
+              <span className="font-semibold text-slate-900 text-sm tracking-tight truncate group-hover:text-[#0a7cb3] transition-colors">
                 Aaroha LMS
               </span>
             )}
@@ -227,6 +245,30 @@ export default function AdminSidebar({
             );
           })}
         </nav>
+
+        {/* Clearly Visible Back to Website Navigation Link */}
+        <div className="p-3 border-t border-slate-200 bg-white shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (onViewWebsite) onViewWebsite();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#0a7cb3] hover:bg-blue-50/70 border border-slate-200/90 transition-all cursor-pointer shadow-2xs group focus-visible:outline-2 focus-visible:outline-[#0a7cb3] ${
+              isCollapsed ? 'justify-center px-0' : ''
+            }`}
+            title="Return to Public Website Homepage"
+            aria-label="Back to Website"
+          >
+            <Globe
+              size={18}
+              className="text-[#0a7cb3] shrink-0 group-hover:scale-105 transition-transform"
+            />
+            {!isCollapsed && (
+              <span className="truncate flex-1 text-left">Back to Website</span>
+            )}
+          </button>
+        </div>
       </aside>
     </>
   );

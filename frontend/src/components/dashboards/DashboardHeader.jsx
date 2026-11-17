@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { 
   User, Shield, GraduationCap, Briefcase, Layers, 
-  RefreshCw, Settings, ChevronDown, Check, Clock, Globe, Bell
+  RefreshCw, Settings, ChevronDown, Check, Clock, Globe, Bell,
+  ArrowLeft
 } from 'lucide-react';
+import aarohaLogo from '../../assets/aaroha_logo.webp';
 
 export const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -32,6 +34,7 @@ export default function DashboardHeader({
   lastRefreshed,
   onRefresh,
   onOpenProfile,
+  onViewWebsite,
   isRefreshing = false,
   notificationCount = 0
 }) {
@@ -58,7 +61,22 @@ export default function DashboardHeader({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         
         {/* User Identity & Active Role Badge */}
-        <div className="flex items-center gap-4 sm:gap-5">
+        <div className="flex items-center gap-3 sm:gap-4">
+          {onViewWebsite && (
+            <button
+              type="button"
+              onClick={onViewWebsite}
+              title="Aaroha Technologies - Return to Public Homepage"
+              className="flex items-center p-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs group cursor-pointer transition-all shrink-0 hover:border-slate-300"
+            >
+              <img
+                src={aarohaLogo}
+                alt="Aaroha Technologies"
+                className="h-8 sm:h-9 w-auto object-contain group-hover:scale-105 transition-transform"
+              />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onOpenProfile}
@@ -102,6 +120,19 @@ export default function DashboardHeader({
 
         {/* Action Controls & Role Switcher */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          {/* Back to Website Button */}
+          {onViewWebsite && (
+            <button
+              type="button"
+              onClick={onViewWebsite}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-all shadow-2xs cursor-pointer group"
+              title="Return to Public Website Homepage"
+              aria-label="Back to Website"
+            >
+              <ArrowLeft size={14} className="text-[#0A7CB3] group-hover:-translate-x-0.5 transition-transform" />
+              <span>Back to Website</span>
+            </button>
+          )}
           
           {/* Multi-Role Switcher (Visible when user has multiple authorised roles) */}
           {effectiveRoles.length > 1 && (

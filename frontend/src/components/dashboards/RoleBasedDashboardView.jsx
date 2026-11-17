@@ -17,7 +17,8 @@ export default function RoleBasedDashboardView({
   onOpenTicketModal,
   onExploreCatalog,
   onNavigateAdminTab,
-  onQuickAction
+  onQuickAction,
+  onViewWebsite
 }) {
   // Active role perspective state (persisted per session)
   const [activeRole, setActiveRole] = useState(() => {
@@ -97,6 +98,7 @@ export default function RoleBasedDashboardView({
         lastRefreshed={lastRefreshed}
         onRefresh={() => fetchDashboardData(true)}
         onOpenProfile={onOpenProfile}
+        onViewWebsite={onViewWebsite || onExploreCatalog}
         isRefreshing={isRefreshing}
       />
 

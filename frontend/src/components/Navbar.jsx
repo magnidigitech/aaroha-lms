@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, User, LogOut, GraduationCap, Shield, Compass, Menu, X, Award, ShieldCheck, ArrowRight } from 'lucide-react';
+import {
+  Search, ChevronDown, User, LogOut, GraduationCap, Shield, Compass,
+  Menu, X, Award, ShieldCheck, ArrowRight, ArrowLeft, LayoutDashboard, Globe
+} from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import TechSearchBar from './TechSearchBar';
+import { ROUTES, HOMEPAGE_ROUTE, getAuthorizedDashboardView, isFacultyRole } from '../routes';
 
 export default function Navbar({
   currentUser,
@@ -133,53 +137,60 @@ export default function Navbar({
               <span>Certificates & Verification</span>
             </button>
 
-            {/* Authenticated Links (Desktop) */}
-            {currentUser?.role === 'student' && (
+            {/* If currently viewing student dashboard, show clearly visible Back to Website */}
+            {activeView === 'student' && (
               <button
-                onClick={() => setActiveView('student')}
-                className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
-                  (activeView === 'student'
-                    ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200'
-                    : 'text-slate-700 hover:text-[#0A7CB3]')}
+                onClick={() => {
+                  setActiveView(HOMEPAGE_ROUTE);
+                  if (onSelectCategory) onSelectCategory('All');
+                }}
+                className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                title="Return to public homepage"
               >
-                <GraduationCap className="w-4 h-4 text-[#0A7CB3]" />
-                <span className="hidden md:inline">My Learning</span>
-                {stats?.enrolledCount > 0 && (
-                  <span className="bg-[#0A7CB3] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                    {stats.enrolledCount}
-                  </span>
-                )}
+                <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3]" />
+                <span>Back to Website</span>
               </button>
             )}
 
-            {currentUser && ['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty', 'instructor'].includes(currentUser.role) && (
-              <button
-                onClick={() => setActiveView('admin')}
-                className={'text-xs font-bold transition-colors hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-md ' +
-                  (activeView === 'admin'
-                    ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200'
-                    : 'text-slate-700 hover:text-[#0A7CB3]')}
-              >
-                <Shield className="w-4 h-4 text-[#0A7CB3]" />
-                <span className="hidden md:inline">
-                  {currentUser.role === 'super_admin' || currentUser.role === 'admin'
-                    ? 'Admin Portal'
-                    : currentUser.role === 'coordinator'
-                    ? 'Academic Ops'
-                    : currentUser.role === 'placement_officer'
-                    ? 'Placement'
-                    : 'Faculty Console'}
-                </span>
-                {stats?.pendingReviews > 0 && (
-                  <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                    {stats.pendingReviews}
-                  </span>
-                )}
-              </button>
+            {/* Authenticated Primary CTA on Public Website: Show "My Dashboard" instead of "Log In" */}
+            {currentUser ? (
+              activeView !== 'student' && (
+                <button
+                  onClick={() => {
+                    const targetView = getAuthorizedDashboardView(currentUser);
+                    setActiveView(targetView);
+                  }}
+                  className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors hidden md:flex items-center gap-1.5 cursor-pointer"
+                  title="Return to your authorised role-based dashboard"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  <span>My Dashboard</span>
+                  {currentUser.role === 'student' && stats?.enrolledCount > 0 && (
+                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                      {stats.enrolledCount}
+                    </span>
+                  )}
+                  {isFacultyRole(currentUser.role) && stats?.pendingReviews > 0 && (
+                    <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                      {stats.pendingReviews}
+                    </span>
+                  )}
+                </button>
+              )
+            ) : (
+              <div className="hidden md:flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={() => onOpenAuth('login')}
+                  className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Log In</span>
+                </button>
+              </div>
             )}
 
             {/* User Avatar & Logout (Desktop) */}
-            {currentUser ? (
+            {currentUser && (
               <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-slate-200">
                 <button
                   type="button"
@@ -201,7 +212,7 @@ export default function Navbar({
                       <span>{currentUser.full_name}</span>
                     </div>
                     <div className="text-[10px] text-slate-500 truncate max-w-[130px]">
-                      {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty' : 'Learner')}
+                      {currentUser.title || (isFacultyRole(currentUser.role) ? 'Faculty' : 'Learner')}
                     </div>
                   </div>
                 </button>
@@ -213,16 +224,6 @@ export default function Navbar({
                   aria-label="Sign out"
                 >
                   <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="hidden md:flex items-center gap-2 sm:gap-3">
-                <button
-                  onClick={() => onOpenAuth('login')}
-                  className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Log In</span>
                 </button>
               </div>
             )}
@@ -271,51 +272,41 @@ export default function Navbar({
                 <span>Certificates & Verification</span>
               </button>
 
-              {currentUser?.role === 'student' && (
+              {/* If on student dashboard: Show clearly visible Back to Website */}
+              {activeView === 'student' && (
                 <button
                   onClick={() => {
-                    setActiveView('student');
+                    setActiveView(HOMEPAGE_ROUTE);
+                    if (onSelectCategory) onSelectCategory('All');
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between ${
-                    activeView === 'student' ? 'bg-blue-50 text-[#0A7CB3]' : 'text-slate-700 hover:bg-slate-100'
-                  }`}
+                  className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors bg-blue-50 text-[#0A7CB3] border border-blue-200"
+                >
+                  <ArrowLeft className="w-4 h-4 text-[#0A7CB3]" />
+                  <span>Back to Website</span>
+                </button>
+              )}
+
+              {/* If authenticated and on website: Show My Dashboard in list */}
+              {currentUser && activeView !== 'student' && (
+                <button
+                  onClick={() => {
+                    const targetView = getAuthorizedDashboardView(currentUser);
+                    setActiveView(targetView);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between bg-blue-50/60 text-[#0A7CB3] hover:bg-blue-50"
                 >
                   <div className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-[#0A7CB3]" />
-                    <span>My Learning Dashboard</span>
+                    <LayoutDashboard className="w-4 h-4 text-[#0A7CB3]" />
+                    <span>My Dashboard</span>
                   </div>
-                  {stats?.enrolledCount > 0 && (
+                  {currentUser.role === 'student' && stats?.enrolledCount > 0 && (
                     <span className="bg-[#0A7CB3] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                       {stats.enrolledCount}
                     </span>
                   )}
-                </button>
-              )}
-
-              {currentUser && ['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty', 'instructor'].includes(currentUser.role) && (
-                <button
-                  onClick={() => {
-                    setActiveView('admin');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between ${
-                    activeView === 'admin' ? 'bg-blue-50 text-[#0A7CB3]' : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-[#0A7CB3]" />
-                    <span>
-                      {currentUser.role === 'super_admin' || currentUser.role === 'admin'
-                        ? 'Admin Portal'
-                        : currentUser.role === 'coordinator'
-                        ? 'Academic Ops'
-                        : currentUser.role === 'placement_officer'
-                        ? 'Placement Portal'
-                        : 'Faculty Console'}
-                    </span>
-                  </div>
-                  {stats?.pendingReviews > 0 && (
+                  {isFacultyRole(currentUser.role) && stats?.pendingReviews > 0 && (
                     <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                       {stats.pendingReviews}
                     </span>
@@ -327,38 +318,55 @@ export default function Navbar({
             {/* Mobile Auth Controls */}
             <div className="pt-2 border-t border-slate-100 px-1">
               {currentUser ? (
-                <div className="flex items-center justify-between px-2 py-1.5 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onOpenProfile) onOpenProfile();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="flex items-center gap-2.5 min-w-0 p-1.5 -m-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left flex-1 cursor-pointer"
-                  >
-                    <img
-                      src={currentUser.avatar || '/avatars/3d/memo_13.png'}
-                      alt={currentUser.full_name}
-                      onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
-                      <div className="text-[10px] text-slate-500 truncate">
-                        {currentUser.title || (currentUser.role === 'admin' || currentUser.role === 'faculty' || currentUser.role === 'instructor' ? 'Faculty' : 'Learner')}
+                <div className="space-y-2">
+                  {/* On Public Website: Show "My Dashboard" primary CTA instead of "Log In" */}
+                  {activeView !== 'student' && (
+                    <button
+                      onClick={() => {
+                        const targetView = getAuthorizedDashboardView(currentUser);
+                        setActiveView(targetView);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full py-2.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-xl text-center shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span>My Dashboard</span>
+                    </button>
+                  )}
+
+                  <div className="flex items-center justify-between px-2 py-1.5 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onOpenProfile) onOpenProfile();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2.5 min-w-0 p-1.5 -m-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left flex-1 cursor-pointer"
+                    >
+                      <img
+                        src={currentUser.avatar || '/avatars/3d/memo_13.png'}
+                        alt={currentUser.full_name}
+                        onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
+                        className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {currentUser.title || (isFacultyRole(currentUser.role) ? 'Faculty' : 'Learner')}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      onLogout();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onLogout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="pt-1">

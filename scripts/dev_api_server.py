@@ -20,7 +20,7 @@ import calendar
 import mimetypes
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 
 DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'database', 'lms.sqlite'))
 JWT_SECRET = "aaroha_lms_dev_secret_2026_x89f!"
@@ -193,12 +193,15 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Disposition", "inline")
         self.end_headers()
 
-        with open(file_path, "rb") as f:
-            while True:
-                buf = f.read(65536)
-                if not buf:
-                    break
-                self.wfile.write(buf)
+        try:
+            with open(file_path, "rb") as f:
+                while True:
+                    buf = f.read(65536)
+                    if not buf:
+                        break
+                    self.wfile.write(buf)
+        except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+            pass
 
     def _send_cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -211,13 +214,16 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _send_json(self, data, status=200):
-        body = json.dumps(data, indent=2, default=str).encode('utf-8')
-        self.send_response(status)
-        self._send_cors()
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            body = json.dumps(data, indent=2, default=str).encode('utf-8')
+            self.send_response(status)
+            self._send_cors()
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+            pass
 
     def _get_auth_user(self):
         auth_header = self.headers.get("Authorization", "")
@@ -464,6 +470,185 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     modules.append(m_dict)
                 c['modules'] = modules
                 return self._send_json({"success": True, "course": c})
+
+            # User Complete Profile & Account Settings (All Roles)
+            if path == "/user/profile":
+                user = self._get_auth_user()
+                if not user:
+                    return self._send_json({"success": False, "error": "Unauthorized: Authentication required to view profile settings."}, 401)
+                if user.get("is_deactivated"):
+                    return self._send_json({"success": False, "error": "Account has been deactivated. Access revoked."}, 403)
+
+                u_id = user["id"]
+                u_row = cur.execute("""
+                    SELECT id, full_name, email, role, title, avatar, display_name, phone,
+                           timezone, preferred_language, notification_preferences_json,
+                           security_settings_json, authorized_roles_json, created_at
+                    FROM users WHERE id = ?
+                """, (u_id,)).fetchone()
+                if not u_row:
+                    return self._send_json({"success": False, "error": "User record not found."}, 404)
+                u = dict(u_row)
+                u_role = str(u.get("role", "student")).lower()
+
+                # Parse authorized roles
+                raw_roles = []
+                try:
+                    raw_roles = json.loads(u.get("authorized_roles_json") or "[]")
+                except Exception:
+                    raw_roles = []
+                if u_role not in raw_roles:
+                    raw_roles.append(u_role)
+
+                # Parse notification preferences
+                default_notifs = {
+                    "in_app": True,
+                    "email": True,
+                    "class_reminders": True,
+                    "assignment_reminders": True,
+                    "published_results": True,
+                    "announcements": True,
+                    "fee_reminders": u_role in ("student", "accounts", "super_admin"),
+                    "placement_updates": u_role in ("student", "placement_officer", "super_admin")
+                }
+                saved_notifs = {}
+                try:
+                    saved_notifs = json.loads(u.get("notification_preferences_json") or "{}")
+                except Exception:
+                    saved_notifs = {}
+                notifs = {**default_notifs, **saved_notifs}
+
+                client_ip = self.client_address[0] if hasattr(self, 'client_address') and self.client_address else "127.0.0.1"
+                security_state = {
+                    "mfa_enabled": False,
+                    "has_password": True,
+                    "active_sessions": [
+                        {
+                            "session_id": "sess_cur_" + hashlib.md5(f"{u_id}_cur".encode()).hexdigest()[:8],
+                            "device": "Current Web Session",
+                            "ip_address": client_ip,
+                            "last_active": "Active now",
+                            "is_current": True
+                        }
+                    ]
+                }
+
+                account_info = {
+                    "account_status": "Active & Verified",
+                    "created_at": u.get("created_at") or time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "assigned_roles": raw_roles,
+                    "current_active_role": u_role
+                }
+
+                role_profile = {}
+                if u_role == "student":
+                    sp = cur.execute("SELECT * FROM student_profiles WHERE user_id = ?", (u_id,)).fetchone()
+                    sp_dict = dict(sp) if sp else {}
+
+                    # Enrolled courses and active batches
+                    associations = [dict(r) for r in cur.execute("""
+                        SELECT c.title as course_title, b.batch_code, b.title as batch_title, e.status as enrollment_status
+                        FROM enrollments e
+                        JOIN courses c ON e.course_id = c.id
+                        LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                        LEFT JOIN batches b ON be.batch_id = b.id
+                        WHERE e.user_id = ?
+                    """, (u_id,)).fetchall()]
+
+                    account_info["identifier"] = sp_dict.get("student_id_code") or f"STU-{u_id:04d}"
+                    account_info["associations"] = associations
+                    role_profile = {
+                        "type": "student",
+                        "education": sp_dict.get("education") or "",
+                        "experience_years": sp_dict.get("experience_years") or "",
+                        "skills": sp_dict.get("skills") or "",
+                        "career_interests": sp_dict.get("career_interests") or "",
+                        "resume_url": sp_dict.get("resume_url") or "",
+                        "portfolio_url": sp_dict.get("portfolio_url") or "",
+                        "github_url": sp_dict.get("github_url") or "",
+                        "work_experience": sp_dict.get("work_experience") or "",
+                        "read_only_notice": "Enrolments, attendance records, and assessment marks are strictly governed by institutional records."
+                    }
+                elif u_role in ("faculty", "instructor"):
+                    fp = cur.execute("SELECT * FROM faculty_profiles WHERE user_id = ?", (u_id,)).fetchone()
+                    fp_dict = dict(fp) if fp else {}
+
+                    assigned_batches = [dict(r) for r in cur.execute("""
+                        SELECT b.batch_code, b.title as batch_title, c.title as course_title, b.start_date
+                        FROM batches b
+                        JOIN courses c ON b.course_id = c.id
+                        LEFT JOIN faculty_batch_assignments fba ON b.id = fba.batch_id
+                        WHERE (b.lead_faculty_id = ? OR fba.faculty_id = ?) AND b.is_deleted = 0
+                    """, (u_id, u_id)).fetchall()]
+
+                    links = {}
+                    try:
+                        links = json.loads(fp_dict.get("professional_links_json") or "{}")
+                    except Exception:
+                        links = {}
+
+                    avail = {
+                        "preferred_days": ["Monday", "Wednesday", "Friday"],
+                        "preferred_slots": ["14:00-16:00", "18:00-20:00"],
+                        "max_hours_per_week": 16,
+                        "notes": ""
+                    }
+                    try:
+                        parsed_avail = json.loads(fp_dict.get("availability_json") or "{}")
+                        if parsed_avail:
+                            avail.update(parsed_avail)
+                    except Exception:
+                        pass
+
+                    account_info["identifier"] = fp_dict.get("faculty_id_code") or f"FAC-{u_id:04d}"
+                    account_info["associations"] = assigned_batches
+                    role_profile = {
+                        "type": "faculty",
+                        "bio": fp_dict.get("bio") or "",
+                        "qualifications": fp_dict.get("qualifications") or "",
+                        "expertise": fp_dict.get("expertise") or "",
+                        "experience_years": fp_dict.get("experience_years") or "",
+                        "portfolio_url": links.get("portfolio_url") or links.get("website_url") or "",
+                        "website_url": links.get("website_url") or links.get("portfolio_url") or "",
+                        "linkedin_url": links.get("linkedin_url") or "",
+                        "github_url": links.get("github_url") or "",
+                        "professional_links": links,
+                        "availability": avail,
+                        "scheduling_notice": "Availability preferences serve as scheduling requests. Existing assigned teaching sessions remain locked until rescheduled by Academic Operations."
+                    }
+                else:
+                    # Staff profile (super_admin, admin, coordinator, placement_officer, accounts)
+                    account_info["identifier"] = f"{u_role[:3].upper()}-{u_id:04d}"
+                    account_info["department"] = u.get("title") or "Operational Management"
+                    role_profile = {
+                        "type": "staff",
+                        "department": u.get("title") or "Operational Administration",
+                        "job_title": u.get("title") or "Operations Officer",
+                        "assigned_role": u_role,
+                        "professional_details": f"Institutional account of {u.get('full_name')}",
+                        "permissions_notice": "Role and privilege modifications must be authorised through executive user management."
+                    }
+
+                return self._send_json({
+                    "success": True,
+                    "profile": {
+                        "id": u["id"],
+                        "full_name": u.get("full_name") or "",
+                        "display_name": u.get("display_name") or u.get("full_name") or "",
+                        "email": u["email"],
+                        "phone": u.get("phone") or "",
+                        "role": u_role,
+                        "title": u.get("title") or "",
+                        "avatar": u.get("avatar") or "/avatars/3d/memo_13.png",
+                        "timezone": u.get("timezone") or "Asia/Kolkata",
+                        "preferred_language": u.get("preferred_language") or "en",
+                        "authorized_roles": raw_roles,
+                        "account_info": account_info,
+                        "notification_preferences": notifs,
+                        "security": security_state,
+                        "role_profile": role_profile
+                    }
+                })
 
             # 5. Student Record-Level Learning Endpoints
             
@@ -1398,6 +1583,48 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
+            # User Password Change
+            if path == "/user/change-password":
+                user = self._get_auth_user()
+                if not user:
+                    return self._send_json({"success": False, "error": "Unauthorized: Authentication required to change password."}, 401)
+                u_id = user["id"]
+                curr_pw = str(data.get("current_password") or "")
+                new_pw = str(data.get("new_password") or "")
+                conf_pw = str(data.get("confirm_password") or "")
+
+                if not curr_pw or not new_pw:
+                    return self._send_json({"success": False, "error": "Current password and new password are required"}, 400)
+                if len(new_pw) < 6:
+                    return self._send_json({"success": False, "error": "New password must be at least 6 characters long"}, 400)
+                if conf_pw and new_pw != conf_pw:
+                    return self._send_json({"success": False, "error": "New password confirmation does not match"}, 400)
+
+                u_row = cur.execute("SELECT password_hash FROM users WHERE id = ?", (u_id,)).fetchone()
+                if not u_row or not verify_password(curr_pw, u_row["password_hash"]):
+                    return self._send_json({"success": False, "error": "Current password verification failed"}, 401)
+
+                new_hash = hash_password(new_pw)
+                cur.execute("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?", (new_hash, u_id))
+                cur.execute("""
+                    INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at)
+                    VALUES (?, ?, ?, 'password_changed', 'user', ?, ?, datetime('now'))
+                """, (u_id, user.get("email"), user.get("role"), str(u_id), json.dumps({"method": "profile_security"})))
+                conn.commit()
+                return self._send_json({"success": True, "message": "Password updated successfully. All subsequent sessions will require the new credentials."})
+
+            # Logout other sessions
+            if path == "/user/sessions/logout-other":
+                user = self._get_auth_user()
+                if not user:
+                    return self._send_json({"success": False, "error": "Unauthorized"}, 401)
+                cur.execute("""
+                    INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at)
+                    VALUES (?, ?, ?, 'other_sessions_terminated', 'user', ?, ?, datetime('now'))
+                """, (user["id"], user.get("email"), user.get("role"), str(user["id"]), json.dumps({"reason": "user_action"})))
+                conn.commit()
+                return self._send_json({"success": True, "message": "All other active sessions have been invalidated."})
+
             # Direct Storage File Upload Endpoint (Multipart or JSON base64)
             if path == "/uploads":
                 file_bytes = None
@@ -2833,6 +3060,188 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
+            # Profile & Settings Update (All Roles)
+            if path in ("/user/profile", "/auth/profile"):
+                user = self._get_auth_user()
+                if not user:
+                    return self._send_json({"success": False, "error": "Unauthorized: Authentication required to update profile."}, 401)
+                if user.get("is_deactivated"):
+                    return self._send_json({"success": False, "error": "Account has been deactivated. Access revoked."}, 403)
+
+                u_id = user["id"]
+                u_role = str(user.get("role", "student")).lower()
+
+                full_name = data.get("full_name")
+                if full_name is not None:
+                    full_name = str(full_name).strip()
+                    if not full_name:
+                        return self._send_json({"success": False, "error": "Full name cannot be blank. Please enter your valid institutional name."}, 400)
+                    if len(full_name) > 120:
+                        return self._send_json({"success": False, "error": "Full name cannot exceed 120 characters."}, 400)
+
+                # Security check on email
+                if "email" in data and str(data["email"]).strip().lower() != str(user.get("email", "")).strip().lower():
+                    return self._send_json({
+                        "success": False,
+                        "error": "Authentication email cannot be changed directly via profile fields. Please follow the institutional identity verification process in Security settings."
+                    }, 400)
+
+                # Validate URLs if provided in role_profile
+                rp = data.get("role_profile")
+                if isinstance(rp, dict):
+                    for uk in ["resume_url", "portfolio_url", "github_url", "website_url", "linkedin_url"]:
+                        val = rp.get(uk)
+                        if val and str(val).strip() and not str(val).strip().lower().startswith(("http://", "https://")):
+                            return self._send_json({
+                                "success": False,
+                                "error": f"Invalid link format for {uk.replace('_', ' ')}. URLs must begin with http:// or https://"
+                            }, 400)
+
+                # Update users table
+                fields = []
+                params = []
+                if full_name:
+                    fields.append("full_name = ?")
+                    params.append(full_name)
+                if "display_name" in data:
+                    fields.append("display_name = ?")
+                    params.append(str(data["display_name"]).strip() if data["display_name"] is not None else "")
+                if "title" in data:
+                    fields.append("title = ?")
+                    params.append(str(data["title"]).strip() if data["title"] is not None else "")
+                if "avatar" in data and data["avatar"]:
+                    fields.append("avatar = ?")
+                    params.append(data["avatar"])
+                if "phone" in data:
+                    fields.append("phone = ?")
+                    params.append(str(data["phone"]).strip() if data["phone"] is not None else "")
+                if "timezone" in data and data["timezone"]:
+                    fields.append("timezone = ?")
+                    params.append(str(data["timezone"]).strip())
+                if "preferred_language" in data and data["preferred_language"]:
+                    fields.append("preferred_language = ?")
+                    params.append(str(data["preferred_language"]).strip())
+                if "notification_preferences" in data and isinstance(data["notification_preferences"], dict):
+                    fields.append("notification_preferences_json = ?")
+                    params.append(json.dumps(data["notification_preferences"]))
+
+                if fields:
+                    fields.append("updated_at = datetime('now')")
+                    params.append(u_id)
+                    cur.execute(f"UPDATE users SET {', '.join(fields)} WHERE id = ?", params)
+
+                # Role-specific profiles UPSERT
+                if u_role == "student" and isinstance(rp, dict):
+                    sp_row = cur.execute("SELECT id FROM student_profiles WHERE user_id = ?", (u_id,)).fetchone()
+                    if sp_row:
+                        cur.execute("""
+                            UPDATE student_profiles
+                            SET education = COALESCE(?, education),
+                                experience_years = COALESCE(?, experience_years),
+                                skills = COALESCE(?, skills),
+                                career_interests = COALESCE(?, career_interests),
+                                resume_url = COALESCE(?, resume_url),
+                                portfolio_url = COALESCE(?, portfolio_url),
+                                github_url = COALESCE(?, github_url),
+                                work_experience = COALESCE(?, work_experience),
+                                updated_at = datetime('now')
+                            WHERE user_id = ?
+                        """, (
+                            rp.get("education"),
+                            rp.get("experience_years"),
+                            rp.get("skills"),
+                            rp.get("career_interests"),
+                            rp.get("resume_url"),
+                            rp.get("portfolio_url"),
+                            rp.get("github_url"),
+                            rp.get("work_experience"),
+                            u_id
+                        ))
+                    else:
+                        stu_code = f"STU-{u_id:04d}"
+                        cur.execute("""
+                            INSERT INTO student_profiles (
+                                user_id, student_id_code, mobile, education, experience_years,
+                                skills, career_interests, resume_url, portfolio_url, github_url,
+                                work_experience, account_status, admission_status, enrollment_status,
+                                payment_status, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'enrolled', 'active', 'paid', datetime('now'), datetime('now'))
+                        """, (
+                            u_id, stu_code, data.get("phone", ""),
+                            rp.get("education", ""), rp.get("experience_years", ""),
+                            rp.get("skills", ""), rp.get("career_interests", ""),
+                            rp.get("resume_url", ""), rp.get("portfolio_url", ""),
+                            rp.get("github_url", ""), rp.get("work_experience", "")
+                        ))
+                elif u_role in ("faculty", "instructor") and isinstance(rp, dict):
+                    fp_row = cur.execute("SELECT id, professional_links_json FROM faculty_profiles WHERE user_id = ?", (u_id,)).fetchone()
+                    cur_links = {}
+                    if fp_row and fp_row["professional_links_json"]:
+                        try:
+                            cur_links = json.loads(fp_row["professional_links_json"])
+                        except Exception:
+                            cur_links = {}
+                    for k in ["portfolio_url", "website_url", "linkedin_url", "github_url"]:
+                        if k in rp:
+                            cur_links[k] = rp[k]
+                    if "professional_links" in rp and isinstance(rp["professional_links"], dict):
+                        cur_links.update(rp["professional_links"])
+
+                    avail_json = json.dumps(rp["availability"]) if ("availability" in rp and isinstance(rp["availability"], dict)) else None
+
+                    if fp_row:
+                        cur.execute("""
+                            UPDATE faculty_profiles
+                            SET bio = COALESCE(?, bio),
+                                qualifications = COALESCE(?, qualifications),
+                                expertise = COALESCE(?, expertise),
+                                experience_years = COALESCE(?, experience_years),
+                                professional_links_json = ?,
+                                availability_json = COALESCE(?, availability_json),
+                                updated_at = datetime('now')
+                            WHERE user_id = ?
+                        """, (
+                            rp.get("bio"),
+                            rp.get("qualifications"),
+                            rp.get("expertise"),
+                            rp.get("experience_years"),
+                            json.dumps(cur_links),
+                            avail_json,
+                            u_id
+                        ))
+                    else:
+                        fac_code = f"FAC-{u_id:04d}"
+                        cur.execute("""
+                            INSERT INTO faculty_profiles (
+                                user_id, faculty_id_code, mobile, expertise, bio, qualifications,
+                                experience_years, professional_links_json, availability_json, account_status, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', datetime('now'), datetime('now'))
+                        """, (
+                            u_id, fac_code, data.get("phone", ""),
+                            rp.get("expertise", ""), rp.get("bio", ""),
+                            rp.get("qualifications", ""), rp.get("experience_years", ""),
+                            json.dumps(cur_links),
+                            avail_json or json.dumps({"preferred_days": ["Monday", "Wednesday"]})
+                        ))
+                elif isinstance(rp, dict):
+                    # Staff: update job_title
+                    if rp.get("job_title"):
+                        cur.execute("UPDATE users SET title = ?, updated_at = datetime('now') WHERE id = ?", (str(rp["job_title"]).strip(), u_id))
+
+                cur.execute("""
+                    INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at)
+                    VALUES (?, ?, ?, 'profile_updated', 'user', ?, ?, datetime('now'))
+                """, (u_id, user.get("email"), u_role, str(u_id), json.dumps({"fields": [f.split(" ")[0] for f in fields]})))
+
+                conn.commit()
+
+                upd_user = cur.execute("SELECT id, full_name, email, role, title, avatar, display_name, phone, timezone, preferred_language FROM users WHERE id = ?", (u_id,)).fetchone()
+                return self._send_json({
+                    "success": True,
+                    "message": "Profile and preferences updated successfully.",
+                    "user": dict(upd_user) if upd_user else user
+                })
+
             # Reschedule Session
             if path.startswith("/admin/schedule/") and path.endswith("/reschedule"):
                 sid = int(path.split("/")[3])
@@ -3156,12 +3565,14 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             conn.close()
 
 def run_server(port=8000):
-    server = HTTPServer(('127.0.0.1', port), LMSRequestHandler)
-    print(f"[*] Aaroha LMS Development REST API Server listening on http://127.0.0.1:{port}")
+    server = ThreadingHTTPServer(('127.0.0.1', port), LMSRequestHandler)
+    server.daemon_threads = True
+    print(f"[*] Aaroha LMS Development REST API Server listening on http://127.0.0.1:{port}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nStopping dev server...")
+        print("\nStopping dev server...", flush=True)
+    finally:
         server.server_close()
 
 if __name__ == '__main__':

@@ -11,7 +11,8 @@ export default function StudentPortalView({
   onOpenCourse,
   onExploreCatalog,
   onOpenProfile,
-  currentUser
+  currentUser,
+  onViewWebsite
 }) {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
 
@@ -25,6 +26,7 @@ export default function StudentPortalView({
         onOpenClassroom={onOpenCourse}
         onOpenProfile={onOpenProfile}
         onExploreCatalog={onExploreCatalog}
+        onViewWebsite={onViewWebsite || onExploreCatalog}
       />
 
       {/* Digital Certificate Viewer Modal */}

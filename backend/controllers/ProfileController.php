@@ -147,16 +147,23 @@ class ProfileController {
             $accountInfo['identifier'] = $fp['faculty_id_code'] ?? ('FAC-' . str_pad($userId, 4, '0', STR_PAD_LEFT));
             $accountInfo['associations'] = $assignedBatches;
 
+            $links = json_decode($fp['professional_links_json'] ?? '{}', true) ?: [];
             $roleProfile = [
                 'type' => 'faculty',
                 'bio' => $fp['bio'] ?? '',
                 'qualifications' => $fp['qualifications'] ?? '',
                 'expertise' => $fp['expertise'] ?? '',
-                'professional_links' => json_decode($fp['professional_links_json'] ?? '{}', true) ?: [],
+                'experience_years' => $fp['experience_years'] ?? '',
+                'portfolio_url' => $links['portfolio_url'] ?? ($links['website_url'] ?? ''),
+                'website_url' => $links['website_url'] ?? ($links['portfolio_url'] ?? ''),
+                'linkedin_url' => $links['linkedin_url'] ?? '',
+                'github_url' => $links['github_url'] ?? '',
+                'professional_links' => $links,
                 'availability' => json_decode($fp['availability_json'] ?? '{}', true) ?: [
                     'preferred_days' => ['Monday', 'Wednesday', 'Friday'],
                     'preferred_slots' => ['14:00-16:00', '18:00-20:00'],
-                    'max_hours_per_week' => 16
+                    'max_hours_per_week' => 16,
+                    'notes' => ''
                 ],
                 'scheduling_notice' => 'Availability preferences serve as scheduling requests. Existing assigned teaching sessions remain locked until rescheduled by Academic Operations.'
             ];
@@ -170,6 +177,7 @@ class ProfileController {
                 'department' => $user['title'] ?: 'Operational Administration',
                 'job_title' => $user['title'] ?: 'Operations Officer',
                 'assigned_role' => $userRole,
+                'professional_details' => $user['display_name'] ? ('Institutional account of ' . $user['full_name']) : '',
                 'permissions_notice' => 'Role and privilege modifications must be authorised through executive user management.'
             ];
         }
@@ -205,17 +213,43 @@ class ProfileController {
         $userId = (int)$actor['id'];
         $userRole = strtolower($actor['role']);
 
-        $fullName = isset($data['full_name']) ? trim($data['full_name']) : null;
-        $displayName = isset($data['display_name']) ? trim($data['display_name']) : null;
-        $title = isset($data['title']) ? trim($data['title']) : null;
-        $avatar = isset($data['avatar']) ? trim($data['avatar']) : null;
-        $phone = isset($data['phone']) ? trim($data['phone']) : null;
-        $timezone = isset($data['timezone']) ? trim($data['timezone']) : null;
-        $preferredLanguage = isset($data['preferred_language']) ? trim($data['preferred_language']) : null;
-        $notifPrefs = isset($data['notification_preferences']) ? json_encode($data['notification_preferences']) : null;
+        // Input validation & sanitation
+        $fullName = isset($data['full_name']) ? trim((string)$data['full_name']) : null;
+        $displayName = isset($data['display_name']) ? trim((string)$data['display_name']) : null;
+        $title = isset($data['title']) ? trim((string)$data['title']) : null;
+        $avatar = isset($data['avatar']) ? trim((string)$data['avatar']) : null;
+        $phone = isset($data['phone']) ? trim((string)$data['phone']) : null;
+        $timezone = isset($data['timezone']) ? trim((string)$data['timezone']) : null;
+        $preferredLanguage = isset($data['preferred_language']) ? trim((string)$data['preferred_language']) : null;
+        $notifPrefs = isset($data['notification_preferences']) && is_array($data['notification_preferences'])
+            ? json_encode($data['notification_preferences'])
+            : null;
+
+        // Validation gate
+        if ($fullName !== null && $fullName === '') {
+            http_response_code(400);
+            return [
+                'success' => false,
+                'error' => 'Full name cannot be blank. Please enter your valid institutional name.'
+            ];
+        }
+        if ($fullName !== null && strlen($fullName) > 120) {
+            http_response_code(400);
+            return [
+                'success' => false,
+                'error' => 'Full name cannot exceed 120 characters.'
+            ];
+        }
+        if ($phone !== null && strlen($phone) > 30) {
+            http_response_code(400);
+            return [
+                'success' => false,
+                'error' => 'Mobile phone number cannot exceed 30 characters.'
+            ];
+        }
 
         // Security check: If user attempts to change email directly via profile form
-        if (isset($data['email']) && strtolower(trim($data['email'])) !== strtolower(trim($actor['email']))) {
+        if (isset($data['email']) && strtolower(trim((string)$data['email'])) !== strtolower(trim((string)$actor['email']))) {
             http_response_code(400);
             return [
                 'success' => false,
@@ -223,115 +257,240 @@ class ProfileController {
             ];
         }
 
-        // Build update parameters for users table
-        $userFields = [];
-        $userParams = [];
-
-        if ($fullName !== null && !empty($fullName)) {
-            $userFields[] = "full_name = ?";
-            $userParams[] = $fullName;
-        }
-        if ($displayName !== null) {
-            $userFields[] = "display_name = ?";
-            $userParams[] = $displayName;
-        }
-        if ($title !== null) {
-            $userFields[] = "title = ?";
-            $userParams[] = $title;
-        }
-        if ($avatar !== null) {
-            $userFields[] = "avatar = ?";
-            $userParams[] = $avatar;
-        }
-        if ($phone !== null) {
-            $userFields[] = "phone = ?";
-            $userParams[] = $phone;
-        }
-        if ($timezone !== null && !empty($timezone)) {
-            $userFields[] = "timezone = ?";
-            $userParams[] = $timezone;
-        }
-        if ($preferredLanguage !== null && !empty($preferredLanguage)) {
-            $userFields[] = "preferred_language = ?";
-            $userParams[] = $preferredLanguage;
-        }
-        if ($notifPrefs !== null) {
-            $userFields[] = "notification_preferences_json = ?";
-            $userParams[] = $notifPrefs;
-        }
-
-        if (!empty($userFields)) {
-            $userParams[] = $userId;
-            $sql = "UPDATE users SET " . implode(', ', $userFields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($userParams);
-        }
-
-        // Update role-specific profile fields
-        if ($userRole === 'student' && isset($data['role_profile'])) {
+        // Validate URLs in role_profile if provided
+        if (isset($data['role_profile']) && is_array($data['role_profile'])) {
             $rp = $data['role_profile'];
-            $spStmt = $pdo->prepare("
-                UPDATE student_profiles
-                SET education = COALESCE(?, education),
-                    experience_years = COALESCE(?, experience_years),
-                    skills = COALESCE(?, skills),
-                    career_interests = COALESCE(?, career_interests),
-                    resume_url = COALESCE(?, resume_url),
-                    portfolio_url = COALESCE(?, portfolio_url),
-                    github_url = COALESCE(?, github_url),
-                    work_experience = COALESCE(?, work_experience),
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = ?
-            ");
-            $spStmt->execute([
-                $rp['education'] ?? null,
-                $rp['experience_years'] ?? null,
-                $rp['skills'] ?? null,
-                $rp['career_interests'] ?? null,
-                $rp['resume_url'] ?? null,
-                $rp['portfolio_url'] ?? null,
-                $rp['github_url'] ?? null,
-                $rp['work_experience'] ?? null,
-                $userId
-            ]);
-        } elseif ($userRole === 'faculty' && isset($data['role_profile'])) {
-            $rp = $data['role_profile'];
-            $fpStmt = $pdo->prepare("
-                UPDATE faculty_profiles
-                SET bio = COALESCE(?, bio),
-                    qualifications = COALESCE(?, qualifications),
-                    expertise = COALESCE(?, expertise),
-                    professional_links_json = COALESCE(?, professional_links_json),
-                    availability_json = COALESCE(?, availability_json),
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE user_id = ?
-            ");
-            $fpStmt->execute([
-                $rp['bio'] ?? null,
-                $rp['qualifications'] ?? null,
-                $rp['expertise'] ?? null,
-                isset($rp['professional_links']) ? json_encode($rp['professional_links']) : null,
-                isset($rp['availability']) ? json_encode($rp['availability']) : null,
-                $userId
-            ]);
+            $urlKeys = ['resume_url', 'portfolio_url', 'github_url', 'website_url', 'linkedin_url'];
+            foreach ($urlKeys as $uk) {
+                if (!empty($rp[$uk])) {
+                    $u = trim((string)$rp[$uk]);
+                    if (!preg_match('#^https?://#i', $u)) {
+                        http_response_code(400);
+                        return [
+                            'success' => false,
+                            'error' => 'Invalid link format for ' . str_replace('_', ' ', $uk) . '. URLs must begin with http:// or https://'
+                        ];
+                    }
+                }
+            }
         }
 
-        // Audit log entry
+        // Transactional Write Gate
+        $inTxn = false;
         try {
-            $audit = $pdo->prepare("
-                INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at)
-                VALUES (?, ?, ?, 'profile_updated', 'user', ?, ?, CURRENT_TIMESTAMP)
-            ");
-            $audit->execute([
-                $userId,
-                $actor['email'],
-                $userRole,
-                (string)$userId,
-                json_encode(['updated_fields' => $userFields])
-            ]);
-        } catch (Exception $e) {}
+            $pdo->beginTransaction();
+            $inTxn = true;
 
-        return self::getProfile($actor);
+            // Build update parameters for users table
+            $userFields = [];
+            $userParams = [];
+
+            if ($fullName !== null && !empty($fullName)) {
+                $userFields[] = "full_name = ?";
+                $userParams[] = $fullName;
+            }
+            if ($displayName !== null) {
+                $userFields[] = "display_name = ?";
+                $userParams[] = $displayName;
+            }
+            if ($title !== null) {
+                $userFields[] = "title = ?";
+                $userParams[] = $title;
+            }
+            if ($avatar !== null && !empty($avatar)) {
+                $userFields[] = "avatar = ?";
+                $userParams[] = $avatar;
+            }
+            if ($phone !== null) {
+                $userFields[] = "phone = ?";
+                $userParams[] = $phone;
+            }
+            if ($timezone !== null && !empty($timezone)) {
+                $userFields[] = "timezone = ?";
+                $userParams[] = $timezone;
+            }
+            if ($preferredLanguage !== null && !empty($preferredLanguage)) {
+                $userFields[] = "preferred_language = ?";
+                $userParams[] = $preferredLanguage;
+            }
+            if ($notifPrefs !== null) {
+                $userFields[] = "notification_preferences_json = ?";
+                $userParams[] = $notifPrefs;
+            }
+
+            if (!empty($userFields)) {
+                $userParams[] = $userId;
+                $sql = "UPDATE users SET " . implode(', ', $userFields) . ", updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($userParams);
+            }
+
+            // Role-specific profile persistence with UPSERT support
+            if ($userRole === 'student' && isset($data['role_profile']) && is_array($data['role_profile'])) {
+                $rp = $data['role_profile'];
+                
+                // Check if student profile row exists
+                $chk = $pdo->prepare("SELECT id FROM student_profiles WHERE user_id = ? LIMIT 1");
+                $chk->execute([$userId]);
+                $existing = $chk->fetch();
+
+                if ($existing) {
+                    $spStmt = $pdo->prepare("
+                        UPDATE student_profiles
+                        SET education = COALESCE(?, education),
+                            experience_years = COALESCE(?, experience_years),
+                            skills = COALESCE(?, skills),
+                            career_interests = COALESCE(?, career_interests),
+                            resume_url = COALESCE(?, resume_url),
+                            portfolio_url = COALESCE(?, portfolio_url),
+                            github_url = COALESCE(?, github_url),
+                            work_experience = COALESCE(?, work_experience),
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE user_id = ?
+                    ");
+                    $spStmt->execute([
+                        $rp['education'] ?? null,
+                        $rp['experience_years'] ?? null,
+                        $rp['skills'] ?? null,
+                        $rp['career_interests'] ?? null,
+                        $rp['resume_url'] ?? null,
+                        $rp['portfolio_url'] ?? null,
+                        $rp['github_url'] ?? null,
+                        $rp['work_experience'] ?? null,
+                        $userId
+                    ]);
+                } else {
+                    $stuCode = 'STU-' . str_pad($userId, 4, '0', STR_PAD_LEFT);
+                    $ins = $pdo->prepare("
+                        INSERT INTO student_profiles (
+                            user_id, student_id_code, mobile, education, experience_years,
+                            skills, career_interests, resume_url, portfolio_url, github_url,
+                            work_experience, account_status, admission_status, enrollment_status,
+                            payment_status, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 'enrolled', 'active', 'paid', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ");
+                    $ins->execute([
+                        $userId,
+                        $stuCode,
+                        $phone ?? '',
+                        $rp['education'] ?? '',
+                        $rp['experience_years'] ?? '',
+                        $rp['skills'] ?? '',
+                        $rp['career_interests'] ?? '',
+                        $rp['resume_url'] ?? '',
+                        $rp['portfolio_url'] ?? '',
+                        $rp['github_url'] ?? '',
+                        $rp['work_experience'] ?? ''
+                    ]);
+                }
+            } elseif ($userRole === 'faculty' && isset($data['role_profile']) && is_array($data['role_profile'])) {
+                $rp = $data['role_profile'];
+
+                // Consolidate links
+                $existingLinks = [];
+                $chk = $pdo->prepare("SELECT id, professional_links_json, availability_json FROM faculty_profiles WHERE user_id = ? LIMIT 1");
+                $chk->execute([$userId]);
+                $existing = $chk->fetch();
+
+                if ($existing && !empty($existing['professional_links_json'])) {
+                    $existingLinks = json_decode($existing['professional_links_json'], true) ?: [];
+                }
+                if (isset($rp['portfolio_url'])) $existingLinks['portfolio_url'] = trim((string)$rp['portfolio_url']);
+                if (isset($rp['website_url'])) $existingLinks['website_url'] = trim((string)$rp['website_url']);
+                if (isset($rp['linkedin_url'])) $existingLinks['linkedin_url'] = trim((string)$rp['linkedin_url']);
+                if (isset($rp['github_url'])) $existingLinks['github_url'] = trim((string)$rp['github_url']);
+                if (isset($rp['professional_links']) && is_array($rp['professional_links'])) {
+                    $existingLinks = array_merge($existingLinks, $rp['professional_links']);
+                }
+
+                $availData = isset($rp['availability']) && is_array($rp['availability'])
+                    ? json_encode($rp['availability'])
+                    : ($existing['availability_json'] ?? null);
+
+                if ($existing) {
+                    $fpStmt = $pdo->prepare("
+                        UPDATE faculty_profiles
+                        SET bio = COALESCE(?, bio),
+                            qualifications = COALESCE(?, qualifications),
+                            expertise = COALESCE(?, expertise),
+                            experience_years = COALESCE(?, experience_years),
+                            professional_links_json = ?,
+                            availability_json = COALESCE(?, availability_json),
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE user_id = ?
+                    ");
+                    $fpStmt->execute([
+                        $rp['bio'] ?? null,
+                        $rp['qualifications'] ?? null,
+                        $rp['expertise'] ?? null,
+                        $rp['experience_years'] ?? null,
+                        json_encode($existingLinks),
+                        $availData,
+                        $userId
+                    ]);
+                } else {
+                    $facCode = 'FAC-' . str_pad($userId, 4, '0', STR_PAD_LEFT);
+                    $ins = $pdo->prepare("
+                        INSERT INTO faculty_profiles (
+                            user_id, faculty_id_code, mobile, expertise, bio, qualifications,
+                            experience_years, professional_links_json, availability_json, account_status, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ");
+                    $ins->execute([
+                        $userId,
+                        $facCode,
+                        $phone ?? '',
+                        $rp['expertise'] ?? '',
+                        $rp['bio'] ?? '',
+                        $rp['qualifications'] ?? '',
+                        $rp['experience_years'] ?? '',
+                        json_encode($existingLinks),
+                        $availData ?: json_encode(['preferred_days' => ['Monday', 'Wednesday'], 'max_hours_per_week' => 16])
+                    ]);
+                }
+            } elseif (isset($data['role_profile']) && is_array($data['role_profile'])) {
+                // Staff profile: allow updating job_title / department
+                $rp = $data['role_profile'];
+                if (!empty($rp['job_title'])) {
+                    $uStmt = $pdo->prepare("UPDATE users SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $uStmt->execute([trim((string)$rp['job_title']), $userId]);
+                }
+            }
+
+            // Audit log entry
+            try {
+                $audit = $pdo->prepare("
+                    INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json, created_at)
+                    VALUES (?, ?, ?, 'profile_updated', 'user', ?, ?, CURRENT_TIMESTAMP)
+                ");
+                $audit->execute([
+                    $userId,
+                    $actor['email'],
+                    $userRole,
+                    (string)$userId,
+                    json_encode(['updated_fields' => $userFields])
+                ]);
+            } catch (Exception $e) {}
+
+            $pdo->commit();
+            $inTxn = false;
+
+            return self::getProfile($actor);
+
+        } catch (Throwable $t) {
+            if ($inTxn && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $requestId = 'req_' . bin2hex(random_bytes(6));
+            error_log("[ProfileController][$requestId] Update failed: " . $t->getMessage() . "\n" . $t->getTraceAsString());
+
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'An unexpected server error occurred while updating profile settings. Please try again.',
+                'request_id' => $requestId
+            ];
+        }
     }
 
     /**

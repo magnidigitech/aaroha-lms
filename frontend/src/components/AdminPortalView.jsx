@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Menu, X, Shield, Plus, Edit3, Award, Users, CheckCircle2,
   Calendar, Layers, Clock, AlertTriangle, RefreshCw, Mail, ShieldAlert,
-  Bell, Search, ChevronDown, LogOut, ExternalLink, User, ArrowRight
+  Bell, Search, ChevronDown, LogOut, ExternalLink, User, ArrowRight,
+  ArrowLeft, Globe
 } from 'lucide-react';
+import aarohaLogo from '../assets/aaroha_logo.webp';
 
 import AdminSidebar, { ADMIN_MODULES } from './admin/AdminSidebar';
 import AdminDashboardTab from './admin/AdminDashboardTab';
@@ -759,6 +761,7 @@ export default function AdminPortalView({
         onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onViewWebsite={onViewWebsite}
       />
 
       {/* Main Content Area (Remaining Width, Single Scroll) */}
@@ -776,6 +779,20 @@ export default function AdminPortalView({
               <Menu size={20} />
             </button>
 
+            {/* Mobile Clickable Aaroha Logo */}
+            <div
+              onClick={onViewWebsite}
+              className="md:hidden flex items-center cursor-pointer select-none group mr-1"
+              title="Return to Public Homepage"
+              role="button"
+            >
+              <img
+                src={aarohaLogo}
+                alt="Aaroha LMS"
+                className="h-6 w-auto object-contain"
+              />
+            </div>
+
             {/* Breadcrumb Navigation */}
             <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
               <span className="font-medium text-slate-500">{breadcrumb.group}</span>
@@ -785,6 +802,17 @@ export default function AdminPortalView({
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Clearly Visible Back to Website Header Link */}
+            <button
+              type="button"
+              onClick={onViewWebsite}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0a7cb3] border border-slate-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Return to public homepage"
+              aria-label="Back to Website"
+            >
+              <ArrowLeft size={14} className="text-[#0a7cb3]" />
+              <span className="hidden sm:inline">Back to Website</span>
+            </button>
             {/* Role-Scoped Workspace Search */}
             <div className="relative hidden sm:block w-48 md:w-64">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -954,8 +982,8 @@ export default function AdminPortalView({
                         }}
                         className="w-full text-left px-4 py-2 text-slate-700 hover:bg-slate-50 hover:text-[#0a7cb3] flex items-center gap-2 cursor-pointer transition-colors"
                       >
-                        <ExternalLink size={14} className="text-slate-400" />
-                        <span>View Website</span>
+                        <Globe size={14} className="text-[#0a7cb3]" />
+                        <span>Back to Website</span>
                       </button>
                     )}
 

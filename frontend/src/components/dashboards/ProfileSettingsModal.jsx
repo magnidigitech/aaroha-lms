@@ -3,10 +3,21 @@ import {
   X, Check, Mail, Shield, GraduationCap, Sparkles, 
   Camera, CheckCircle2, AlertCircle, Edit3, Save, 
   Upload, Image as ImageIcon, Trash2, Key, Bell, User,
-  Globe, Clock, Layers, Briefcase, ExternalLink, LogOut, Lock
+  Globe, Clock, Layers, Briefcase, ExternalLink, LogOut, Lock,
+  RefreshCw, BookOpen, Users
 } from 'lucide-react';
 import { AVATAR_PRESETS, DEFAULT_AVATAR } from '../../avatarPresets';
 import { api } from '../../apiService';
+import { formatDate } from '../../adminUtils';
+
+function safeFormatDate(isoString) {
+  if (!isoString) return '—';
+  try {
+    return formatDate(isoString);
+  } catch (e) {
+    return String(isoString).split('T')[0] || '—';
+  }
+}
 
 const TIMEZONES = [
   { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST - UTC+5:30)' },
@@ -74,42 +85,57 @@ export default function ProfileSettingsModal({
   // Role Profile Details
   const [roleProfile, setRoleProfile] = useState({});
   const [accountInfo, setAccountInfo] = useState({});
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const fileInputRef = useRef(null);
 
-  // Load complete profile from backend
+  // Load complete profile from backend with retry capability
+  const loadProfileData = async () => {
+    setIsLoadingProfile(true);
+    setLoadError('');
+    setErrorMsg('');
+
+    try {
+      const res = await api.getUserProfile();
+      if (res?.success && res.profile) {
+        const p = res.profile;
+        setFullName(p.full_name || '');
+        setDisplayName(p.display_name || p.full_name || '');
+        setTitle(p.title || '');
+        setPhone(p.phone || '');
+        setTimezone(p.timezone || 'Asia/Kolkata');
+        setLanguage(p.preferred_language || 'en');
+        setSelectedAvatar(p.avatar || DEFAULT_AVATAR);
+        setNotifPrefs(p.notification_preferences || {});
+        setAccountInfo(p.account_info || {});
+        setRoleProfile(p.role_profile || {});
+        if (p.security?.active_sessions) {
+          setSessions(p.security.active_sessions);
+        }
+      } else {
+        throw new Error(res?.error || 'Unable to retrieve institutional profile.');
+      }
+    } catch (err) {
+      setLoadError(err.message || 'Failed to load profile record from server.');
+      // Fallback to currentUser object so user is not blocked
+      if (currentUser) {
+        setFullName(currentUser.full_name || '');
+        setDisplayName(currentUser.display_name || currentUser.full_name || '');
+        setTitle(currentUser.title || '');
+        setSelectedAvatar(currentUser.avatar || DEFAULT_AVATAR);
+      }
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && currentUser) {
       setErrorMsg('');
       setSaveSuccessMsg('');
       setPasswordSuccessMsg('');
-      
-      api.getUserProfile()
-        .then(res => {
-          if (res?.success && res.profile) {
-            const p = res.profile;
-            setFullName(p.full_name || '');
-            setDisplayName(p.display_name || p.full_name || '');
-            setTitle(p.title || '');
-            setPhone(p.phone || '');
-            setTimezone(p.timezone || 'Asia/Kolkata');
-            setLanguage(p.preferred_language || 'en');
-            setSelectedAvatar(p.avatar || DEFAULT_AVATAR);
-            setNotifPrefs(p.notification_preferences || {});
-            setAccountInfo(p.account_info || {});
-            setRoleProfile(p.role_profile || {});
-            if (p.security?.active_sessions) {
-              setSessions(p.security.active_sessions);
-            }
-          }
-        })
-        .catch(() => {
-          // Fallback to currentUser object
-          setFullName(currentUser.full_name || '');
-          setDisplayName(currentUser.display_name || currentUser.full_name || '');
-          setTitle(currentUser.title || '');
-          setSelectedAvatar(currentUser.avatar || DEFAULT_AVATAR);
-        });
+      loadProfileData();
     }
   }, [isOpen, currentUser]);
 
@@ -120,9 +146,42 @@ export default function ProfileSettingsModal({
   // Save personal details and preferences
   const handleSaveProfile = async (e) => {
     e && e.preventDefault();
-    setIsSaving(true);
     setErrorMsg('');
     setSaveSuccessMsg('');
+
+    // Field-level input validation
+    if (!fullName.trim()) {
+      setErrorMsg('Full name cannot be blank. Please enter your valid institutional name.');
+      return;
+    }
+
+    if (phone.trim() && phone.trim().length > 30) {
+      setErrorMsg('Mobile phone number cannot exceed 30 characters.');
+      return;
+    }
+
+    // URL validation for role_profile
+    if (roleProfile && typeof roleProfile === 'object') {
+      const linkChecks = [
+        { key: 'resume_url', label: 'Resume URL' },
+        { key: 'portfolio_url', label: 'Portfolio URL' },
+        { key: 'github_url', label: 'GitHub URL' },
+        { key: 'website_url', label: 'Website URL' },
+        { key: 'linkedin_url', label: 'LinkedIn URL' }
+      ];
+      for (const item of linkChecks) {
+        const val = roleProfile[item.key];
+        if (val && typeof val === 'string' && val.trim()) {
+          const trimmed = val.trim();
+          if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+            setErrorMsg(`Invalid URL for ${item.label}. Web links must begin with http:// or https://`);
+            return;
+          }
+        }
+      }
+    }
+
+    setIsSaving(true);
 
     try {
       const payload = {
@@ -147,10 +206,13 @@ export default function ProfileSettingsModal({
           display_name: displayName.trim(),
           title: title.trim(),
           avatar: selectedAvatar,
-          timezone: timezone
+          timezone: timezone,
+          _alreadySaved: true
         };
         localStorage.setItem('aaroha_user', JSON.stringify(updatedUser));
         if (onSaveSuccess) onSaveSuccess(updatedUser);
+      } else {
+        throw new Error(res?.error || 'Failed to update profile settings.');
       }
     } catch (err) {
       setErrorMsg(err.message || 'Failed to update profile settings.');
@@ -638,175 +700,349 @@ export default function ProfileSettingsModal({
           {/* TAB 4: ROLE-SPECIFIC PROFESSIONAL / STUDENT INFORMATION & READ-ONLY IDS */}
           {activeTab === 'role_specific' && (
             <div className="space-y-6">
-              {/* Read-Only Institutional Identity Record */}
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
-                <div className="text-xs font-black uppercase tracking-wider text-slate-400">Institutional Identity Record (Read-Only)</div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              {isLoadingProfile ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-500">
+                  <Sparkles className="animate-spin text-[#0A7CB3]" size={28} />
+                  <div className="text-xs font-semibold">Loading institutional profile records...</div>
+                </div>
+              ) : loadError ? (
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between">
                   <div>
-                    <span className="text-slate-400 block">Identifier Code:</span>
-                    <strong className="text-slate-900 font-mono text-sm">{accountInfo.identifier || currentUser?.id ? `USR-${String(currentUser?.id).padStart(4, '0')}` : 'N/A'}</strong>
+                    <div className="font-bold">Unable to load institutional profile</div>
+                    <div className="text-[11px] text-amber-700">{loadError}</div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block">Account Status:</span>
-                    <strong className="text-emerald-700 font-bold">{accountInfo.account_status || 'Active'}</strong>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Assigned Institutional Role:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-[#0a7cb3] border border-blue-200">
-                        {userRole}
-                      </span>
+                  <button
+                    type="button"
+                    onClick={loadProfileData}
+                    className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Read-Only Institutional Identity Record */}
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+                    <div className="text-xs font-black uppercase tracking-wider text-slate-400">Institutional Identity Record (Read-Only)</div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <span className="text-slate-400 block">Identifier Code:</span>
+                        <strong className="text-slate-900 font-mono text-sm">{accountInfo.identifier || (currentUser?.id ? `USR-${String(currentUser.id).padStart(4, '0')}` : 'N/A')}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Account Status:</span>
+                        <strong className="text-emerald-700 font-bold">{accountInfo.account_status || 'Active & Verified'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Assigned Institutional Role:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-[#0a7cb3] border border-blue-200">
+                            {userRole}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Member Since:</span>
+                        <strong className="text-slate-800">{safeFormatDate(accountInfo.created_at || currentUser?.created_at || new Date().toISOString())}</strong>
+                      </div>
+                    </div>
+
+                    {/* Read-Only Course and Batch Associations */}
+                    {accountInfo.associations && Array.isArray(accountInfo.associations) && accountInfo.associations.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-slate-200/60">
+                        <span className="text-slate-400 block text-[11px] font-bold uppercase tracking-wider">
+                          {userRole === 'student' ? 'Academic Enrolments & Cohort Batches (Read-Only)' : 'Assigned Teaching Cohorts & Courses (Read-Only)'}
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          {accountInfo.associations.map((item, idx) => (
+                            <div key={idx} className="p-2.5 rounded-xl bg-white border border-slate-200/80 flex items-center justify-between">
+                              <div className="truncate mr-2">
+                                <div className="font-bold text-slate-900 truncate">{item.course_title || item.title || 'Course'}</div>
+                                <div className="text-[11px] text-slate-500 truncate">{item.batch_code ? `${item.batch_code} (${item.batch_title || 'Cohort'})` : 'Enrolled Program'}</div>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                {item.enrollment_status || 'Active'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
+                      Roles, identifier codes, and enrolled program allocations are legally governed by the academic registry and cannot be self-modified.
                     </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block">Member Since:</span>
-                    <strong className="text-slate-800">{formatDate(accountInfo.created_at || new Date().toISOString())}</strong>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
-                  Roles, identifier codes, and enrolled program allocations are legally governed by the academic registry and cannot be self-modified.
-                </div>
-              </div>
-              
-              {/* STUDENT PROFILE */}
-              {userRole === 'student' && (
-                <div className="space-y-4">
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-400">Student Education & Portfolio</div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Education & University</label>
-                      <input
-                        type="text"
-                        value={roleProfile.education || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, education: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="e.g. B.Tech Computer Science, NIT Karnataka"
-                      />
+                  {/* STUDENT PROFILE */}
+                  {userRole === 'student' && (
+                    <div className="space-y-4">
+                      <div className="text-xs font-black uppercase tracking-wider text-slate-400">Student Education & Portfolio</div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-700">Education & University</label>
+                          <input
+                            type="text"
+                            value={roleProfile.education || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, education: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="e.g. B.Tech Computer Science, NIT Karnataka"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-700">Experience Years</label>
+                          <input
+                            type="text"
+                            value={roleProfile.experience_years || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, experience_years: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="e.g. 2 Years"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-700">Core Technical Skills</label>
+                          <input
+                            type="text"
+                            value={roleProfile.skills || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, skills: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="e.g. Distributed Systems, Go, Kubernetes, AWS, Raft"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-700">Career Interests & Target Roles</label>
+                          <input
+                            type="text"
+                            value={roleProfile.career_interests || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, career_interests: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="e.g. Cloud Infrastructure Engineer, Site Reliability Engineer"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-700">Resume Document URL</label>
+                          <input
+                            type="url"
+                            value={roleProfile.resume_url || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, resume_url: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="https://drive.google.com/... or https://yourdomain.com/resume.pdf"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-700">GitHub Profile URL</label>
+                          <input
+                            type="url"
+                            value={roleProfile.github_url || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, github_url: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="https://github.com/username"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-700">Portfolio Website URL</label>
+                          <input
+                            type="url"
+                            value={roleProfile.portfolio_url || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, portfolio_url: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="https://yourname.dev"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-700">Work Experience & Projects Summary</label>
+                          <textarea
+                            rows={3}
+                            value={roleProfile.work_experience || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, work_experience: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="Brief summary of professional experience or internships..."
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Experience Years</label>
-                      <input
-                        type="text"
-                        value={roleProfile.experience_years || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, experience_years: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="e.g. 2 Years"
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700">Core Technical Skills</label>
-                      <input
-                        type="text"
-                        value={roleProfile.skills || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, skills: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="e.g. Distributed Systems, Go, Kubernetes, AWS, Raft"
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700">Career Interests & Target Roles</label>
-                      <input
-                        type="text"
-                        value={roleProfile.career_interests || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, career_interests: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="e.g. Cloud Infrastructure Engineer, Site Reliability Engineer"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">GitHub Profile URL</label>
-                      <input
-                        type="url"
-                        value={roleProfile.github_url || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, github_url: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="https://github.com/username"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Portfolio Website URL</label>
-                      <input
-                        type="url"
-                        value={roleProfile.portfolio_url || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, portfolio_url: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="https://yourname.dev"
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-700">Work Experience & Projects Summary</label>
-                      <textarea
-                        rows={3}
-                        value={roleProfile.work_experience || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, work_experience: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="Brief summary of professional experience or internships..."
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* FACULTY PROFILE */}
-              {userRole === 'faculty' && (
-                <div className="space-y-4">
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-400">Faculty Credentials & Availability</div>
-                  
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Academic & Professional Bio</label>
-                      <textarea
-                        rows={3}
-                        value={roleProfile.bio || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, bio: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="Faculty biography and instructional philosophy..."
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Qualifications & Degrees</label>
-                      <input
-                        type="text"
-                        value={roleProfile.qualifications || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, qualifications: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="e.g. Ph.D. in Computer Systems, M.S. in Distributed Networks"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Areas of Expertise</label>
-                      <input
-                        type="text"
-                        value={roleProfile.expertise || ''}
-                        onChange={(e) => setRoleProfile(prev => ({ ...prev, expertise: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none"
-                        placeholder="e.g. Distributed Consensus, Linux Kernel Networking, Go"
-                      />
-                    </div>
-                  </div>
+                  {/* FACULTY PROFILE */}
+                  {userRole === 'faculty' && (
+                    <div className="space-y-4">
+                      <div className="text-xs font-black uppercase tracking-wider text-slate-400">Faculty Credentials, Links & Availability</div>
+                      
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-700">Academic & Professional Bio</label>
+                          <textarea
+                            rows={3}
+                            value={roleProfile.bio || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, bio: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="Faculty biography and instructional philosophy..."
+                          />
+                        </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-600">
-                    <strong>Scheduling Preference:</strong> Stated availability is treated as an operational preference. Existing assigned teaching sessions remain active until rescheduled through the authorized scheduling workflow.
-                  </div>
-                </div>
-              )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700">Qualifications & Degrees</label>
+                            <input
+                              type="text"
+                              value={roleProfile.qualifications || ''}
+                              onChange={(e) => setRoleProfile(prev => ({ ...prev, qualifications: e.target.value }))}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                              placeholder="e.g. Ph.D. in Computer Systems, M.S. in Distributed Networks"
+                            />
+                          </div>
 
-              {/* STAFF PROFILES */}
-              {['super_admin', 'admin', 'coordinator', 'placement_officer'].includes(userRole) && (
-                <div className="space-y-3">
-                  <div className="text-xs font-black uppercase tracking-wider text-slate-400">Staff Operational Assignment</div>
-                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-2 text-xs">
-                    <div><strong>Department:</strong> {roleProfile.department || 'Operations Management'}</div>
-                    <div><strong>Job Title:</strong> {roleProfile.job_title || 'Operations Officer'}</div>
-                    <div><strong>Assigned Role:</strong> <span className="uppercase font-bold text-[#0A7CB3]">{userRole}</span></div>
-                    <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200">
-                      Privileges are assigned based on institutional security governance.
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700">Years of Experience</label>
+                            <input
+                              type="text"
+                              value={roleProfile.experience_years || ''}
+                              onChange={(e) => setRoleProfile(prev => ({ ...prev, experience_years: e.target.value }))}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                              placeholder="e.g. 10+ Years in Systems Research & Industry"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-700">Areas of Expertise</label>
+                          <input
+                            type="text"
+                            value={roleProfile.expertise || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, expertise: e.target.value }))}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="e.g. Distributed Consensus, Linux Kernel Networking, Go, High-Throughput Pipelines"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700">Portfolio / Website URL</label>
+                            <input
+                              type="url"
+                              value={roleProfile.website_url || roleProfile.portfolio_url || ''}
+                              onChange={(e) => setRoleProfile(prev => ({ ...prev, website_url: e.target.value, portfolio_url: e.target.value }))}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                              placeholder="https://facultypage.edu"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700">LinkedIn Profile URL</label>
+                            <input
+                              type="url"
+                              value={roleProfile.linkedin_url || ''}
+                              onChange={(e) => setRoleProfile(prev => ({ ...prev, linkedin_url: e.target.value }))}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                              placeholder="https://linkedin.com/in/username"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-700">GitHub / Scholar URL</label>
+                            <input
+                              type="url"
+                              value={roleProfile.github_url || ''}
+                              onChange={(e) => setRoleProfile(prev => ({ ...prev, github_url: e.target.value }))}
+                              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                              placeholder="https://github.com/username"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Availability Preferences */}
+                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+                          <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Availability & Scheduling Preferences</div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <label className="font-semibold text-slate-600 block">Preferred Teaching Days</label>
+                              <input
+                                type="text"
+                                value={Array.isArray(roleProfile.availability?.preferred_days) ? roleProfile.availability.preferred_days.join(', ') : (roleProfile.availability?.preferred_days || '')}
+                                onChange={(e) => {
+                                  const val = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                                  setRoleProfile(prev => ({
+                                    ...prev,
+                                    availability: { ...(prev.availability || {}), preferred_days: val }
+                                  }));
+                                }}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                                placeholder="Monday, Wednesday, Friday"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="font-semibold text-slate-600 block">Max Weekly Instructional Hours</label>
+                              <input
+                                type="number"
+                                value={roleProfile.availability?.max_hours_per_week || ''}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value) || 0;
+                                  setRoleProfile(prev => ({
+                                    ...prev,
+                                    availability: { ...(prev.availability || {}), max_hours_per_week: val }
+                                  }));
+                                }}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                                placeholder="16"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-slate-500 italic">
+                            Availability preferences serve as operational guidelines for coordinator assignment. Existing assigned teaching sessions remain locked until rescheduled by Academic Operations.
+                          </div>
+                        </div>
+
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  )}
+
+                  {/* STAFF PROFILES */}
+                  {['super_admin', 'admin', 'coordinator', 'placement_officer', 'accounts'].includes(userRole) && (
+                    <div className="space-y-4">
+                      <div className="text-xs font-black uppercase tracking-wider text-slate-400">Staff Operational Assignment & Department</div>
+                      <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-3 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="font-bold text-slate-700">Assigned Department</label>
+                            <input
+                              type="text"
+                              value={roleProfile.department || accountInfo.department || 'Operations Management'}
+                              onChange={(e) => setRoleProfile(prev => ({ ...prev, department: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="font-bold text-slate-700">Institutional Job Title</label>
+                            <input
+                              type="text"
+                              value={roleProfile.job_title || title || 'Operations Officer'}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setTitle(val);
+                                setRoleProfile(prev => ({ ...prev, job_title: val }));
+                              }}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-bold text-slate-700">Professional Notes & Scope</label>
+                          <textarea
+                            rows={2}
+                            value={roleProfile.professional_details || ''}
+                            onChange={(e) => setRoleProfile(prev => ({ ...prev, professional_details: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]"
+                            placeholder="Operational purview, departmental duties, and governance scope..."
+                          />
+                        </div>
+                        <div><strong>Assigned Institutional Role:</strong> <span className="uppercase font-bold text-[#0A7CB3] ml-1">{userRole}</span></div>
+                        <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200">
+                          Administrative privileges and system authority are allocated based on institutional executive clearance.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
             </div>
@@ -814,7 +1050,7 @@ export default function ProfileSettingsModal({
 
         </div>
 
-        {/* Modal Footer with Save Actions */}
+        {/* Modal Footer with Clear Tab-Specific Save Actions */}
         <div className="p-4 sm:p-5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
           <button
             type="button"
@@ -825,15 +1061,25 @@ export default function ProfileSettingsModal({
           </button>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleSaveProfile}
-              disabled={isSaving}
-              className="px-5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {isSaving ? <Sparkles size={14} className="animate-spin" /> : <Save size={14} />}
-              <span>Save Changes</span>
-            </button>
+            {activeTab !== 'security' ? (
+              <button
+                type="button"
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="px-5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isSaving ? <Sparkles size={14} className="animate-spin" /> : <Save size={14} />}
+                <span>
+                  {activeTab === 'personal' && 'Save Personal Details'}
+                  {activeTab === 'notifications' && 'Save Notification Preferences'}
+                  {activeTab === 'role_specific' && (userRole === 'student' ? 'Save Student Information' : 'Save Professional Information')}
+                </span>
+              </button>
+            ) : (
+              <div className="text-xs text-slate-500 font-medium italic">
+                Security credentials are saved via dedicated controls above.
+              </div>
+            )}
           </div>
         </div>
 
