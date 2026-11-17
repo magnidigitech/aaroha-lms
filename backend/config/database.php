@@ -181,6 +181,15 @@ class Database {
                                 if (!isset($userColSet['authorized_roles_json'])) {
                                     self::$pdo->exec("ALTER TABLE users ADD COLUMN authorized_roles_json LONGTEXT NULL");
                                 }
+                                if (!isset($userColSet['status'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN status VARCHAR(50) DEFAULT 'active'");
+                                }
+                                if (!isset($userColSet['is_archived'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+                                }
+                                if (!isset($userColSet['deleted_at'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN deleted_at DATETIME NULL");
+                                }
                             } catch (Exception $uErr) {}
 
                             // Non-destructive column migrations for student_profiles
@@ -210,6 +219,9 @@ class Database {
                                     if (!isset($stuColSet['experience_years'])) {
                                         self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN experience_years VARCHAR(50) NULL");
                                     }
+                                    if (!isset($stuColSet['account_status'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN account_status VARCHAR(50) DEFAULT 'active'");
+                                    }
                                 }
                             } catch (Exception $spErr) {}
 
@@ -233,6 +245,9 @@ class Database {
                                     }
                                     if (!isset($facColSet['availability_json'])) {
                                         self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN availability_json LONGTEXT NULL");
+                                    }
+                                    if (!isset($facColSet['account_status'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN account_status VARCHAR(50) DEFAULT 'active'");
                                     }
                                 }
                             } catch (Exception $fpErr) {}
