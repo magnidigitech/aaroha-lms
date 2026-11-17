@@ -480,12 +480,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     return self._send_json({"success": False, "error": "Account has been deactivated. Access revoked."}, 403)
 
                 u_id = user["id"]
-                u_row = cur.execute("""
-                    SELECT id, full_name, email, role, title, avatar, display_name, phone,
-                           timezone, preferred_language, notification_preferences_json,
-                           security_settings_json, authorized_roles_json, created_at
-                    FROM users WHERE id = ?
-                """, (u_id,)).fetchone()
+                u_row = cur.execute("SELECT * FROM users WHERE id = ?", (u_id,)).fetchone()
                 if not u_row:
                     return self._send_json({"success": False, "error": "User record not found."}, 404)
                 u = dict(u_row)
@@ -573,13 +568,22 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     fp = cur.execute("SELECT * FROM faculty_profiles WHERE user_id = ?", (u_id,)).fetchone()
                     fp_dict = dict(fp) if fp else {}
 
-                    assigned_batches = [dict(r) for r in cur.execute("""
-                        SELECT b.batch_code, b.title as batch_title, c.title as course_title, b.start_date
-                        FROM batches b
-                        JOIN courses c ON b.course_id = c.id
-                        LEFT JOIN faculty_batch_assignments fba ON b.id = fba.batch_id
-                        WHERE (b.lead_faculty_id = ? OR fba.faculty_id = ?) AND b.is_deleted = 0
-                    """, (u_id, u_id)).fetchall()]
+                    has_fba = bool(cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='faculty_batch_assignments'").fetchone())
+                    if has_fba:
+                        assigned_batches = [dict(r) for r in cur.execute("""
+                            SELECT b.batch_code, b.title as batch_title, c.title as course_title, b.start_date
+                            FROM batches b
+                            JOIN courses c ON b.course_id = c.id
+                            LEFT JOIN faculty_batch_assignments fba ON b.id = fba.batch_id
+                            WHERE (b.lead_faculty_id = ? OR fba.faculty_id = ?) AND b.is_deleted = 0
+                        """, (u_id, u_id)).fetchall()]
+                    else:
+                        assigned_batches = [dict(r) for r in cur.execute("""
+                            SELECT b.batch_code, b.title as batch_title, c.title as course_title, b.start_date
+                            FROM batches b
+                            JOIN courses c ON b.course_id = c.id
+                            WHERE b.lead_faculty_id = ? AND b.is_deleted = 0
+                        """, (u_id,)).fetchall()]
 
                     links = {}
                     try:
@@ -1568,6 +1572,10 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
             # Default 404
             return self._send_json({"success": False, "error": f"Endpoint {path} not found"}, 404)
+        except Exception as e:
+            req_id = "req_" + secrets.token_hex(6)
+            sys.stderr.write(f"[{req_id}] do_GET exception on {path}: {str(e)}\n")
+            return self._send_json({"success": False, "error": str(e), "request_id": req_id}, 500)
         finally:
             conn.close()
 
@@ -3044,7 +3052,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             return self._send_json({"success": True, "message": "Action accepted"})
         except Exception as e:
             conn.rollback()
-            return self._send_json({"success": False, "error": str(e)}, 500)
+            req_id = "req_" + secrets.token_hex(6)
+            sys.stderr.write(f"[{req_id}] do_POST exception on {path}: {str(e)}\n")
+            return self._send_json({"success": False, "error": str(e), "request_id": req_id}, 500)
         finally:
             conn.close()
 
@@ -3380,7 +3390,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             return self._send_json({"success": True, "message": "Update processed"})
         except Exception as e:
             conn.rollback()
-            return self._send_json({"success": False, "error": str(e)}, 500)
+            req_id = "req_" + secrets.token_hex(6)
+            sys.stderr.write(f"[{req_id}] do_POST exception on {path}: {str(e)}\n")
+            return self._send_json({"success": False, "error": str(e), "request_id": req_id}, 500)
         finally:
             conn.close()
 
@@ -3560,7 +3572,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             return self._send_json({"success": True, "message": "Delete processed"})
         except Exception as e:
             conn.rollback()
-            return self._send_json({"success": False, "error": str(e)}, 500)
+            req_id = "req_" + secrets.token_hex(6)
+            sys.stderr.write(f"[{req_id}] do_POST exception on {path}: {str(e)}\n")
+            return self._send_json({"success": False, "error": str(e), "request_id": req_id}, 500)
         finally:
             conn.close()
 

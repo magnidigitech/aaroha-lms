@@ -156,6 +156,100 @@ class Database {
                             @self::$pdo->exec("ALTER TABLE courses MODIFY COLUMN thumbnail_url LONGTEXT NULL");
                             @self::$pdo->exec("ALTER TABLE courses MODIFY COLUMN instructor_avatar LONGTEXT NULL");
 
+                            // Non-destructive column migrations for users (Profile & Preferences)
+                            try {
+                                $userCols = self::$pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
+                                $userColSet = array_flip($userCols);
+                                if (!isset($userColSet['display_name'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN display_name VARCHAR(120) NULL");
+                                }
+                                if (!isset($userColSet['phone'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN phone VARCHAR(50) NULL");
+                                }
+                                if (!isset($userColSet['timezone'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN timezone VARCHAR(100) DEFAULT 'Asia/Kolkata'");
+                                }
+                                if (!isset($userColSet['preferred_language'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(20) DEFAULT 'en'");
+                                }
+                                if (!isset($userColSet['notification_preferences_json'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN notification_preferences_json LONGTEXT NULL");
+                                }
+                                if (!isset($userColSet['security_settings_json'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN security_settings_json LONGTEXT NULL");
+                                }
+                                if (!isset($userColSet['authorized_roles_json'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN authorized_roles_json LONGTEXT NULL");
+                                }
+                            } catch (Exception $uErr) {}
+
+                            // Non-destructive column migrations for student_profiles
+                            try {
+                                $spCheck = self::$pdo->query("SHOW TABLES LIKE 'student_profiles'")->fetch();
+                                if ($spCheck) {
+                                    $stuCols = self::$pdo->query("SHOW COLUMNS FROM student_profiles")->fetchAll(PDO::FETCH_COLUMN);
+                                    $stuColSet = array_flip($stuCols);
+                                    if (!isset($stuColSet['skills'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN skills TEXT NULL");
+                                    }
+                                    if (!isset($stuColSet['career_interests'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN career_interests TEXT NULL");
+                                    }
+                                    if (!isset($stuColSet['resume_url'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN resume_url VARCHAR(500) NULL");
+                                    }
+                                    if (!isset($stuColSet['portfolio_url'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN portfolio_url VARCHAR(500) NULL");
+                                    }
+                                    if (!isset($stuColSet['github_url'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN github_url VARCHAR(500) NULL");
+                                    }
+                                    if (!isset($stuColSet['work_experience'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN work_experience TEXT NULL");
+                                    }
+                                    if (!isset($stuColSet['experience_years'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN experience_years VARCHAR(50) NULL");
+                                    }
+                                }
+                            } catch (Exception $spErr) {}
+
+                            // Non-destructive column migrations for faculty_profiles
+                            try {
+                                $fpCheck = self::$pdo->query("SHOW TABLES LIKE 'faculty_profiles'")->fetch();
+                                if ($fpCheck) {
+                                    $facCols = self::$pdo->query("SHOW COLUMNS FROM faculty_profiles")->fetchAll(PDO::FETCH_COLUMN);
+                                    $facColSet = array_flip($facCols);
+                                    if (!isset($facColSet['bio'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN bio TEXT NULL");
+                                    }
+                                    if (!isset($facColSet['qualifications'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN qualifications TEXT NULL");
+                                    }
+                                    if (!isset($facColSet['experience_years'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN experience_years VARCHAR(50) NULL");
+                                    }
+                                    if (!isset($facColSet['professional_links_json'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN professional_links_json LONGTEXT NULL");
+                                    }
+                                    if (!isset($facColSet['availability_json'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN availability_json LONGTEXT NULL");
+                                    }
+                                }
+                            } catch (Exception $fpErr) {}
+
+                            // Ensure faculty_batch_assignments table exists
+                            try {
+                                self::$pdo->exec("CREATE TABLE IF NOT EXISTS faculty_batch_assignments (
+                                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                                    faculty_id INT UNSIGNED NOT NULL,
+                                    batch_id INT UNSIGNED NOT NULL,
+                                    role VARCHAR(50) NOT NULL DEFAULT 'co_faculty',
+                                    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                    INDEX idx_fba_fac (faculty_id),
+                                    INDEX idx_fba_batch (batch_id)
+                                )");
+                            } catch (Exception $fbaErr) {}
+
                             // Create degrees table
                             self::$pdo->exec("CREATE TABLE IF NOT EXISTS degrees (
                                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

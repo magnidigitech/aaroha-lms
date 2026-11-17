@@ -16,192 +16,224 @@ class ProfileController {
      * Get Complete Profile and Settings for the Authenticated User
      */
     public static function getProfile($actor) {
-        $pdo = Database::getConnection();
-        $userId = (int)$actor['id'];
+        $requestId = 'req_' . bin2hex(random_bytes(6));
+        try {
+            $pdo = Database::getConnection();
+            $userId = (int)$actor['id'];
 
-        $userStmt = $pdo->prepare("
-            SELECT id, full_name, email, role, title, avatar, display_name, phone,
-                   timezone, preferred_language, notification_preferences_json,
-                   security_settings_json, authorized_roles_json, created_at
-            FROM users
-            WHERE id = ? LIMIT 1
-        ");
-        $userStmt->execute([$userId]);
-        $user = $userStmt->fetch();
+            $userStmt = $pdo->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+            $userStmt->execute([$userId]);
+            $user = $userStmt->fetch();
 
-        if (!$user) {
-            http_response_code(404);
-            return ['success' => false, 'error' => 'User account not found'];
-        }
+            if (!$user) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'User account not found',
+                    'request_id' => $requestId
+                ];
+            }
 
-        $userRole = strtolower($user['role']);
-        $rawRoles = json_decode($user['authorized_roles_json'] ?? '[]', true) ?: [];
-        if (!in_array($userRole, $rawRoles)) {
-            $rawRoles[] = $userRole;
-        }
+            $userRole = strtolower($user['role'] ?? 'student');
+            $rawRoles = json_decode($user['authorized_roles_json'] ?? '[]', true) ?: [];
+            if (!in_array($userRole, $rawRoles)) {
+                $rawRoles[] = $userRole;
+            }
 
-        // Parse notification preferences with sensible defaults
-        $defaultNotifs = [
-            'in_app' => true,
-            'email' => true,
-            'class_reminders' => true,
-            'assignment_reminders' => true,
-            'published_results' => true,
-            'announcements' => true,
-            'fee_reminders' => in_array($userRole, ['student', 'accounts', 'super_admin']),
-            'placement_updates' => in_array($userRole, ['student', 'placement_officer', 'super_admin'])
-        ];
-        $savedNotifs = json_decode($user['notification_preferences_json'] ?? '{}', true) ?: [];
-        $notifs = array_merge($defaultNotifs, $savedNotifs);
+            // Parse notification preferences with sensible defaults
+            $defaultNotifs = [
+                'in_app' => true,
+                'email' => true,
+                'class_reminders' => true,
+                'assignment_reminders' => true,
+                'published_results' => true,
+                'announcements' => true,
+                'fee_reminders' => in_array($userRole, ['student', 'accounts', 'super_admin']),
+                'placement_updates' => in_array($userRole, ['student', 'placement_officer', 'super_admin'])
+            ];
+            $savedNotifs = json_decode($user['notification_preferences_json'] ?? '{}', true) ?: [];
+            $notifs = array_merge($defaultNotifs, $savedNotifs);
 
-        // Security state & active sessions (simulated realistic multi-session overview)
-        $securityState = [
-            'mfa_enabled' => false,
-            'has_password' => true,
-            'active_sessions' => [
-                [
-                    'session_id' => 'sess_cur_' . substr(md5($userId . '_cur'), 0, 8),
-                    'device' => 'Current Session (Chrome on Windows)',
-                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
-                    'last_active' => 'Active now',
-                    'is_current' => true
-                ],
-                [
-                    'session_id' => 'sess_mob_' . substr(md5($userId . '_mob'), 0, 8),
-                    'device' => 'Safari Mobile (iOS)',
-                    'ip_address' => '103.21.244.12',
-                    'last_active' => 'Yesterday, 04:32 PM',
-                    'is_current' => false
+            // Security state & active sessions
+            $securityState = [
+                'mfa_enabled' => false,
+                'has_password' => true,
+                'active_sessions' => [
+                    [
+                        'session_id' => 'sess_cur_' . substr(md5($userId . '_cur'), 0, 8),
+                        'device' => 'Current Session (Chrome on Windows)',
+                        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+                        'last_active' => 'Active now',
+                        'is_current' => true
+                    ]
                 ]
-            ]
-        ];
-
-        // Role-Specific Profile data
-        $roleProfile = null;
-        $accountInfo = [
-            'account_status' => 'Active & Verified',
-            'created_at' => $user['created_at'],
-            'assigned_roles' => $rawRoles,
-            'current_active_role' => $userRole
-        ];
-
-        if ($userRole === 'student') {
-            $spStmt = $pdo->prepare("
-                SELECT student_id_code, mobile, education, experience_years, admission_date,
-                       account_status, payment_status, skills, career_interests,
-                       resume_url, portfolio_url, github_url, work_experience
-                FROM student_profiles
-                WHERE user_id = ? LIMIT 1
-            ");
-            $spStmt->execute([$userId]);
-            $sp = $spStmt->fetch() ?: [];
-
-            // Read-only course & batch associations
-            $enrStmt = $pdo->prepare("
-                SELECT c.title as course_title, b.batch_code, b.title as batch_title, e.status as enrollment_status
-                FROM enrollments e
-                JOIN courses c ON e.course_id = c.id
-                LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
-                LEFT JOIN batches b ON be.batch_id = b.id
-                WHERE e.user_id = ?
-            ");
-            $enrStmt->execute([$userId]);
-            $associations = $enrStmt->fetchAll();
-
-            $accountInfo['identifier'] = $sp['student_id_code'] ?? ('STU-' . str_pad($userId, 4, '0', STR_PAD_LEFT));
-            $accountInfo['associations'] = $associations;
-
-            $roleProfile = [
-                'type' => 'student',
-                'education' => $sp['education'] ?? '',
-                'experience_years' => $sp['experience_years'] ?? '',
-                'skills' => $sp['skills'] ?? '',
-                'career_interests' => $sp['career_interests'] ?? '',
-                'resume_url' => $sp['resume_url'] ?? '',
-                'portfolio_url' => $sp['portfolio_url'] ?? '',
-                'github_url' => $sp['github_url'] ?? '',
-                'work_experience' => $sp['work_experience'] ?? '',
-                'read_only_notice' => 'Enrolments, attendance records, and assessment marks are strictly governed by institutional records.'
             ];
-        } elseif ($userRole === 'faculty') {
-            $fpStmt = $pdo->prepare("
-                SELECT faculty_id_code, mobile, expertise, bio, qualifications,
-                       professional_links_json, availability_json, account_status
-                FROM faculty_profiles
-                WHERE user_id = ? LIMIT 1
-            ");
-            $fpStmt->execute([$userId]);
-            $fp = $fpStmt->fetch() ?: [];
 
-            // Read-only assigned courses & batches
-            $batchStmt = $pdo->prepare("
-                SELECT b.batch_code, b.title as batch_title, c.title as course_title, b.start_date
-                FROM batches b
-                JOIN courses c ON b.course_id = c.id
-                LEFT JOIN faculty_batch_assignments fba ON b.id = fba.batch_id
-                WHERE (b.lead_faculty_id = ? OR fba.faculty_id = ?) AND b.is_deleted = 0
-            ");
-            $batchStmt->execute([$userId, $userId]);
-            $assignedBatches = $batchStmt->fetchAll();
-
-            $accountInfo['identifier'] = $fp['faculty_id_code'] ?? ('FAC-' . str_pad($userId, 4, '0', STR_PAD_LEFT));
-            $accountInfo['associations'] = $assignedBatches;
-
-            $links = json_decode($fp['professional_links_json'] ?? '{}', true) ?: [];
-            $roleProfile = [
-                'type' => 'faculty',
-                'bio' => $fp['bio'] ?? '',
-                'qualifications' => $fp['qualifications'] ?? '',
-                'expertise' => $fp['expertise'] ?? '',
-                'experience_years' => $fp['experience_years'] ?? '',
-                'portfolio_url' => $links['portfolio_url'] ?? ($links['website_url'] ?? ''),
-                'website_url' => $links['website_url'] ?? ($links['portfolio_url'] ?? ''),
-                'linkedin_url' => $links['linkedin_url'] ?? '',
-                'github_url' => $links['github_url'] ?? '',
-                'professional_links' => $links,
-                'availability' => json_decode($fp['availability_json'] ?? '{}', true) ?: [
-                    'preferred_days' => ['Monday', 'Wednesday', 'Friday'],
-                    'preferred_slots' => ['14:00-16:00', '18:00-20:00'],
-                    'max_hours_per_week' => 16,
-                    'notes' => ''
-                ],
-                'scheduling_notice' => 'Availability preferences serve as scheduling requests. Existing assigned teaching sessions remain locked until rescheduled by Academic Operations.'
+            // Role-Specific Profile data
+            $roleProfile = null;
+            $accountInfo = [
+                'account_status' => 'Active & Verified',
+                'created_at' => $user['created_at'] ?? date('Y-m-d H:i:s'),
+                'assigned_roles' => $rawRoles,
+                'current_active_role' => $userRole
             ];
-        } else {
-            // Staff profiles (super_admin, admin, coordinator, accounts, placement_officer)
-            $accountInfo['identifier'] = strtoupper(substr($userRole, 0, 3)) . '-' . str_pad($userId, 4, '0', STR_PAD_LEFT);
-            $accountInfo['department'] = $user['title'] ?: 'Operational Management';
 
-            $roleProfile = [
-                'type' => 'staff',
-                'department' => $user['title'] ?: 'Operational Administration',
-                'job_title' => $user['title'] ?: 'Operations Officer',
-                'assigned_role' => $userRole,
-                'professional_details' => $user['display_name'] ? ('Institutional account of ' . $user['full_name']) : '',
-                'permissions_notice' => 'Role and privilege modifications must be authorised through executive user management.'
+            if ($userRole === 'student') {
+                $sp = [];
+                try {
+                    $spStmt = $pdo->prepare("SELECT * FROM student_profiles WHERE user_id = ? LIMIT 1");
+                    $spStmt->execute([$userId]);
+                    $sp = $spStmt->fetch() ?: [];
+                } catch (Throwable $e) {
+                    $sp = [];
+                }
+
+                // Read-only course & batch associations
+                $associations = [];
+                try {
+                    $enrStmt = $pdo->prepare("
+                        SELECT c.title as course_title, b.batch_code, b.title as batch_title, e.status as enrollment_status
+                        FROM enrollments e
+                        JOIN courses c ON e.course_id = c.id
+                        LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                        LEFT JOIN batches b ON be.batch_id = b.id
+                        WHERE e.user_id = ?
+                    ");
+                    $enrStmt->execute([$userId]);
+                    $associations = $enrStmt->fetchAll() ?: [];
+                } catch (Throwable $e) {
+                    $associations = [];
+                }
+
+                $accountInfo['identifier'] = !empty($sp['student_id_code']) ? $sp['student_id_code'] : ('STU-' . str_pad($userId, 4, '0', STR_PAD_LEFT));
+                $accountInfo['associations'] = $associations;
+
+                $roleProfile = [
+                    'type' => 'student',
+                    'education' => $sp['education'] ?? '',
+                    'experience_years' => $sp['experience_years'] ?? '',
+                    'skills' => $sp['skills'] ?? '',
+                    'career_interests' => $sp['career_interests'] ?? '',
+                    'resume_url' => $sp['resume_url'] ?? '',
+                    'portfolio_url' => $sp['portfolio_url'] ?? '',
+                    'github_url' => $sp['github_url'] ?? '',
+                    'work_experience' => $sp['work_experience'] ?? '',
+                    'read_only_notice' => 'Enrolments, attendance records, and assessment marks are strictly governed by institutional records.'
+                ];
+            } elseif (in_array($userRole, ['faculty', 'instructor'])) {
+                $fp = [];
+                try {
+                    $fpStmt = $pdo->prepare("SELECT * FROM faculty_profiles WHERE user_id = ? LIMIT 1");
+                    $fpStmt->execute([$userId]);
+                    $fp = $fpStmt->fetch() ?: [];
+                } catch (Throwable $e) {
+                    $fp = [];
+                }
+
+                // Read-only assigned courses & batches
+                $assignedBatches = [];
+                try {
+                    $hasFba = false;
+                    try {
+                        $chk = $pdo->query("SELECT 1 FROM faculty_batch_assignments LIMIT 1");
+                        $hasFba = true;
+                    } catch (Throwable $e) {
+                        $hasFba = false;
+                    }
+
+                    if ($hasFba) {
+                        $batchStmt = $pdo->prepare("
+                            SELECT b.batch_code, b.title as batch_title, c.title as course_title, b.start_date
+                            FROM batches b
+                            JOIN courses c ON b.course_id = c.id
+                            LEFT JOIN faculty_batch_assignments fba ON b.id = fba.batch_id
+                            WHERE (b.lead_faculty_id = ? OR fba.faculty_id = ?) AND b.is_deleted = 0
+                        ");
+                        $batchStmt->execute([$userId, $userId]);
+                        $assignedBatches = $batchStmt->fetchAll() ?: [];
+                    } else {
+                        $batchStmt = $pdo->prepare("
+                            SELECT b.batch_code, b.title as batch_title, c.title as course_title, b.start_date
+                            FROM batches b
+                            JOIN courses c ON b.course_id = c.id
+                            WHERE b.lead_faculty_id = ? AND b.is_deleted = 0
+                        ");
+                        $batchStmt->execute([$userId]);
+                        $assignedBatches = $batchStmt->fetchAll() ?: [];
+                    }
+                } catch (Throwable $e) {
+                    $assignedBatches = [];
+                }
+
+                $accountInfo['identifier'] = !empty($fp['faculty_id_code']) ? $fp['faculty_id_code'] : ('FAC-' . str_pad($userId, 4, '0', STR_PAD_LEFT));
+                $accountInfo['associations'] = $assignedBatches;
+
+                $links = json_decode($fp['professional_links_json'] ?? '{}', true) ?: [];
+                $roleProfile = [
+                    'type' => 'faculty',
+                    'bio' => $fp['bio'] ?? '',
+                    'qualifications' => $fp['qualifications'] ?? '',
+                    'expertise' => $fp['expertise'] ?? '',
+                    'experience_years' => $fp['experience_years'] ?? '',
+                    'portfolio_url' => $links['portfolio_url'] ?? ($links['website_url'] ?? ''),
+                    'website_url' => $links['website_url'] ?? ($links['portfolio_url'] ?? ''),
+                    'linkedin_url' => $links['linkedin_url'] ?? '',
+                    'github_url' => $links['github_url'] ?? '',
+                    'professional_links' => $links,
+                    'availability' => json_decode($fp['availability_json'] ?? '{}', true) ?: [
+                        'preferred_days' => ['Monday', 'Wednesday', 'Friday'],
+                        'preferred_slots' => ['14:00-16:00', '18:00-20:00'],
+                        'max_hours_per_week' => 16,
+                        'notes' => ''
+                    ],
+                    'scheduling_notice' => 'Availability preferences serve as scheduling requests. Existing assigned teaching sessions remain locked until rescheduled by Academic Operations.'
+                ];
+            } else {
+                // Staff profiles (super_admin, admin, coordinator, accounts, placement_officer)
+                $accountInfo['identifier'] = strtoupper(substr($userRole, 0, 3)) . '-' . str_pad($userId, 4, '0', STR_PAD_LEFT);
+                $accountInfo['department'] = $user['title'] ?: 'Operational Management';
+
+                $roleProfile = [
+                    'type' => 'staff',
+                    'department' => $user['title'] ?: 'Operational Administration',
+                    'job_title' => $user['title'] ?: 'Operations Officer',
+                    'assigned_role' => $userRole,
+                    'professional_details' => !empty($user['display_name']) ? ('Institutional account of ' . $user['full_name']) : '',
+                    'permissions_notice' => 'Role and privilege modifications must be authorised through executive user management.'
+                ];
+            }
+
+            return [
+                'success' => true,
+                'request_id' => $requestId,
+                'profile' => [
+                    'id' => (int)$user['id'],
+                    'full_name' => $user['full_name'] ?? '',
+                    'display_name' => $user['display_name'] ?: ($user['full_name'] ?? ''),
+                    'email' => $user['email'] ?? '',
+                    'phone' => $user['phone'] ?: '',
+                    'role' => $userRole,
+                    'title' => $user['title'] ?: '',
+                    'avatar' => $user['avatar'] ?: '/avatars/3d/memo_13.png',
+                    'timezone' => $user['timezone'] ?: 'Asia/Kolkata',
+                    'preferred_language' => $user['preferred_language'] ?: 'en',
+                    'authorized_roles' => $rawRoles,
+                    'account_info' => $accountInfo,
+                    'notification_preferences' => $notifs,
+                    'security' => $securityState,
+                    'role_profile' => $roleProfile
+                ]
+            ];
+        } catch (Throwable $t) {
+            error_log("[ProfileController][$requestId] getProfile critical failure: " . $t->getMessage() . "\n" . $t->getTraceAsString());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'An unexpected server error occurred while retrieving institutional profile.',
+                'request_id' => $requestId,
+                'message' => $t->getMessage()
             ];
         }
-
-        return [
-            'success' => true,
-            'profile' => [
-                'id' => (int)$user['id'],
-                'full_name' => $user['full_name'],
-                'display_name' => $user['display_name'] ?: $user['full_name'],
-                'email' => $user['email'],
-                'phone' => $user['phone'] ?: '',
-                'role' => $userRole,
-                'title' => $user['title'] ?: '',
-                'avatar' => $user['avatar'] ?: '/avatars/3d/memo_13.png',
-                'timezone' => $user['timezone'] ?: 'Asia/Kolkata',
-                'preferred_language' => $user['preferred_language'] ?: 'en',
-                'authorized_roles' => $rawRoles,
-                'account_info' => $accountInfo,
-                'notification_preferences' => $notifs,
-                'security' => $securityState,
-                'role_profile' => $roleProfile
-            ]
-        ];
     }
 
     /**
@@ -383,7 +415,7 @@ class ProfileController {
                         $rp['work_experience'] ?? ''
                     ]);
                 }
-            } elseif ($userRole === 'faculty' && isset($data['role_profile']) && is_array($data['role_profile'])) {
+            } elseif (in_array($userRole, ['faculty', 'instructor']) && isset($data['role_profile']) && is_array($data['role_profile'])) {
                 $rp = $data['role_profile'];
 
                 // Consolidate links

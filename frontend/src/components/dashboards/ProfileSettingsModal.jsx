@@ -85,6 +85,7 @@ export default function ProfileSettingsModal({
   // Role Profile Details
   const [roleProfile, setRoleProfile] = useState({});
   const [accountInfo, setAccountInfo] = useState({});
+  const [formState, setFormState] = useState('loading'); // 'loading' | 'loaded' | 'saving' | 'error'
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [loadError, setLoadError] = useState('');
 
@@ -92,9 +93,11 @@ export default function ProfileSettingsModal({
 
   // Load complete profile from backend with retry capability
   const loadProfileData = async () => {
+    setFormState('loading');
     setIsLoadingProfile(true);
     setLoadError('');
     setErrorMsg('');
+    setSaveSuccessMsg('');
 
     try {
       const res = await api.getUserProfile();
@@ -113,18 +116,14 @@ export default function ProfileSettingsModal({
         if (p.security?.active_sessions) {
           setSessions(p.security.active_sessions);
         }
+        setFormState('loaded');
       } else {
         throw new Error(res?.error || 'Unable to retrieve institutional profile.');
       }
     } catch (err) {
-      setLoadError(err.message || 'Failed to load profile record from server.');
-      // Fallback to currentUser object so user is not blocked
-      if (currentUser) {
-        setFullName(currentUser.full_name || '');
-        setDisplayName(currentUser.display_name || currentUser.full_name || '');
-        setTitle(currentUser.title || '');
-        setSelectedAvatar(currentUser.avatar || DEFAULT_AVATAR);
-      }
+      setFormState('error');
+      setLoadError(err.message || 'HTTP 500: Server error loading institutional profile.');
+      // Form protection: do not populate empty fallback defaults that could overwrite data on save
     } finally {
       setIsLoadingProfile(false);
     }
@@ -148,6 +147,12 @@ export default function ProfileSettingsModal({
     e && e.preventDefault();
     setErrorMsg('');
     setSaveSuccessMsg('');
+
+    // Form protection: cannot save while loading or in error state
+    if (formState !== 'loaded') {
+      setErrorMsg('Cannot save profile while institutional records are not loaded.');
+      return;
+    }
 
     // Field-level input validation
     if (!fullName.trim()) {
@@ -174,7 +179,7 @@ export default function ProfileSettingsModal({
         if (val && typeof val === 'string' && val.trim()) {
           const trimmed = val.trim();
           if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-            setErrorMsg(`Invalid URL for ${item.label}. Web links must begin with http:// or https://`);
+            setErrorMsg('Invalid URL for ' + item.label + '. Web links must begin with http:// or https://');
             return;
           }
         }
@@ -182,6 +187,7 @@ export default function ProfileSettingsModal({
     }
 
     setIsSaving(true);
+    setFormState('saving');
 
     try {
       const payload = {
@@ -199,6 +205,7 @@ export default function ProfileSettingsModal({
       const res = await api.updateUserProfile(payload);
       if (res?.success) {
         setSaveSuccessMsg('Profile and preferences updated successfully.');
+        setFormState('loaded');
         // Update local storage user session
         const updatedUser = {
           ...currentUser,
@@ -215,6 +222,8 @@ export default function ProfileSettingsModal({
         throw new Error(res?.error || 'Failed to update profile settings.');
       }
     } catch (err) {
+      // Preserve user edits in form and stay in 'loaded' state so they can fix and retry
+      setFormState('loaded');
       setErrorMsg(err.message || 'Failed to update profile settings.');
     } finally {
       setIsSaving(false);
@@ -700,27 +709,33 @@ export default function ProfileSettingsModal({
           {/* TAB 4: ROLE-SPECIFIC PROFESSIONAL / STUDENT INFORMATION & READ-ONLY IDS */}
           {activeTab === 'role_specific' && (
             <div className="space-y-6">
-              {isLoadingProfile ? (
+              {formState === 'loading' ? (
                 <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-500">
                   <Sparkles className="animate-spin text-[#0A7CB3]" size={28} />
                   <div className="text-xs font-semibold">Loading institutional profile records...</div>
                 </div>
-              ) : loadError ? (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between">
-                  <div>
-                    <div className="font-bold">Unable to load institutional profile</div>
-                    <div className="text-[11px] text-amber-700">{loadError}</div>
+              ) : formState === 'error' ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between">
+                    <div>
+                      <div className="font-bold">Unable to load institutional profile</div>
+                      <div className="text-[11px] text-amber-700">{loadError}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={loadProfileData}
+                      className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors"
+                    >
+                      Retry
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={loadProfileData}
-                    className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors"
-                  >
-                    Retry
-                  </button>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                    Institutional profile records could not be retrieved from the server. Form controls and save actions are disabled to prevent accidental data loss. Please click <strong>Retry</strong> above or verify network/server status.
+                  </div>
                 </div>
               ) : (
                 <>
+
                   {/* Read-Only Institutional Identity Record */}
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
                     <div className="text-xs font-black uppercase tracking-wider text-slate-400">Institutional Identity Record (Read-Only)</div>
@@ -728,7 +743,7 @@ export default function ProfileSettingsModal({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div>
                         <span className="text-slate-400 block">Identifier Code:</span>
-                        <strong className="text-slate-900 font-mono text-sm">{accountInfo.identifier || (currentUser?.id ? `USR-${String(currentUser.id).padStart(4, '0')}` : 'N/A')}</strong>
+                        <strong className="text-slate-900 font-mono text-sm">{accountInfo.identifier || (currentUser?.id ? ('USR-' + String(currentUser.id).padStart(4, '0')) : 'N/A')}</strong>
                       </div>
                       <div>
                         <span className="text-slate-400 block">Account Status:</span>
@@ -759,7 +774,7 @@ export default function ProfileSettingsModal({
                             <div key={idx} className="p-2.5 rounded-xl bg-white border border-slate-200/80 flex items-center justify-between">
                               <div className="truncate mr-2">
                                 <div className="font-bold text-slate-900 truncate">{item.course_title || item.title || 'Course'}</div>
-                                <div className="text-[11px] text-slate-500 truncate">{item.batch_code ? `${item.batch_code} (${item.batch_title || 'Cohort'})` : 'Enrolled Program'}</div>
+                                <div className="text-[11px] text-slate-500 truncate">{item.batch_code ? (item.batch_code + ' (' + (item.batch_title || 'Cohort') + ')') : 'Enrolled Program'}</div>
                               </div>
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                                 {item.enrollment_status || 'Active'}
@@ -1065,8 +1080,9 @@ export default function ProfileSettingsModal({
               <button
                 type="button"
                 onClick={handleSaveProfile}
-                disabled={isSaving}
-                className="px-5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                disabled={isSaving || formState !== 'loaded'}
+                title={formState !== 'loaded' ? 'Profile records must be successfully loaded before saving changes' : ''}
+                className="px-5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? <Sparkles size={14} className="animate-spin" /> : <Save size={14} />}
                 <span>
