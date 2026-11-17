@@ -46,33 +46,28 @@ def main():
     discovered_roots = []
     for cand in candidate_paths:
         try:
-            ftp.cwd(initial_pwd)
+            ftp.cwd('/')
         except Exception:
             pass
         try:
             target_cand = '/' + cand.strip('/')
-            try:
-                ftp.cwd(target_cand)
-                discovered_roots.append(target_cand)
-                print(f'  [FOUND LMS ROOT] {target_cand}')
-            except Exception:
-                ftp.cwd(cand.strip('/'))
-                discovered_roots.append(cand.strip('/'))
-                print(f'  [FOUND LMS ROOT] {cand.strip("/")}')
+            ftp.cwd(target_cand)
+            discovered_roots.append(target_cand)
+            print(f'  [FOUND LMS ROOT] {target_cand}')
         except Exception:
             pass
 
     # If none found by candidate paths, check FTP landing directory
     if not discovered_roots:
         try:
-            nlst = ftp.nlst()
+            nlst = ftp.nlst('/')
             basenames = [x.rstrip('/').split('/')[-1] for x in nlst]
             if 'index.html' in basenames or 'assets' in basenames or 'api' in basenames:
-                discovered_roots.append(initial_pwd)
+                discovered_roots.append('/')
             elif 'public_html' in basenames:
-                discovered_roots.append(initial_pwd.rstrip('/') + '/public_html')
+                discovered_roots.append('/public_html')
         except Exception:
-            discovered_roots.append(initial_pwd)
+            discovered_roots.append('/')
 
     # Deduplicate discovered roots
     discovered_roots = list(dict.fromkeys(discovered_roots))
@@ -98,23 +93,27 @@ def main():
 
     def ensure_remote_directory(target_path):
         f = get_active_ftp()
-        try:
-            f.cwd(initial_pwd)
-        except Exception:
-            pass
-        clean = target_path
-        if initial_pwd and initial_pwd != '/' and clean.startswith(initial_pwd):
-            clean = clean[len(initial_pwd):]
-        parts = [p for p in clean.strip('/').split('/') if p]
-        for p in parts:
+        parts = [p for p in target_path.strip('/').split('/') if p]
+        if not parts:
             try:
-                f.cwd(p)
+                f.cwd('/')
+            except Exception:
+                pass
+            return
+        curr = ''
+        for p in parts:
+            curr += '/' + p
+            try:
+                f.cwd(curr)
             except Exception:
                 try:
-                    f.mkd(p)
+                    f.mkd(curr)
                 except Exception:
                     pass
-                f.cwd(p)
+                try:
+                    f.cwd(curr)
+                except Exception:
+                    pass
 
     def upload_file(remote_dir, item, local_full, remote_file_map, child_rel):
         file_size = os.path.getsize(local_full)
@@ -126,28 +125,33 @@ def main():
             return
 
         print(f'  -> Uploading {child_rel} ({file_size} bytes)...')
-        for retry in range(1, 4):
+        for retry in range(1, 5):
             try:
-                ensure_remote_directory(remote_dir)
                 f = get_active_ftp()
+                f.cwd(remote_dir)
                 with open(local_full, 'rb') as fp:
                     f.storbinary(f'STOR {item}', fp)
                 return
             except Exception as e:
-                print(f'     [RETRY {retry}/3] Error storing {child_rel}: {e}')
-                time.sleep(2)
+                print(f'     [RETRY {retry}/4] Error storing {child_rel}: {e}')
+                time.sleep(2 * retry)
                 try:
                     ftp_holder['conn'].close()
                 except Exception:
                     pass
                 ftp_holder['conn'] = connect_ftp(server, username, password, timeout=60)
-        raise RuntimeError(f'FATAL: Unable to upload {child_rel} after 3 attempts')
+        raise RuntimeError(f'FATAL: Unable to upload {child_rel} after 4 attempts')
 
     def sync_tree(local_base, target_root, remote_rel=''):
         remote_dir = target_root.rstrip('/') + ('/' + remote_rel if remote_rel else '')
         ensure_remote_directory(remote_dir)
 
         f = get_active_ftp()
+        try:
+            f.cwd(remote_dir)
+        except Exception:
+            pass
+
         remote_file_map = {}
         try:
             for name, facts in f.mlsd():
