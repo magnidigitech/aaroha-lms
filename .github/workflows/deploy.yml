@@ -83,3 +83,11 @@ jobs:
         run: |
           python .github/scripts/deploy.py
 
+      - name: Archive Deploy Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: deploy.log
+          if-no-files-found: ignore
+

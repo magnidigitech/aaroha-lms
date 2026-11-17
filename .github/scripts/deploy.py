@@ -3,17 +3,22 @@ import sys
 import time
 import ftplib
 
+log_lines = []
+def log(msg):
+    print(msg)
+    log_lines.append(str(msg))
+
 def connect_ftp(server, username, password, timeout=60):
     for attempt in range(1, 6):
         try:
-            print(f'Connecting to Hostinger FTP (attempt {attempt}/5): {server}...')
+            log(f'Connecting to Hostinger FTP (attempt {attempt}/5): {server}...')
             ftp = ftplib.FTP(server, timeout=timeout)
             ftp.login(username, password)
             ftp.set_pasv(True)
-            print('Logged in successfully.')
+            log('Logged in successfully.')
             return ftp
         except Exception as e:
-            print(f'FTP connection attempt {attempt} failed: {e}')
+            log(f'FTP connection attempt {attempt} failed: {e}')
             if attempt < 5:
                 time.sleep(3)
     raise RuntimeError('Could not establish connection to FTP server after 5 attempts.')
@@ -26,58 +31,79 @@ def main():
     local_dir = os.environ.get('LOCAL_DIR', './deploy_payload')
 
     if not server or not username or not password:
-        print('Error: Missing required FTP environment variables (FTP_SERVER, FTP_USERNAME, FTP_PASSWORD)')
+        log('Error: Missing required FTP environment variables')
         sys.exit(1)
 
     ftp = connect_ftp(server, username, password, timeout=60)
-
     initial_pwd = ftp.pwd()
-    print(f'Initial FTP working directory: {initial_pwd}')
+    log(f'Initial FTP working directory: {initial_pwd}')
+    log(f'FTP_SERVER_DIR environment variable: "{raw_dir}"')
+
+    # Explore filesystem from initial_pwd
+    log('--- Exploring Remote FTP Tree ---')
+    try:
+        root_listing = ftp.nlst()
+        log(f'Landing directory entries: {root_listing}')
+    except Exception as e:
+        log(f'Could not list landing directory: {e}')
+
+    try:
+        ftp.cwd('/')
+        sys_root_listing = ftp.nlst()
+        log(f'System / entries: {sys_root_listing}')
+    except Exception as e:
+        log(f'Could not list system /: {e}')
+
+    try:
+        ftp.cwd('/domains')
+        domains_listing = ftp.nlst()
+        log(f'/domains entries: {domains_listing}')
+    except Exception as e:
+        log(f'Could not list /domains: {e}')
 
     # Candidate LMS document roots on Hostinger
     candidate_paths = [
-        'domains/aaroha-inc.com/public_html/lms',
         'domains/lms.aaroha-inc.com/public_html',
+        'domains/aaroha-inc.com/public_html/lms',
+        'domains/aaroha-inc.com/public_html',
         'public_html/lms',
+        'public_html',
     ]
     if raw_dir and raw_dir not in candidate_paths:
-        candidate_paths.append(raw_dir)
+        candidate_paths.insert(0, raw_dir)
 
     discovered_roots = []
     for cand in candidate_paths:
+        cand_clean = cand.strip('/')
+        # Test relative from initial_pwd
         try:
             ftp.cwd(initial_pwd)
         except Exception:
             pass
         try:
-            target_cand = '/' + cand.strip('/')
+            ftp.cwd(cand_clean)
+            discovered_roots.append(cand_clean)
+            log(f'  [FOUND LMS ROOT - RELATIVE] {cand_clean}')
+            continue
+        except Exception:
+            pass
+
+        # Test absolute with leading slash
+        try:
+            target_cand = '/' + cand_clean
             ftp.cwd(target_cand)
             discovered_roots.append(target_cand)
-            print(f'  [FOUND LMS ROOT] {target_cand}')
+            log(f'  [FOUND LMS ROOT - ABSOLUTE] {target_cand}')
+            continue
         except Exception:
-            try:
-                ftp.cwd(cand.strip('/'))
-                discovered_roots.append(cand.strip('/'))
-                print(f'  [FOUND LMS ROOT] {cand.strip("/")}')
-            except Exception:
-                pass
+            pass
 
-    # If none found by candidate paths, check FTP landing directory
+    # If none found by candidate paths, fall back to initial_pwd
     if not discovered_roots:
-        try:
-            ftp.cwd(initial_pwd)
-            nlst = ftp.nlst()
-            basenames = [x.rstrip('/').split('/')[-1] for x in nlst]
-            if 'index.html' in basenames or 'assets' in basenames or 'api' in basenames:
-                discovered_roots.append(initial_pwd)
-            elif 'public_html' in basenames:
-                discovered_roots.append(initial_pwd.rstrip('/') + '/public_html')
-        except Exception:
-            discovered_roots.append(initial_pwd)
+        discovered_roots.append(initial_pwd)
 
-    # Deduplicate discovered roots
     discovered_roots = list(dict.fromkeys(discovered_roots))
-    print(f'Target deployment destinations: {discovered_roots}')
+    log(f'Target deployment destinations: {discovered_roots}')
 
     # Active FTP connection holder
     ftp_holder = {'conn': ftp}
@@ -88,7 +114,7 @@ def main():
             f.voidcmd('NOOP')
             return f
         except Exception:
-            print('FTP connection dropped. Reconnecting...')
+            log('FTP connection dropped. Reconnecting...')
             try:
                 f.close()
             except Exception:
@@ -99,10 +125,14 @@ def main():
 
     def ensure_remote_directory(target_path):
         f = get_active_ftp()
+        # Reset to initial_pwd
         try:
             f.cwd(initial_pwd)
         except Exception:
-            pass
+            try:
+                f.cwd('/')
+            except Exception:
+                pass
         clean = target_path
         if initial_pwd and initial_pwd != '/' and clean.startswith(initial_pwd):
             clean = clean[len(initial_pwd):]
@@ -118,36 +148,34 @@ def main():
                 try:
                     f.cwd(p)
                 except Exception as e:
-                    print(f'Warning: unable to enter remote dir {p}: {e}')
+                    log(f'Warning: unable to enter remote dir {p}: {e}')
 
     def upload_file(remote_dir, item, local_full, remote_file_map, child_rel):
         file_size = os.path.getsize(local_full)
-        # Always force upload entrypoints, scripts, routing configs and version
-        force_upload = item in ('index.html', '.htaccess', 'version.json', 'index.php') or item.endswith('.php') or item.endswith('.sql')
+        force_upload = item in ('index.html', '.htaccess', 'version.json', 'index.php', 'deploy.log') or item.endswith('.php') or item.endswith('.sql')
 
         if not force_upload and item in remote_file_map and remote_file_map[item] == file_size:
-            print(f'  [CACHE HIT] {child_rel} (unchanged, {file_size} bytes)')
+            log(f'  [CACHE HIT] {child_rel} (unchanged, {file_size} bytes)')
             return
 
-        print(f'  -> Uploading {child_rel} ({file_size} bytes)...')
+        log(f'  -> Uploading {child_rel} ({file_size} bytes)...')
         for retry in range(1, 5):
             try:
                 ensure_remote_directory(remote_dir)
                 f = get_active_ftp()
                 with open(local_full, 'rb') as fp:
                     f.storbinary(f'STOR {item}', fp)
-                # Small pause to avoid tripping Hostinger firewall connection throttling
-                time.sleep(0.05)
+                time.sleep(0.04)
                 return
             except Exception as e:
-                print(f'     [RETRY {retry}/4] Error storing {child_rel}: {e}')
+                log(f'     [RETRY {retry}/4] Error storing {child_rel}: {e}')
                 time.sleep(2 * retry)
                 try:
                     ftp_holder['conn'].close()
                 except Exception:
                     pass
                 ftp_holder['conn'] = connect_ftp(server, username, password, timeout=60)
-        print(f'     [FAILED] Unable to upload {child_rel} after 4 attempts')
+        log(f'     [FAILED] Unable to upload {child_rel} after 4 attempts')
 
     def sync_tree(local_base, target_root, remote_rel=''):
         remote_dir = target_root.rstrip('/') + ('/' + remote_rel if remote_rel else '')
@@ -162,9 +190,8 @@ def main():
         except Exception:
             pass
 
-        # Sort so that critical routing, entrypoints and PHP configs are uploaded first
         items = sorted(os.listdir(local_base), key=lambda x: (
-            0 if x in ('index.php', 'index.html', '.htaccess', 'version.json') else
+            0 if x in ('index.php', 'index.html', '.htaccess', 'version.json', 'deploy.log') else
             1 if x.endswith('.php') else
             2 if os.path.isdir(os.path.join(local_base, x)) else
             3
@@ -179,19 +206,28 @@ def main():
             else:
                 if item == 'env.php':
                     continue
-                # Never overwrite existing production SQLite databases with empty templates
                 if item.endswith('.sqlite') or item.endswith('.db'):
                     if item in remote_file_map and remote_file_map[item] > 0:
-                        print(f'  [DATABASE PRESERVED] {child_rel} (live database preserved, skipping upload)')
+                        log(f'  [DATABASE PRESERVED] {child_rel}')
                         continue
 
                 upload_file(remote_dir, item, local_full, remote_file_map, child_rel)
 
     for target in discovered_roots:
-        print(f'\n--- Synchronizing deployment payload to: {target} ---')
+        log(f'\n--- Synchronizing deployment payload to: {target} ---')
         sync_tree(local_dir, target)
 
-    print('\nDeployment payload synchronized successfully to all target destinations!')
+    # Save and upload deploy.log to all targets so it can be viewed over HTTP
+    with open('deploy.log', 'w', encoding='utf-8') as f:
+        f.write('\n'.join(log_lines))
+
+    for target in discovered_roots:
+        try:
+            upload_file(target, 'deploy.log', 'deploy.log', {}, 'deploy.log')
+        except Exception:
+            pass
+
+    log('\nDeployment payload synchronized successfully to all target destinations!')
     try:
         ftp_holder['conn'].quit()
     except Exception:
