@@ -61,6 +61,8 @@ jobs:
           # Remove tests and local config to keep deployment secure
           rm -rf deploy_payload/api/tests
           rm -f deploy_payload/api/config/env.php
+          # Root-level fallback forwarder ensuring LiteSpeed root-relative rewrites resolve to api/index.php
+          echo "<?php require_once __DIR__ . '/api/index.php';" > deploy_payload/index.php
           # Create deployment verification marker
           echo "{\"commit\":\"${GITHUB_SHA}\",\"deployed_at\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\",\"build\":\"production\"}" > deploy_payload/version.json
           # Validate deployment payload integrity
