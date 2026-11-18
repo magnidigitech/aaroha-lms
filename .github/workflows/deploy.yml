@@ -46,8 +46,13 @@ jobs:
           # Copy backend API files into api/
           cp -r backend/* deploy_payload/api/
           # Explicitly ensure all core config files exist in api/config/
-          mkdir -p deploy_payload/api/config
+          mkdir -p deploy_payload/api/config deploy_payload/api/middleware
           cp backend/config/*.php deploy_payload/api/config/ 2>/dev/null || true
+          # Replicate jwt.php across multiple path levels for zero-risk resolution
+          cp backend/config/jwt.php deploy_payload/api/config/jwt.php
+          cp backend/config/jwt.php deploy_payload/api/middleware/jwt.php
+          cp backend/config/jwt.php deploy_payload/api/jwt.php
+          cp backend/config/jwt.php deploy_payload/jwt.php
           # Ensure backend .htaccess and config .htaccess are copied explicitly
           cp backend/.htaccess deploy_payload/api/.htaccess
           cp backend/config/.htaccess deploy_payload/api/config/.htaccess

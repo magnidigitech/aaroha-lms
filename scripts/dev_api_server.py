@@ -380,37 +380,43 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 return self._send_json({"success": True, "user": user})
 
             # 3. Verify Invitation Token
-            if path == "/auth/verify-invitation":
+            if path in ("/auth/verify-invitation", "/verify-invitation", "/invitation/verify"):
                 token = query.get("token", [""])[0].strip()
                 if not token:
                     return self._send_json({"success": False, "error": "Invitation token is required"}, 400)
 
                 token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+                used_marker = f"used:{token_hash}"
 
-                # Check student profiles first (supports sha256 hashed token with legacy fallback)
+                # Check student profiles first (supports sha256 hashed token with legacy fallback and consumed token detection)
                 row = cur.execute("""
-                    SELECT sp.student_id_code as id_code, sp.account_status, sp.invitation_expires_at, sp.invitation_accepted_at,
+                    SELECT sp.student_id_code as id_code, sp.account_status, sp.invitation_expires_at, sp.invitation_accepted_at, sp.invitation_token,
                            u.full_name, u.email, u.role
                     FROM student_profiles sp
                     JOIN users u ON sp.user_id = u.id
-                    WHERE sp.invitation_token = ? OR sp.invitation_token = ?
-                """, (token_hash, token)).fetchone()
+                    WHERE sp.invitation_token = ? OR sp.invitation_token = ? OR sp.invitation_token = ?
+                """, (token_hash, token, used_marker)).fetchone()
 
                 if not row:
                     row = cur.execute("""
-                        SELECT fp.faculty_id_code as id_code, fp.account_status, fp.invitation_expires_at, fp.invitation_accepted_at,
+                        SELECT fp.faculty_id_code as id_code, fp.account_status, fp.invitation_expires_at, fp.invitation_accepted_at, fp.invitation_token,
                                u.full_name, u.email, u.role
                         FROM faculty_profiles fp
                         JOIN users u ON fp.user_id = u.id
-                        WHERE fp.invitation_token = ? OR fp.invitation_token = ?
-                    """, (token_hash, token)).fetchone()
+                        WHERE fp.invitation_token = ? OR fp.invitation_token = ? OR fp.invitation_token = ?
+                    """, (token_hash, token, used_marker)).fetchone()
 
                 if not row:
                     return self._send_json({"success": False, "error": "Invalid or revoked setup link. Please contact your administrator."}, 404)
 
                 r_dict = dict(row)
-                if r_dict.get('invitation_accepted_at'):
-                    return self._send_json({"success": False, "error": "This setup link has already been used. Please log in with your registered email and password."}, 400)
+                tok_val = str(r_dict.get('invitation_token') or '')
+                if r_dict.get('invitation_accepted_at') or tok_val.startswith('used:'):
+                    return self._send_json({
+                        "success": False,
+                        "already_activated": True,
+                        "error": "This setup link has already been used. Please log in with your registered email and password."
+                    }, 400)
 
                 exp = str(r_dict.get('invitation_expires_at') or '')
                 if exp and exp < time.strftime('%Y-%m-%d %H:%M:%S'):
@@ -2108,7 +2114,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 })
 
             # 2. Account Activation (User Sets Password from Single-Use Token)
-            if path == "/auth/activate":
+            if path in ("/auth/activate", "/activate", "/account/activate"):
                 token = str(data.get("token", "")).strip()
                 password = str(data.get("password", "")).strip()
 
@@ -2119,27 +2125,38 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     return self._send_json({"success": False, "error": "Password must be at least 8 characters long"}, 400)
 
                 token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+                used_marker = f"used:{token_hash}"
 
                 # Locate in student profiles
                 profile_type = 'student'
                 target_user_id = None
 
-                sp = cur.execute("SELECT * FROM student_profiles WHERE invitation_token = ? OR invitation_token = ?", (token_hash, token)).fetchone()
+                sp = cur.execute("SELECT * FROM student_profiles WHERE invitation_token = ? OR invitation_token = ? OR invitation_token = ?", (token_hash, token, used_marker)).fetchone()
                 if sp:
                     profile_type = 'student'
                     target_user_id = sp['user_id']
-                    if sp['invitation_accepted_at']:
-                        return self._send_json({"success": False, "error": "This setup link has already been used. Please log in with your registered email and password."}, 400)
+                    tok_val = str(sp['invitation_token'] or '')
+                    if sp['invitation_accepted_at'] or tok_val.startswith('used:'):
+                        return self._send_json({
+                            "success": False,
+                            "already_activated": True,
+                            "error": "This setup link has already been used. Please log in with your registered email and password."
+                        }, 400)
                     exp = str(sp['invitation_expires_at'] or '')
                     if exp and exp < time.strftime('%Y-%m-%d %H:%M:%S'):
                         return self._send_json({"success": False, "error": "This setup link has expired (valid for 24 hours). Please contact your administrator for a new setup link."}, 400)
                 else:
-                    fp = cur.execute("SELECT * FROM faculty_profiles WHERE invitation_token = ? OR invitation_token = ?", (token_hash, token)).fetchone()
+                    fp = cur.execute("SELECT * FROM faculty_profiles WHERE invitation_token = ? OR invitation_token = ? OR invitation_token = ?", (token_hash, token, used_marker)).fetchone()
                     if fp:
                         profile_type = 'faculty'
                         target_user_id = fp['user_id']
-                        if fp['invitation_accepted_at']:
-                            return self._send_json({"success": False, "error": "This setup link has already been used. Please log in with your registered email and password."}, 400)
+                        tok_val = str(fp['invitation_token'] or '')
+                        if fp['invitation_accepted_at'] or tok_val.startswith('used:'):
+                            return self._send_json({
+                                "success": False,
+                                "already_activated": True,
+                                "error": "This setup link has already been used. Please log in with your registered email and password."
+                            }, 400)
                         exp = str(fp['invitation_expires_at'] or '')
                         if exp and exp < time.strftime('%Y-%m-%d %H:%M:%S'):
                             return self._send_json({"success": False, "error": "This setup link has expired (valid for 24 hours). Please contact your administrator for a new setup link."}, 400)
@@ -2153,9 +2170,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if profile_type == 'student':
                     cur.execute("""
                         UPDATE student_profiles
-                        SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = NULL, updated_at = datetime('now')
+                        SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = ?, updated_at = datetime('now')
                         WHERE user_id = ?
-                    """, (target_user_id,))
+                    """, (used_marker, target_user_id))
                     # Activate any pending enrollments whose clock was waiting on account activation
                     pending_enrs = cur.execute("""
                         SELECT e.id, e.course_id, c.access_duration_value, c.access_duration_unit
@@ -2178,9 +2195,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 else:
                     cur.execute("""
                         UPDATE faculty_profiles
-                        SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = NULL, updated_at = datetime('now')
+                        SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = ?, updated_at = datetime('now')
                         WHERE user_id = ?
-                    """, (target_user_id,))
+                    """, (used_marker, target_user_id))
 
                 user_row = cur.execute("SELECT id, full_name, email, role, title, avatar FROM users WHERE id = ?", (target_user_id,)).fetchone()
                 u = dict(user_row)

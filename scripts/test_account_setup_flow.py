@@ -194,7 +194,7 @@ try:
         profile_row = conn.execute("SELECT * FROM student_profiles WHERE user_id = ?", (student_user_id,)).fetchone()
 
     check(profile_row['account_status'] == 'active', "student_profiles.account_status updated to 'active'")
-    check(profile_row['invitation_token'] is None, "invitation_token cleared from database upon activation")
+    check(profile_row['invitation_token'] is None or str(profile_row['invitation_token']).startswith('used:'), "invitation_token invalidated/cleared from database upon activation")
     check(profile_row['invitation_accepted_at'] is not None, "invitation_accepted_at timestamp recorded")
     check(user_row['password_hash'] != '!INVITED_UNSET_CREDENTIALS!', "Password hash updated from sentinel to secure hash")
 

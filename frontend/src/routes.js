@@ -55,7 +55,7 @@ export function getAuthorizedDashboardView(user) {
 }
 
 /**
- * Reads the active view from the browser URL search params.
+ * Reads the active view from the browser URL search params and pathname.
  * Falls back to null if no recognized view is in the URL.
  * @returns {string|null}
  */
@@ -69,6 +69,16 @@ export function getViewFromUrl() {
     }
     // Backward compatibility for course-detail alias
     if (view === 'course-detail') return ROUTES.BROCHURE;
+
+    // Check direct pathname
+    const rawPath = (window.location.pathname || '').replace(/\/+$/, '').toLowerCase();
+    if (rawPath === '/admin') return ROUTES.ADMIN;
+    if (rawPath === '/student') return ROUTES.STUDENT;
+    if (rawPath === '/degrees') return ROUTES.DEGREES;
+    if (rawPath === '/catalog' || rawPath === '/courses') return ROUTES.CATALOG;
+    if (rawPath === '/brochure') return ROUTES.BROCHURE;
+    if (rawPath === '/classroom') return ROUTES.CLASSROOM;
+
     return null;
   } catch (e) {
     return null;

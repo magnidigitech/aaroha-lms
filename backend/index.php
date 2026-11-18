@@ -100,16 +100,19 @@ try {
         $response = AuthController::register($inputData);
     }
     // Single-Use Cryptographic Invitation Verification
-    elseif ($requestMethod === 'GET' && $path === '/auth/verify-invitation') {
+    elseif ($requestMethod === 'GET' && in_array($path, ['/auth/verify-invitation', '/verify-invitation', '/invitation/verify'])) {
         $response = AuthController::verifyInvitation($_GET['token'] ?? '');
     }
-    elseif ($requestMethod === 'POST' && $path === '/auth/activate') {
+    elseif ($requestMethod === 'POST' && in_array($path, ['/auth/activate', '/activate', '/account/activate', '/auth/activate-account'])) {
         $response = AuthController::activateAccount($inputData);
     }
-    elseif ($requestMethod === 'POST' && $path === '/auth/forgot-password') {
+    elseif ($requestMethod === 'POST' && in_array($path, ['/auth/login', '/login'])) {
+        $response = AuthController::login($inputData);
+    }
+    elseif ($requestMethod === 'POST' && in_array($path, ['/auth/forgot-password', '/forgot-password'])) {
         $response = AuthController::forgotPassword($inputData);
     }
-    elseif ($requestMethod === 'POST' && $path === '/auth/reset-password') {
+    elseif ($requestMethod === 'POST' && in_array($path, ['/auth/reset-password', '/reset-password'])) {
         $response = AuthController::resetPassword($inputData);
     }
     elseif ($requestMethod === 'POST' && $path === '/admin/invitations/resend') {

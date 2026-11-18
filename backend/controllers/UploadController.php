@@ -4,7 +4,13 @@
 // and HMAC-signed short-lived token access for enrolled students.
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../config/jwt.php';
+if (!class_exists('JWT')) {
+    if (file_exists(__DIR__ . '/../config/jwt.php')) {
+        require_once __DIR__ . '/../config/jwt.php';
+    } elseif (file_exists(__DIR__ . '/jwt.php')) {
+        require_once __DIR__ . '/jwt.php';
+    }
+}
 
 class UploadController {
 

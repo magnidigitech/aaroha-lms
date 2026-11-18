@@ -125,8 +125,8 @@ async function request(endpoint, options = {}) {
     let friendlyMessage;
     if (isHtml) {
       if (res.status === 404) {
-        if (cleanEndpoint.includes('/auth/verify-invitation') || cleanEndpoint.includes('/auth/activate')) {
-          friendlyMessage = 'This invitation setup link could not be found or has expired. Please ask your administrator to generate a fresh setup link.';
+        if (cleanEndpoint.includes('verify-invitation') || cleanEndpoint.includes('activate')) {
+          friendlyMessage = 'This invitation setup link could not be found, has expired, or was already used. Please sign in or ask your administrator for a new setup link.';
         } else {
           friendlyMessage = 'The requested service endpoint was not found or is temporarily updating (HTTP 404). Please try again.';
         }

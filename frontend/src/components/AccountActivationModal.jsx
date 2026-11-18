@@ -67,12 +67,21 @@ export default function AccountActivationModal({ isOpen, token, onClose, onSucce
       const res = await api.activateAccount({ token, password });
       if (res && res.success) {
         onSuccess(res.user, res.token);
-        onClose();
       } else {
-        setActionError(res?.error || 'Failed to activate account.');
+        const errText = res?.error || 'Failed to activate account.';
+        setActionError(errText);
+        if (res?.already_activated || errText.toLowerCase().includes('already')) {
+          setIsAlreadyActivated(true);
+          setVerificationError(errText);
+        }
       }
     } catch (err) {
-      setActionError(err.message || 'Error occurred during account activation.');
+      const errText = err.message || 'Error occurred during account activation.';
+      setActionError(errText);
+      if (err.already_activated || errText.toLowerCase().includes('already')) {
+        setIsAlreadyActivated(true);
+        setVerificationError(errText);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -128,7 +137,7 @@ export default function AccountActivationModal({ isOpen, token, onClose, onSucce
                 </p>
               </div>
               <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
-                {isAlreadyActivated && onOpenLogin && (
+                {onOpenLogin && (
                   <button
                     type="button"
                     onClick={() => {
@@ -137,7 +146,7 @@ export default function AccountActivationModal({ isOpen, token, onClose, onSucce
                     }}
                     className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white rounded-xl font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <span>Sign In With Password</span>
+                    <span>Sign In With Registered Account</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 )}

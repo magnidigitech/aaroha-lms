@@ -81,10 +81,21 @@ export default function App() {
       if (sessionView && user) {
         if (sessionView === ROUTES.ADMIN && isFacultyRole(user.role)) return ROUTES.ADMIN;
         if (sessionView === ROUTES.STUDENT) return ROUTES.STUDENT;
+        if (sessionView === ROUTES.DEGREES) return ROUTES.DEGREES;
+        if (sessionView === ROUTES.CATALOG) return ROUTES.CATALOG;
+      }
+
+      // If user is authenticated as admin or faculty, restore admin console on refresh
+      if (user && isFacultyRole(user.role)) {
+        return ROUTES.ADMIN;
+      }
+
+      // If user is authenticated as student, restore student dashboard on refresh
+      if (user && (user.role || '').toLowerCase() === 'student') {
+        return ROUTES.STUDENT;
       }
 
       // 2. Direct navigation to root '/' or no view query: always open configured public homepage
-      // and ensure authentication guards do not automatically redirect logged-in users away from homepage
       return HOMEPAGE_ROUTE;
     } catch (e) {
       return HOMEPAGE_ROUTE;
@@ -1802,6 +1813,10 @@ export default function App() {
             const params = new URLSearchParams(window.location.search);
             params.delete('token');
             params.delete('activation_token');
+            if (!params.has('view') && currentUser) {
+              const dashView = isFacultyRole(currentUser.role) ? 'admin' : 'student';
+              params.set('view', dashView);
+            }
             const q = params.toString();
             window.history.replaceState({}, document.title, (cleanPath || '/') + (q ? ('?' + q) : ''));
           } catch (e) {}
