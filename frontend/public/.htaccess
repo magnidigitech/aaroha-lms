@@ -6,6 +6,10 @@ Options -Indexes
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Pass Authorization Header to PHP in FastCGI / LiteSpeed
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
   # 1. Block direct HTTP access to hidden files and version control directories
   RewriteRule (^\.|\/\.) - [F,L]
 

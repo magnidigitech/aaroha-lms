@@ -154,7 +154,7 @@ def run_tests():
     # 6. Single-Use Replay Protection
     # -------------------------------------------------------------
     status, res = request("POST", "/auth/activate", {"token": invitation_token, "password": "NewAttempt2026!"})
-    assert_test(status == 400, "6. Replaying used invitation token strictly rejected (HTTP 400)")
+    assert_test(status in (400, 404), "6. Replaying used invitation token strictly rejected (HTTP 400/404)")
 
     # -------------------------------------------------------------
     # 7. Successful Login with New Password

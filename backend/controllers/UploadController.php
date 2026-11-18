@@ -34,6 +34,12 @@ class UploadController {
 
     private static function getCategoryConfig(): array {
         return [
+            'avatar' => [
+                'dir' => 'avatars',
+                'max_bytes' => 10 * 1024 * 1024,
+                'allowed_exts' => ['png', 'jpg', 'jpeg', 'webp', 'svg'],
+                'is_public' => true
+            ],
             'course_image' => [
                 'dir' => 'courses',
                 'max_bytes' => 10 * 1024 * 1024,

@@ -2879,6 +2879,24 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if not preview_token:
                     return self._send_json({"success": False, "error": "Mandatory personalized preview has not been verified. You must open and inspect the certificate preview before confirming issuance."}, 400)
 
+                student = cur.execute("SELECT u.id, u.full_name, u.email FROM users u WHERE u.id = ?", (uid,)).fetchone()
+                course = cur.execute("SELECT id, title FROM courses WHERE id = ?", (cid,)).fetchone()
+                if not student or not course:
+                    return self._send_json({"success": False, "error": "Student or course not found."}, 404)
+
+                template_id = str(data.get("template_id", "academic_excellence")).strip()
+                recip_name = str(data.get("recipient_name", "")).strip() or student['full_name']
+
+                t_now = int(time.time() / 300)
+                valid_tokens = {
+                    hashlib.sha256(f"{cid}:{uid}:{template_id}:{recip_name}:{t_now}".encode()).hexdigest(),
+                    hashlib.sha256(f"{cid}:{uid}:{template_id}:{recip_name}:{t_now - 1}".encode()).hexdigest(),
+                    hashlib.sha256(f"{cid}:{uid}:{template_id}:{student['full_name']}:{t_now}".encode()).hexdigest(),
+                    hashlib.sha256(f"{cid}:{uid}:{template_id}:{student['full_name']}:{t_now - 1}".encode()).hexdigest(),
+                }
+                if preview_token not in valid_tokens:
+                    return self._send_json({"success": False, "error": "Invalid or expired preview token. You must preview the certificate before issuance."}, 400)
+
                 existing = cur.execute("SELECT id, certificate_code FROM certificates WHERE user_id = ? AND course_id = ? AND status = 'valid'", (uid, cid)).fetchone()
                 if existing:
                     return self._send_json({"success": False, "error": f"An official valid certificate ({existing['certificate_code']}) has already been issued to this student for this course. Use Reissue Credential instead."}, 400)
