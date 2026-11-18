@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, Check, Mail, Shield, GraduationCap, Sparkles, 
-  Camera, CheckCircle2, AlertCircle, Edit3, Save, 
+import {
+  X, Check, Mail, Shield, GraduationCap, Sparkles,
+  Camera, CheckCircle2, AlertCircle, Edit3, Save,
   Upload, Image as ImageIcon, Trash2, Key, Bell, User,
   Globe, Clock, Layers, Briefcase, ExternalLink, LogOut, Lock,
   RefreshCw, BookOpen, Users
@@ -340,13 +340,13 @@ export default function ProfileSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div 
+      <div
         className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-settings-title"
       >
-        
+
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
           <div className="flex items-center gap-3">
@@ -393,18 +393,18 @@ export default function ProfileSettingsModal({
             { id: 'personal', label: 'Personal Details' },
             { id: 'security', label: 'Security' },
             { id: 'notifications', label: 'Notifications' },
-            { 
-              id: 'role_specific', 
-              label: userRole === 'student' ? 'Student Information' : 'Professional Information' 
+            {
+              id: 'role_specific',
+              label: userRole === 'student' ? 'Student Information' : 'Professional Information'
             }
           ].map(t => (
             <button
               key={t.id}
               type="button"
               onClick={() => setActiveTab(t.id)}
-              className={'px-3.5 py-3 border-b-2 transition-all whitespace-nowrap cursor-pointer ' + 
-                (activeTab === t.id 
-                  ? 'border-[#0A7CB3] text-[#0A7CB3] font-bold' 
+              className={'px-3.5 py-3 border-b-2 transition-all whitespace-nowrap cursor-pointer ' +
+                (activeTab === t.id
+                  ? 'border-[#0A7CB3] text-[#0A7CB3] font-bold'
                   : 'border-transparent hover:text-slate-900')}
             >
               {t.label}
@@ -414,11 +414,11 @@ export default function ProfileSettingsModal({
 
         {/* Scrollable Body */}
         <div className="p-5 sm:p-7 overflow-y-auto space-y-6 flex-1">
-          
+
           {/* TAB 1: PERSONAL DETAILS */}
           {activeTab === 'personal' && (
             <div className="space-y-6">
-              
+
               {/* Profile Photo & Avatar Preset Selector */}
               <div className="space-y-3">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-700 block">
@@ -473,7 +473,7 @@ export default function ProfileSettingsModal({
                           key={p.id}
                           type="button"
                           onClick={() => setSelectedAvatar(avatarSrc)}
-                          className={'p-1 rounded-xl border-2 transition-all cursor-pointer ' + 
+                          className={'p-1 rounded-xl border-2 transition-all cursor-pointer ' +
                             (selectedAvatar === avatarSrc ? 'border-[#0A7CB3] scale-105 bg-blue-50' : 'border-transparent hover:border-slate-200')}
                         >
                           <img src={avatarSrc} alt={p.name} className="w-9 h-9 rounded-lg object-cover" />
@@ -486,7 +486,7 @@ export default function ProfileSettingsModal({
 
               {/* Personal Fields Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
+
                 {/* Full Name */}
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700">Full Name</label>
@@ -586,7 +586,7 @@ export default function ProfileSettingsModal({
           {/* TAB 2: SECURITY & AUTHENTICATION */}
           {activeTab === 'security' && (
             <div className="space-y-6">
-              
+
               {/* Change Password Form */}
               <div className="p-5 rounded-3xl border border-slate-200 bg-slate-50/50 space-y-4">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700">
@@ -648,7 +648,7 @@ export default function ProfileSettingsModal({
                   <button
                     type="button"
                     onClick={() => setMfaEnabled(!mfaEnabled)}
-                    className={'px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ' + 
+                    className={'px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ' +
                       (mfaEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600')}
                   >
                     {mfaEnabled ? 'Enabled' : 'Disabled'}
@@ -721,7 +721,7 @@ export default function ProfileSettingsModal({
                     <button
                       type="button"
                       onClick={() => setNotifPrefs(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
-                      className={'w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ' + 
+                      className={'w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ' +
                         (notifPrefs[item.key] ? 'bg-[#0A7CB3] justify-end' : 'bg-slate-200 justify-start')}
                     >
                       <span className="w-4 h-4 rounded-full bg-white shadow-xs" />
@@ -776,7 +776,7 @@ export default function ProfileSettingsModal({
                   {/* Read-Only Institutional Identity Record */}
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
                     <div className="text-xs font-black uppercase tracking-wider text-slate-400">Institutional Identity Record (Read-Only)</div>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div>
                         <span className="text-slate-400 block">Identifier Code:</span>
@@ -826,12 +826,12 @@ export default function ProfileSettingsModal({
                       Roles, identifier codes, and enrolled program allocations are legally governed by the academic registry and cannot be self-modified.
                     </div>
                   </div>
-                  
+
                   {/* STUDENT PROFILE */}
                   {userRole === 'student' && (
                     <div className="space-y-4">
                       <div className="text-xs font-black uppercase tracking-wider text-slate-400">Student Education & Portfolio</div>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-slate-700">Education & University</label>
@@ -921,7 +921,7 @@ export default function ProfileSettingsModal({
                   {userRole === 'faculty' && (
                     <div className="space-y-4">
                       <div className="text-xs font-black uppercase tracking-wider text-slate-400">Faculty Credentials, Links & Availability</div>
-                      
+
                       <div className="space-y-3">
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-slate-700">Academic & Professional Bio</label>

@@ -573,6 +573,10 @@ try {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::assignBatchFaculty((int)$matches[1], $inputData, $actor);
     }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/batches/(\d+)/deletion-eligibility$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::checkBatchDeletionEligibility((int)$matches[1]);
+    }
     elseif ($requestMethod === 'POST' && preg_match('#^/admin/batches/(\d+)/archive$#', $path, $matches)) {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::archiveBatch((int)$matches[1], $actor);
@@ -581,9 +585,9 @@ try {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::restoreBatch((int)$matches[1], $actor);
     }
-    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/batches/(\d+)$#', $path, $matches)) {
+    elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/admin/batches/(\d+)(?:/delete)?$#', $path, $matches)) {
         $actor = AuthMiddleware::requireAdmin();
-        $response = AdminPortalController::deleteBatch((int)$matches[1], $actor);
+        $response = AdminPortalController::deleteBatch((int)$matches[1], $actor, $inputData);
     }
     elseif ($requestMethod === 'POST' && $path === '/admin/batches/cleanup-test-batches') {
         $actor = AuthMiddleware::requireAdmin();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Layers, PlusCircle, Calendar, Users, GraduationCap,
   MapPin, CheckCircle2, Clock, AlertCircle, X, Search,
@@ -25,6 +25,36 @@ export default function AdminBatchesTab({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Consolidate all qualified instructors (Faculty, Instructors, Academic Directors, Coordinators)
+  const availableFaculty = useMemo(() => {
+    const map = new Map();
+    if (Array.isArray(faculty)) {
+      faculty.forEach(f => {
+        const id = f.user_id || f.id;
+        if (id) {
+          map.set(Number(id), {
+            id: Number(id),
+            full_name: f.full_name,
+            code: f.faculty_id_code || (f.title ? f.title : 'Faculty')
+          });
+        }
+      });
+    }
+    if (Array.isArray(coordinators)) {
+      coordinators.forEach(c => {
+        const id = c.id || c.user_id;
+        if (id && !map.has(Number(id))) {
+          map.set(Number(id), {
+            id: Number(id),
+            full_name: c.full_name,
+            code: c.title || 'Academic Director'
+          });
+        }
+      });
+    }
+    return Array.from(map.values());
+  }, [faculty, coordinators]);
 
   // Load archived batches from database
   const loadArchivedBatches = async () => {
@@ -778,8 +808,8 @@ export default function AdminBatchesTab({
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#0a7cb3] focus:outline-hidden"
                   >
                     <option value="">-- Unassigned --</option>
-                    {faculty.map(f => (
-                      <option key={f.user_id} value={f.user_id}>{f.full_name} ({f.faculty_id_code || 'Faculty'})</option>
+                    {availableFaculty.map(f => (
+                      <option key={f.id} value={f.id}>{f.full_name} ({f.code})</option>
                     ))}
                   </select>
                 </div>
@@ -923,8 +953,8 @@ export default function AdminBatchesTab({
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#0a7cb3] focus:outline-hidden"
                   >
                     <option value="">-- Unassigned --</option>
-                    {faculty.map(f => (
-                      <option key={f.user_id} value={f.user_id}>{f.full_name} ({f.faculty_id_code || 'Faculty'})</option>
+                    {availableFaculty.map(f => (
+                      <option key={f.id} value={f.id}>{f.full_name} ({f.code})</option>
                     ))}
                   </select>
                 </div>
@@ -1280,8 +1310,15 @@ export default function AdminBatchesTab({
             ) : null}
 
             {deleteBatchModal.error && (
-              <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-xs break-words break-all max-w-full overflow-hidden leading-relaxed">
-                {deleteBatchModal.error}
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2 max-w-full overflow-hidden leading-relaxed">
+                <span className="break-words break-all">{deleteBatchModal.error}</span>
+                <button
+                  type="button"
+                  onClick={() => deleteBatchModal.batch && handleOpenDeleteBatch(deleteBatchModal.batch)}
+                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded text-xs shrink-0 cursor-pointer"
+                >
+                  Retry
+                </button>
               </div>
             )}
 

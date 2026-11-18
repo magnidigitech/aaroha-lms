@@ -993,7 +993,9 @@ class AdminPortalController {
 
         $sql = "
             SELECT u.id as user_id, u.full_name, u.email, u.title, u.avatar, u.status as user_status, u.is_archived,
-                   fp.id as profile_id, fp.faculty_id_code, fp.mobile, fp.expertise, fp.bio, fp.qualifications,
+                   fp.id as profile_id, 
+                   COALESCE(fp.faculty_id_code, CONCAT('FAC-', LPAD(u.id, 4, '0'))) as faculty_id_code, 
+                   fp.mobile, fp.expertise, fp.bio, fp.qualifications,
                    fp.courses_taught_json, fp.availability_json, fp.account_status, fp.internal_notes,
                    fp.archived_at, fp.archival_reason, fp.reassignment_notes,
                    (
@@ -1008,7 +1010,7 @@ class AdminPortalController {
                    ) as upcoming_sessions_count
             FROM users u
             LEFT JOIN faculty_profiles fp ON u.id = fp.user_id
-            WHERE (u.role IN ('faculty', 'instructor') OR u.authorized_roles_json LIKE '%\"faculty\"%' OR fp.id IS NOT NULL)
+            WHERE (u.role IN ('faculty', 'instructor', 'coordinator', 'admin', 'super_admin') OR u.authorized_roles_json LIKE '%\"faculty\"%' OR fp.id IS NOT NULL)
         ";
 
         $params = [];
@@ -1959,12 +1961,101 @@ class AdminPortalController {
         return ['success' => true, 'message' => 'Batch restored to active cohorts.'];
     }
 
-    public static function deleteBatch($batchId, $actor) {
+    public static function checkBatchDeletionEligibility($batchId) {
         $pdo = Database::getConnection();
         $batchId = (int)$batchId;
 
-        $enrolledCount = (int)$pdo->query("SELECT COUNT(*) FROM batch_enrollments WHERE batch_id = {$batchId}")->fetchColumn();
-        $sessionsCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE batch_id = {$batchId}")->fetchColumn();
+        $stmt = $pdo->prepare("SELECT id, batch_code, title, status FROM batches WHERE id = ?");
+        $stmt->execute([$batchId]);
+        $batch = $stmt->fetch();
+        if (!$batch) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Cohort batch not found.'];
+        }
+
+        $enrolledStudents = 0;
+        try {
+            $enrolledStudents = (int)$pdo->query("SELECT COUNT(*) FROM batch_enrollments WHERE batch_id = {$batchId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $facultyAssignments = 0;
+        try {
+            $facultyAssignments = (int)$pdo->query("SELECT COUNT(*) FROM faculty_batch_assignments WHERE batch_id = {$batchId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $scheduledSessions = 0;
+        try {
+            $scheduledSessions = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE batch_id = {$batchId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $attendanceRecords = 0;
+        try {
+            $attendanceRecords = (int)$pdo->query("
+                SELECT COUNT(*) FROM attendance_records ar
+                JOIN class_sessions cs ON ar.session_id = cs.id
+                WHERE cs.batch_id = {$batchId}
+            ")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $taskSubmissions = 0;
+        try {
+            $taskSubmissions = (int)$pdo->query("
+                SELECT COUNT(*) FROM task_submissions ts
+                JOIN batch_enrollments be ON ts.enrollment_id = be.enrollment_id
+                WHERE be.batch_id = {$batchId}
+            ")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $issuedCertificates = 0;
+        try {
+            $issuedCertificates = (int)$pdo->query("SELECT COUNT(*) FROM certificates WHERE batch_id = {$batchId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $totalDependencies = $enrolledStudents + $facultyAssignments + $scheduledSessions + $attendanceRecords + $taskSubmissions + $issuedCertificates;
+        $canDelete = ($totalDependencies === 0);
+
+        $depList = [];
+        if ($enrolledStudents > 0) $depList[] = "{$enrolledStudents} enrolled student(s)";
+        if ($facultyAssignments > 0) $depList[] = "{$facultyAssignments} faculty assignment(s)";
+        if ($scheduledSessions > 0) $depList[] = "{$scheduledSessions} scheduled session(s)";
+        if ($attendanceRecords > 0) $depList[] = "{$attendanceRecords} attendance record(s)";
+        if ($taskSubmissions > 0) $depList[] = "{$taskSubmissions} task submission(s)";
+        if ($issuedCertificates > 0) $depList[] = "{$issuedCertificates} issued certificate(s)";
+
+        return [
+            'success' => true,
+            'eligible' => $canDelete,
+            'can_delete_permanently' => $canDelete,
+            'dependencies' => [
+                'enrolled_students' => $enrolledStudents,
+                'faculty_assignments' => $facultyAssignments,
+                'scheduled_sessions' => $scheduledSessions,
+                'attendance_records' => $attendanceRecords,
+                'task_submissions' => $taskSubmissions,
+                'issued_certificates' => $issuedCertificates,
+            ],
+            'reason' => $canDelete
+                ? 'Batch has zero academic dependencies and can be safely deleted.'
+                : 'Permanent deletion is prohibited to protect academic records. Retained: ' . implode(', ', $depList) . '.',
+            'recommendation' => $canDelete ? null : 'Use Archive Batch instead to preserve cohort audit records.'
+        ];
+    }
+
+    public static function deleteBatch($batchId, $actor, $inputData = []) {
+        $pdo = Database::getConnection();
+        $batchId = (int)$batchId;
+
+        $isPermanent = !empty($_GET['permanent']) || !empty($_POST['permanent']) || !empty($inputData['permanent']);
+
+        $enrolledCount = 0;
+        try {
+            $enrolledCount = (int)$pdo->query("SELECT COUNT(*) FROM batch_enrollments WHERE batch_id = {$batchId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $sessionsCount = 0;
+        try {
+            $sessionsCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE batch_id = {$batchId}")->fetchColumn();
+        } catch (Exception $e) {}
 
         if ($enrolledCount > 0 || $sessionsCount > 0) {
             http_response_code(400);
@@ -1975,11 +2066,19 @@ class AdminPortalController {
             ];
         }
 
-        $stmt = $pdo->prepare("UPDATE batches SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
-        $stmt->execute([$batchId]);
+        if ($isPermanent) {
+            try { $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM class_sessions WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM batch_enrollments WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
+            $stmt = $pdo->prepare("DELETE FROM batches WHERE id = ?");
+            $stmt->execute([$batchId]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE batches SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([$batchId]);
+        }
 
-        AuditLogger::log('DELETE_BATCH', 'batch', $batchId, [], $actor);
-        return ['success' => true, 'message' => 'Unused batch permanently removed.'];
+        AuditLogger::log('DELETE_BATCH', 'batch', $batchId, ['permanent' => $isPermanent], $actor);
+        return ['success' => true, 'message' => 'Cohort batch permanently removed from system records.'];
     }
 
 
@@ -2909,15 +3008,31 @@ class AdminPortalController {
             http_response_code(403);
             return ['success' => false, 'error' => 'Super Administrator authorization required for batch test cleanup.'];
         }
-        $stmt = $pdo->query("SELECT id FROM batches WHERE id >= 14");
+        $stmt = $pdo->query("
+            SELECT id FROM batches 
+            WHERE (
+                batch_code LIKE 'TEST-%' 
+                OR batch_code LIKE 'PROBE-%' 
+                OR batch_code LIKE 'TOKEN-%' 
+                OR batch_code LIKE 'COHORT-VERIFY-%'
+                OR batch_code LIKE 'AAA%'
+                OR title LIKE '%Test Batch%' 
+                OR title LIKE '%Probe Test%'
+                OR title LIKE '%Verification%'
+                OR is_deleted = 1
+                OR id >= 14
+            )
+            AND id NOT IN (SELECT DISTINCT batch_id FROM batch_enrollments WHERE status = 'active')
+        ");
         $batches = $stmt->fetchAll();
         $ids = array_column($batches, 'id');
         if (!empty($ids)) {
             $inClause = implode(',', array_fill(0, count($ids), '?'));
-            $pdo->prepare("DELETE FROM class_sessions WHERE batch_id IN ($inClause)")->execute($ids);
-            $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE batch_id IN ($inClause)")->execute($ids);
-            $pdo->prepare("DELETE FROM batch_enrollments WHERE batch_id IN ($inClause)")->execute($ids);
-            $pdo->prepare("DELETE FROM batches WHERE id IN ($inClause)")->execute($ids);
+            try { $pdo->prepare("DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM class_sessions WHERE batch_id IN ($inClause))")->execute($ids); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM class_sessions WHERE batch_id IN ($inClause)")->execute($ids); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE batch_id IN ($inClause)")->execute($ids); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM batch_enrollments WHERE batch_id IN ($inClause)")->execute($ids); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM batches WHERE id IN ($inClause)")->execute($ids); } catch (\Exception $e) {}
         }
         return [
             'success' => true,
