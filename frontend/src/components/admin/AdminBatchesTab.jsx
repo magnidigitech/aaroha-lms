@@ -198,6 +198,15 @@ export default function AdminBatchesTab({
       return;
     }
 
+    const token = localStorage.getItem('aaroha_token');
+    if (!token) {
+      setFormError('Authentication required: Active session token missing. Please sign in to create batches.');
+      if (typeof window !== 'undefined' && window.__aaroha_open_auth) {
+        window.__aaroha_open_auth('login');
+      }
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       await onCreateBatch(newBatch);
@@ -214,7 +223,14 @@ export default function AdminBatchesTab({
         lead_faculty_id: ''
       });
     } catch (err) {
-      setFormError(err.message || 'Failed to create cohort batch.');
+      if (err.isUnauthorized || (err.message && err.message.toLowerCase().includes('token'))) {
+        setFormError('Authentication session expired. Please sign in again to continue.');
+        if (typeof window !== 'undefined' && window.__aaroha_open_auth) {
+          window.__aaroha_open_auth('login');
+        }
+      } else {
+        setFormError(err.message || 'Failed to create cohort batch.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -229,6 +245,15 @@ export default function AdminBatchesTab({
     }
     if (isEditCodeDuplicate) {
       setFormError('Batch code already exists. Please choose a unique batch code.');
+      return;
+    }
+
+    const token = localStorage.getItem('aaroha_token');
+    if (!token) {
+      setFormError('Authentication required: Active session token missing. Please sign in to update batches.');
+      if (typeof window !== 'undefined' && window.__aaroha_open_auth) {
+        window.__aaroha_open_auth('login');
+      }
       return;
     }
 
@@ -247,7 +272,14 @@ export default function AdminBatchesTab({
       if (onUpdateBatch) await onUpdateBatch();
       setEditingBatch(null);
     } catch (err) {
-      setFormError(err.message || 'Failed to update batch details.');
+      if (err.isUnauthorized || (err.message && err.message.toLowerCase().includes('token'))) {
+        setFormError('Authentication session expired. Please sign in again to continue.');
+        if (typeof window !== 'undefined' && window.__aaroha_open_auth) {
+          window.__aaroha_open_auth('login');
+        }
+      } else {
+        setFormError(err.message || 'Failed to update batch details.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -627,9 +659,20 @@ export default function AdminBatchesTab({
             </div>
 
             {formError && (
-              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 max-w-full overflow-hidden">
-                <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-600" />
-                <span className="break-words break-all max-w-full overflow-hidden leading-relaxed">{formError}</span>
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start justify-between gap-2 max-w-full overflow-hidden">
+                <div className="flex items-start gap-2 min-w-0">
+                  <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-600" />
+                  <span className="break-words break-all max-w-full overflow-hidden leading-relaxed">{formError}</span>
+                </div>
+                {(formError.toLowerCase().includes('sign in') || formError.toLowerCase().includes('authentication') || formError.toLowerCase().includes('token')) && (
+                  <button
+                    type="button"
+                    onClick={() => { if (typeof window !== 'undefined' && window.__aaroha_open_auth) window.__aaroha_open_auth('login'); }}
+                    className="shrink-0 px-2.5 py-1 bg-[#0a7cb3] hover:bg-[#08638f] text-white font-medium rounded-md text-xs cursor-pointer transition-colors shadow-xs"
+                  >
+                    Sign In
+                  </button>
+                )}
               </div>
             )}
 
@@ -778,9 +821,20 @@ export default function AdminBatchesTab({
             </div>
 
             {formError && (
-              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 max-w-full overflow-hidden">
-                <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-600" />
-                <span className="break-words break-all max-w-full overflow-hidden leading-relaxed">{formError}</span>
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start justify-between gap-2 max-w-full overflow-hidden">
+                <div className="flex items-start gap-2 min-w-0">
+                  <AlertCircle size={15} className="shrink-0 mt-0.5 text-rose-600" />
+                  <span className="break-words break-all max-w-full overflow-hidden leading-relaxed">{formError}</span>
+                </div>
+                {(formError.toLowerCase().includes('sign in') || formError.toLowerCase().includes('authentication') || formError.toLowerCase().includes('token')) && (
+                  <button
+                    type="button"
+                    onClick={() => { if (typeof window !== 'undefined' && window.__aaroha_open_auth) window.__aaroha_open_auth('login'); }}
+                    className="shrink-0 px-2.5 py-1 bg-[#0a7cb3] hover:bg-[#08638f] text-white font-medium rounded-md text-xs cursor-pointer transition-colors shadow-xs"
+                  >
+                    Sign In
+                  </button>
+                )}
               </div>
             )}
 

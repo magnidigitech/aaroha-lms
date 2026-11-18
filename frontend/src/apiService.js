@@ -24,9 +24,35 @@ export class ApiError extends Error {
   get isServer() { return this.status >= 500; }
 }
 
+let unauthorizedListeners = [];
+
+export function onUnauthorized(callback) {
+  if (typeof callback === 'function') {
+    unauthorizedListeners.push(callback);
+  }
+  return () => {
+    unauthorizedListeners = unauthorizedListeners.filter(cb => cb !== callback);
+  };
+}
+
+function notifyUnauthorized(details) {
+  unauthorizedListeners.forEach(cb => {
+    try {
+      cb(details);
+    } catch (e) {
+      console.warn('[Aaroha API Adapter] Error in unauthorized listener:', e);
+    }
+  });
+}
+
 function getAuthHeader() {
   const token = localStorage.getItem('aaroha_token');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  if (!token) return {};
+  return {
+    'Authorization': `Bearer ${token}`,
+    'X-Authorization': `Bearer ${token}`,
+    'X-Auth-Token': token
+  };
 }
 
 async function request(endpoint, options = {}) {
@@ -75,6 +101,9 @@ async function request(endpoint, options = {}) {
 
       if (!res.ok) {
         const errorMsg = data?.error || data?.message || `Request failed with status ${res.status}`;
+        if (res.status === 401) {
+          notifyUnauthorized({ endpoint: cleanEndpoint, error: errorMsg, status: 401 });
+        }
         throw new ApiError(errorMsg, res.status, {
           field: data?.field,
           validation_errors: data?.validation_errors || data?.fields,
@@ -116,6 +145,9 @@ async function request(endpoint, options = {}) {
     }
 
     if (!res.ok) {
+      if (res.status === 401) {
+        notifyUnauthorized({ endpoint: cleanEndpoint, error: friendlyMessage, status: 401 });
+      }
       throw new ApiError(friendlyMessage, res.status, {
         isHtmlResponse: isHtml,
         endpoint: cleanEndpoint,
@@ -153,7 +185,11 @@ export const api = {
     });
   },
 
-  // Authentication
+  // Authentication & Session
+  getToken: () => localStorage.getItem('aaroha_token'),
+  isAuthenticated: () => Boolean(localStorage.getItem('aaroha_token')),
+  onUnauthorized,
+
   login: async (email, password) => {
     const res = await request('/auth/login', {
       method: 'POST',

@@ -4,24 +4,78 @@ require_once __DIR__ . '/../config/jwt.php';
 
 class AuthMiddleware {
     public static function getBearerToken() {
-        $headers = null;
-        if (isset($_SERVER['Authorization'])) {
-            $headers = trim($_SERVER['Authorization']);
-        } elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-            $headers = trim($_SERVER['HTTP_AUTHORIZATION']);
-        } elseif (function_exists('apache_request_headers')) {
-            $requestHeaders = apache_request_headers();
-            $requestHeaders = array_combine(array_map('ucwords', array_keys($requestHeaders)), array_values($requestHeaders));
-            if (isset($requestHeaders['Authorization'])) {
-                $headers = trim($requestHeaders['Authorization']);
+        $candidateHeaders = [];
+
+        // 1. Direct Server / FastCGI / Apache Environment Variables
+        $serverKeys = [
+            'HTTP_AUTHORIZATION',
+            'REDIRECT_HTTP_AUTHORIZATION',
+            'HTTP_X_AUTHORIZATION',
+            'REDIRECT_HTTP_X_AUTHORIZATION',
+            'HTTP_X_AUTH_TOKEN',
+            'REDIRECT_HTTP_X_AUTH_TOKEN',
+            'Authorization'
+        ];
+        foreach ($serverKeys as $key) {
+            if (!empty($_SERVER[$key])) {
+                $candidateHeaders[] = trim($_SERVER[$key]);
             }
         }
 
-        if (!empty($headers)) {
-            if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
-                return $matches[1];
+        // 2. Apache / FastCGI Request Headers (case-insensitive)
+        $headerBag = [];
+        if (function_exists('getallheaders')) {
+            $h = getallheaders();
+            if (is_array($h)) {
+                $headerBag = array_merge($headerBag, $h);
             }
         }
+        if (function_exists('apache_request_headers')) {
+            $h = apache_request_headers();
+            if (is_array($h)) {
+                $headerBag = array_merge($headerBag, $h);
+            }
+        }
+
+        if (!empty($headerBag)) {
+            $normalized = [];
+            foreach ($headerBag as $k => $v) {
+                if (is_string($v)) {
+                    $normalized[strtolower($k)] = trim($v);
+                }
+            }
+            foreach (['authorization', 'x-authorization', 'x-auth-token', 'token'] as $targetKey) {
+                if (!empty($normalized[$targetKey])) {
+                    $candidateHeaders[] = $normalized[$targetKey];
+                }
+            }
+        }
+
+        // 3. Fallback: Query parameter 'token'
+        if (!empty($_GET['token']) && is_string($_GET['token'])) {
+            $candidateHeaders[] = trim($_GET['token']);
+        }
+
+        // 4. Fallback: POST / JSON body parameter 'token'
+        if (!empty($_POST['token']) && is_string($_POST['token'])) {
+            $candidateHeaders[] = trim($_POST['token']);
+        }
+
+        // Inspect candidate values in order of priority
+        foreach ($candidateHeaders as $cand) {
+            if (empty($cand) || !is_string($cand)) continue;
+
+            // Pattern A: Standard "Bearer <jwt>"
+            if (preg_match('/Bearer\s+(\S+)/i', $cand, $matches)) {
+                return $matches[1];
+            }
+
+            // Pattern B: Direct JWT token without Bearer prefix (at least 20 chars, no spaces)
+            if (!preg_match('/\s/', $cand) && strlen($cand) > 20) {
+                return $cand;
+            }
+        }
+
         return null;
     }
 

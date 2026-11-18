@@ -39,20 +39,14 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('aaroha_user');
-      if (saved) {
+      const token = localStorage.getItem('aaroha_token');
+      // A user is only validly authenticated if BOTH user profile and active token exist
+      if (saved && token) {
         return JSON.parse(saved);
       }
-      const params = new URLSearchParams(window.location.search);
-      const urlRole = params.get('role');
-      if (urlRole) {
-        return {
-          id: 1,
-          full_name: 'Dr. Aris Thorne',
-          email: 'admin@aaroha-inc.com',
-          role: urlRole,
-          title: 'Dean & Academic Director',
-          avatar: '/avatars/3d/memo_13.png'
-        };
+      // Clean up orphaned session data to prevent phantom unauthenticated states
+      if (saved && !token) {
+        localStorage.removeItem('aaroha_user');
       }
       return null;
     } catch (e) {
@@ -310,14 +304,59 @@ export default function App() {
 
   // Ensure unauthenticated users attempting to access protected dashboards are prompted to sign in
   useEffect(() => {
-    if (!currentUser && (activeView === ROUTES.ADMIN || activeView === ROUTES.STUDENT)) {
-      const token = localStorage.getItem('aaroha_token');
-      if (!token) {
-        setActiveView(HOMEPAGE_ROUTE);
-        handleOpenAuth('login');
-      }
+    const token = localStorage.getItem('aaroha_token');
+    if ((!currentUser || !token) && (activeView === ROUTES.ADMIN || activeView === ROUTES.STUDENT)) {
+      setActiveView(HOMEPAGE_ROUTE);
+      handleOpenAuth('login');
     }
   }, [currentUser, activeView]);
+
+  // Centralized session unauthorized listener
+  useEffect(() => {
+    const unsubscribe = api.onUnauthorized((details) => {
+      console.warn('[Aaroha App] Session unauthorized on endpoint:', details?.endpoint);
+      showToast('Session expired or authentication required. Please sign in.', 'error');
+      handleOpenAuth('login');
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Expose global auth opener for modal dialogues and forms
+  useEffect(() => {
+    window.__aaroha_open_auth = (tab = 'login', course = null) => handleOpenAuth(tab, course);
+    return () => {
+      delete window.__aaroha_open_auth;
+    };
+  }, []);
+
+  // Auto-acquire session for demo role queries (?role=admin, ?role=faculty, ?role=student)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRole = params.get('role');
+      const token = localStorage.getItem('aaroha_token');
+      if (urlRole && !token) {
+        const demoEmail = urlRole === 'student' ? 'student@aaroha-inc.com' : 'admin@aaroha-inc.com';
+        api.login(demoEmail, 'password123')
+          .then(res => {
+            if (res && res.user && res.token) {
+              const verifiedUser = {
+                ...res.user,
+                avatar: res.user.avatar || '/avatars/3d/memo_13.png'
+              };
+              setCurrentUser(verifiedUser);
+              localStorage.setItem('aaroha_user', JSON.stringify(verifiedUser));
+              localStorage.setItem('aaroha_token', res.token);
+              setIsBackendLive(true);
+              showToast('Authenticated as ' + verifiedUser.full_name);
+            }
+          })
+          .catch(() => {
+            handleOpenAuth('login');
+          });
+      }
+    } catch (e) {}
+  }, []);
 
   // Ensure students without faculty clearance are redirected to their student dashboard
   useEffect(() => {

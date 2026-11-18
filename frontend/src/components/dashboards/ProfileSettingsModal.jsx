@@ -100,6 +100,12 @@ export default function ProfileSettingsModal({
     setSaveSuccessMsg('');
 
     try {
+      const token = localStorage.getItem('aaroha_token');
+      if (!token) {
+        setFormState('error');
+        setLoadError('Session expired or authentication token missing. Please sign in to access institutional records.');
+        return;
+      }
       const res = await api.getUserProfile();
       if (res?.success && res.profile) {
         const p = res.profile;
@@ -122,7 +128,11 @@ export default function ProfileSettingsModal({
       }
     } catch (err) {
       setFormState('error');
-      setLoadError(err.message || 'HTTP 500: Server error loading institutional profile.');
+      if (err.isUnauthorized || (err.message && err.message.toLowerCase().includes('token'))) {
+        setLoadError('Session expired or authentication token required. Please sign in.');
+      } else {
+        setLoadError(err.message || 'HTTP 500: Server error loading institutional profile.');
+      }
       // Form protection: do not populate empty fallback defaults that could overwrite data on save
     } finally {
       setIsLoadingProfile(false);
@@ -151,6 +161,15 @@ export default function ProfileSettingsModal({
     // Form protection: cannot save while loading or in error state
     if (formState !== 'loaded') {
       setErrorMsg('Cannot save profile while institutional records are not loaded.');
+      return;
+    }
+
+    const token = localStorage.getItem('aaroha_token');
+    if (!token) {
+      setErrorMsg('Authentication session required. Please sign in to save profile.');
+      if (typeof window !== 'undefined' && window.__aaroha_open_auth) {
+        window.__aaroha_open_auth('login');
+      }
       return;
     }
 
@@ -224,7 +243,14 @@ export default function ProfileSettingsModal({
     } catch (err) {
       // Preserve user edits in form and stay in 'loaded' state so they can fix and retry
       setFormState('loaded');
-      setErrorMsg(err.message || 'Failed to update profile settings.');
+      if (err.isUnauthorized || (err.message && err.message.toLowerCase().includes('token'))) {
+        setErrorMsg('Authentication session expired. Please sign in to save profile.');
+        if (typeof window !== 'undefined' && window.__aaroha_open_auth) {
+          window.__aaroha_open_auth('login');
+        }
+      } else {
+        setErrorMsg(err.message || 'Failed to update profile settings.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -721,13 +747,24 @@ export default function ProfileSettingsModal({
                       <div className="font-bold">Unable to load institutional profile</div>
                       <div className="text-[11px] text-amber-700 break-words break-all max-w-full overflow-hidden leading-relaxed max-h-20 overflow-y-auto">{loadError}</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={loadProfileData}
-                      className="shrink-0 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors"
-                    >
-                      Retry
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {(loadError.toLowerCase().includes('sign in') || loadError.toLowerCase().includes('session') || loadError.toLowerCase().includes('token') || loadError.toLowerCase().includes('auth')) && (
+                        <button
+                          type="button"
+                          onClick={() => { if (typeof window !== 'undefined' && window.__aaroha_open_auth) window.__aaroha_open_auth('login'); }}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#0a7cb3] hover:bg-[#08638f] text-white font-bold cursor-pointer transition-colors shadow-xs"
+                        >
+                          Sign In
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={loadProfileData}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold cursor-pointer transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
                     Institutional profile records could not be retrieved from the server. Form controls and save actions are disabled to prevent accidental data loss. Please click <strong>Retry</strong> above or verify network/server status.
