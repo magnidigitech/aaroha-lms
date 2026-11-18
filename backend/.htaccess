@@ -17,6 +17,9 @@ Options -Indexes
   RewriteCond %{HTTP:Authorization} .
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+  # Explicitly route /uploads and /upload endpoints to index.php even though 'uploads' is a physical directory
+  RewriteRule ^uploads(/.*)?$ index.php [QSA,L]
+
   # 3. Route all legitimate API requests to index.php
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
