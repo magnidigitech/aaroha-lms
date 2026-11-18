@@ -1122,14 +1122,6 @@ class AdminPortalController {
             return ['success' => false, 'error' => 'Database error during deletion: ' . $e->getMessage()];
         }
     }
-                    : 'Eligible student account and profile permanently removed.'
-            ];
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            http_response_code(500);
-            return ['success' => false, 'error' => 'Deletion failed: ' . $e->getMessage()];
-        }
-    }
 
 
     // -------------------------------------------------------------
