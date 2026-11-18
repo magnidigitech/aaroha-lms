@@ -290,6 +290,24 @@ class Database {
                                     if (!isset($stuColSet['internal_notes'])) {
                                         self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN internal_notes TEXT NULL");
                                     }
+                                    if (!isset($stuColSet['invitation_token'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN invitation_token VARCHAR(100) NULL");
+                                    }
+                                    if (!isset($stuColSet['invitation_expires_at'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN invitation_expires_at DATETIME NULL");
+                                    }
+                                    if (!isset($stuColSet['invitation_accepted_at'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN invitation_accepted_at DATETIME NULL");
+                                    }
+                                    if (!isset($stuColSet['suspension_reason'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN suspension_reason TEXT NULL");
+                                    }
+                                    if (!isset($stuColSet['suspension_end_date'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN suspension_end_date DATETIME NULL");
+                                    }
+                                    try {
+                                        self::$pdo->exec("ALTER TABLE student_profiles MODIFY COLUMN payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid'");
+                                    } catch (Exception $e) {}
                                 }
                             } catch (Exception $spErr) {}
 
@@ -328,6 +346,21 @@ class Database {
                                     }
                                     if (!isset($facColSet['reassignment_notes'])) {
                                         self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN reassignment_notes TEXT NULL");
+                                    }
+                                    if (!isset($facColSet['invitation_token'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN invitation_token VARCHAR(100) NULL");
+                                    }
+                                    if (!isset($facColSet['invitation_expires_at'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN invitation_expires_at DATETIME NULL");
+                                    }
+                                    if (!isset($facColSet['invitation_accepted_at'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN invitation_accepted_at DATETIME NULL");
+                                    }
+                                    if (!isset($facColSet['suspension_reason'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN suspension_reason TEXT NULL");
+                                    }
+                                    if (!isset($facColSet['suspension_end_date'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN suspension_end_date DATETIME NULL");
                                     }
                                 }
                             } catch (Exception $fpErr) {}
@@ -401,6 +434,9 @@ class Database {
                                 if ($enrCheck) {
                                     $enrCols = self::$pdo->query("SHOW COLUMNS FROM enrollments")->fetchAll(PDO::FETCH_COLUMN);
                                     $enrColSet = array_flip($enrCols);
+                                    if (!isset($enrColSet['batch_id'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN batch_id INT UNSIGNED NULL");
+                                    }
                                     if (!isset($enrColSet['access_start_at'])) {
                                         self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN access_start_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
                                     }

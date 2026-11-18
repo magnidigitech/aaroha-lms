@@ -219,9 +219,22 @@ class AdminPortalController {
                 }
 
                 // Add new course enrollment preserving existing account
-                $insEnr = $pdo->prepare("INSERT INTO enrollments (user_id, course_id, batch_id, status, enrolled_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)");
-                $insEnr->execute([$userId, $courseId, $batchId]);
-                $enrId = (int)$pdo->lastInsertId();
+                try {
+                    $insEnr = $pdo->prepare("INSERT INTO enrollments (user_id, course_id, batch_id, status, enrolled_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)");
+                    $insEnr->execute([$userId, $courseId, $batchId]);
+                    $enrId = (int)$pdo->lastInsertId();
+                } catch (PDOException $enrEx) {
+                    if (strpos($enrEx->getMessage(), 'batch_id') !== false) {
+                        try {
+                            $pdo->exec("ALTER TABLE enrollments ADD COLUMN batch_id INT UNSIGNED NULL");
+                        } catch (Exception $altEx) {}
+                        $insEnr = $pdo->prepare("INSERT INTO enrollments (user_id, course_id, batch_id, status, enrolled_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)");
+                        $insEnr->execute([$userId, $courseId, $batchId]);
+                        $enrId = (int)$pdo->lastInsertId();
+                    } else {
+                        throw $enrEx;
+                    }
+                }
 
                 if ($batchId) {
                     $insBe = $pdo->prepare("INSERT INTO batch_enrollments (enrollment_id, user_id, batch_id, status, enrolled_at) VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)");
@@ -233,8 +246,8 @@ class AdminPortalController {
                 $cStmt->execute([$courseId]);
                 $cFee = $cStmt->fetch();
                 $feeAmount = $cFee ? (float)$cFee['fee_amount'] : 65000.00;
-                $feePlanStmt = $pdo->prepare("INSERT INTO fee_plans (enrollment_id, user_id, plan_type, total_fee_amount, final_payable_amount, balance_due, payment_status, created_at) VALUES (?, ?, 'standard_installment', ?, ?, ?, 'offline_handled', CURRENT_TIMESTAMP)");
-                $feePlanStmt->execute([$enrId, $userId, $feeAmount, $feeAmount, $feeAmount]);
+                $feePlanStmt = $pdo->prepare("INSERT INTO fee_plans (enrollment_id, user_id, course_id, total_fee, discount_amount, net_fee, currency, status, created_at) VALUES (?, ?, ?, ?, 0.00, ?, 'INR', 'paid', CURRENT_TIMESTAMP)");
+                $feePlanStmt->execute([$enrId, $userId, $courseId, $feeAmount, $feeAmount]);
             }
 
             AuditLogger::log('REUSE_STUDENT_ENROLLMENT', 'student', $userId, ['course_id' => $courseId, 'batch_id' => $batchId], $actor);
@@ -277,36 +290,79 @@ class AdminPortalController {
             $userId = (int)$pdo->lastInsertId();
 
             // 2. Create Student Profile (stores only cryptographic hash of token)
-            $stmt = $pdo->prepare("
-                INSERT INTO student_profiles (
-                    user_id, student_id_code, mobile, normalized_mobile, education, experience_years,
-                    admission_date, coordinator_id, account_status, admission_status, enrollment_status,
-                    payment_status, internal_notes, invitation_token, invitation_expires_at, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'invited', 'admitted', 'enrolled', 'offline_handled', ?, ?, ?, CURRENT_TIMESTAMP)
-            ");
-            $stmt->execute([
-                $userId,
-                $studentCode,
-                $mobile,
-                $normalizedMobile,
-                $education,
-                $experience,
-                date('Y-m-d'),
-                $coordinatorId,
-                $internalNotes,
-                $hashedInvitationToken,
-                $invitationExpires
-            ]);
+            try {
+                $stmt = $pdo->prepare("
+                    INSERT INTO student_profiles (
+                        user_id, student_id_code, mobile, normalized_mobile, education, experience_years,
+                        admission_date, coordinator_id, account_status, admission_status, enrollment_status,
+                        payment_status, internal_notes, invitation_token, invitation_expires_at, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'invited', 'admitted', 'enrolled', 'offline_handled', ?, ?, ?, CURRENT_TIMESTAMP)
+                ");
+                $stmt->execute([
+                    $userId,
+                    $studentCode,
+                    $mobile,
+                    $normalizedMobile,
+                    $education,
+                    $experience,
+                    date('Y-m-d'),
+                    $coordinatorId,
+                    $internalNotes,
+                    $hashedInvitationToken,
+                    $invitationExpires
+                ]);
+            } catch (PDOException $spEx) {
+                // If payment_status was restricted ENUM or column missing, relax to VARCHAR(50)
+                try {
+                    $pdo->exec("ALTER TABLE student_profiles MODIFY COLUMN payment_status VARCHAR(50) NOT NULL DEFAULT 'unpaid'");
+                } catch (Exception $altEx) {}
+                $stmt = $pdo->prepare("
+                    INSERT INTO student_profiles (
+                        user_id, student_id_code, mobile, normalized_mobile, education, experience_years,
+                        admission_date, coordinator_id, account_status, admission_status, enrollment_status,
+                        payment_status, internal_notes, invitation_token, invitation_expires_at, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'invited', 'admitted', 'enrolled', 'unpaid', ?, ?, ?, CURRENT_TIMESTAMP)
+                ");
+                $stmt->execute([
+                    $userId,
+                    $studentCode,
+                    $mobile,
+                    $normalizedMobile,
+                    $education,
+                    $experience,
+                    date('Y-m-d'),
+                    $coordinatorId,
+                    $internalNotes,
+                    $hashedInvitationToken,
+                    $invitationExpires
+                ]);
+            }
 
             // 3. Enrol in Course & Batch if provided
             $enrollmentId = null;
             if ($courseId) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO enrollments (user_id, course_id, batch_id, status, enrolled_at)
-                    VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)
-                ");
-                $stmt->execute([$userId, $courseId, $batchId]);
-                $enrollmentId = (int)$pdo->lastInsertId();
+                try {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO enrollments (user_id, course_id, batch_id, status, enrolled_at)
+                        VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)
+                    ");
+                    $stmt->execute([$userId, $courseId, $batchId]);
+                    $enrollmentId = (int)$pdo->lastInsertId();
+                } catch (PDOException $enrEx) {
+                    if (strpos($enrEx->getMessage(), 'batch_id') !== false) {
+                        try {
+                            $pdo->exec("ALTER TABLE enrollments ADD COLUMN batch_id INT UNSIGNED NULL");
+                        } catch (Exception $altEx) {}
+                        $stmt = $pdo->prepare("
+                            INSERT INTO enrollments (user_id, course_id, batch_id, status, enrolled_at)
+                            VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP)
+                        ");
+                        $stmt->execute([$userId, $courseId, $batchId]);
+                        $enrollmentId = (int)$pdo->lastInsertId();
+                    } else {
+                        throw $enrEx;
+                    }
+                }
 
                 if ($batchId) {
                     $stmt = $pdo->prepare("
