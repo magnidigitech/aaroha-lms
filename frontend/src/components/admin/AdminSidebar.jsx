@@ -106,42 +106,41 @@ export default function AdminSidebar({
         aria-label="Main Navigation"
       >
         {/* Brand Header with Aaroha Logo Linking to Public Homepage */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 bg-white shrink-0">
-          <div
-            onClick={() => {
-              if (onViewWebsite) onViewWebsite();
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className="flex items-center gap-3 overflow-hidden cursor-pointer select-none group"
-            title="Aaroha Technologies - Return to Public Homepage"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+        <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-slate-200 bg-white shrink-0`}>
+          {!isCollapsed && (
+            <div
+              onClick={() => {
                 if (onViewWebsite) onViewWebsite();
                 if (onCloseMobile) onCloseMobile();
-              }
-            }}
-          >
-            <div className="bg-white hover:bg-slate-50 p-1 rounded-lg border border-transparent group-hover:border-slate-200 transition-all flex items-center shrink-0">
-              <img
-                src={aarohaLogo}
-                alt="Aaroha LMS"
-                className="h-7 w-auto object-contain"
-              />
+              }}
+              className="flex items-center gap-3 overflow-hidden cursor-pointer select-none group"
+              title="Aaroha Technologies - Return to Public Homepage"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  if (onViewWebsite) onViewWebsite();
+                  if (onCloseMobile) onCloseMobile();
+                }
+              }}
+            >
+              <div className="bg-white hover:bg-slate-50 p-1 rounded-lg border border-transparent group-hover:border-slate-200 transition-all flex items-center shrink-0">
+                <img
+                  src={aarohaLogo}
+                  alt="Aaroha Technologies"
+                  className="h-7 w-auto object-contain"
+                />
+              </div>
             </div>
-            {!isCollapsed && (
-              <span className="font-semibold text-slate-900 text-sm tracking-tight truncate group-hover:text-[#0a7cb3] transition-colors">
-                Aaroha LMS
-              </span>
-            )}
-          </div>
+          )}
 
           {/* Desktop Collapse Toggle */}
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#0a7cb3]"
+            className={`hidden md:flex items-center justify-center w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#0a7cb3] ${
+              isCollapsed ? 'mx-auto' : ''
+            }`}
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
