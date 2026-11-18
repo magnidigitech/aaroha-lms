@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
 from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'database', 'lms.sqlite'))
+DB_PATH = os.path.abspath(os.environ.get('LMS_DB_PATH', os.path.join(os.path.dirname(__file__), '..', 'database', 'lms.sqlite')))
 JWT_SECRET = "aaroha_lms_dev_secret_2026_x89f!"
 
 def get_db():
@@ -2386,6 +2386,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     "success": True,
                     "message": "Password reset link generated successfully (valid for 24 hours). Previous reset links have been invalidated.",
                     "reset_url": reset_url,
+                    "reset_token": raw_token,
                     "expires_at": expires_at,
                     "delivery_method": "manual_share",
                     "email_sent": False,
@@ -2394,9 +2395,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
             # 7. Create Student (With Account Reuse & Single-Use Invitation)
             if path == "/admin/students":
-                full_name = data.get("full_name", "").strip()
+                full_name = (data.get("full_name") or data.get("name") or "").strip()
                 email = data.get("email", "").strip().lower()
-                mobile = data.get("mobile", "").strip()
+                mobile = (data.get("mobile") or data.get("phone") or "").strip()
                 norm_mobile = "".join(filter(str.isdigit, mobile))
                 course_id = data.get("course_id")
                 batch_id = data.get("batch_id")
@@ -2503,13 +2504,13 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
             # 8. Create Faculty (With Account Reuse & Single-Use Invitation)
             if path == "/admin/faculty":
-                full_name = data.get("full_name", "").strip()
+                full_name = (data.get("full_name") or data.get("name") or "").strip()
                 email = data.get("email", "").strip().lower()
-                mobile = data.get("mobile", "").strip()
+                mobile = (data.get("mobile") or data.get("phone") or "").strip()
                 expertise = data.get("expertise", "")
                 title = data.get("title", "Senior Systems Faculty")
                 courses_taught = data.get("courses_taught", [])
-                batch_ids = data.get("batch_ids", [])
+                batch_ids = data.get("batch_ids") or data.get("assigned_batch_ids") or []
                 availability = data.get("availability", ['Mon-Fri 18:00-21:00 IST', 'Sat 10:00-14:00 IST'])
                 internal_notes = data.get("internal_notes", "")
 

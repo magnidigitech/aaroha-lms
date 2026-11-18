@@ -1094,7 +1094,7 @@ class AdminPortalController {
         $title = trim($data['title'] ?? 'Senior Technical Faculty');
         $availability = is_array($data['availability'] ?? null) ? json_encode($data['availability']) : json_encode(['Mon-Fri Evening']);
         $coursesTaught = is_array($data['courses_taught'] ?? null) ? json_encode($data['courses_taught']) : json_encode([]);
-        $assignedBatchIds = is_array($data['batch_ids'] ?? null) ? $data['batch_ids'] : [];
+        $assignedBatchIds = is_array($data['batch_ids'] ?? null) ? $data['batch_ids'] : (is_array($data['assigned_batch_ids'] ?? null) ? $data['assigned_batch_ids'] : []);
 
         if (!$fullName || !$email) {
             http_response_code(400);
@@ -2949,6 +2949,7 @@ class AdminPortalController {
             'success' => true,
             'message' => 'Password reset link generated successfully (valid for 24 hours). Previous reset links have been invalidated.',
             'reset_url' => $resetUrl,
+            'reset_token' => $rawToken,
             'expires_at' => $expires,
             'delivery_method' => 'manual_share',
             'email_sent' => false,

@@ -86,16 +86,37 @@ export default function App() {
 
   const [viewingCertificate, setViewingCertificate] = useState(null);
   
-  const [authModal, setAuthModal] = useState({
-    isOpen: false,
-    tab: 'login',
-    intendedCourse: null
+  const [authModal, setAuthModal] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pathname = window.location.pathname || '';
+      const isReset = pathname.includes('reset') || params.has('reset_token') || params.get('mode') === 'reset';
+      const rToken = params.get('reset_token') || (isReset ? params.get('token') : '') || '';
+      if (isReset && rToken) {
+        return {
+          isOpen: true,
+          mode: 'reset',
+          initialResetToken: rToken,
+          intendedCourse: null
+        };
+      }
+    } catch (e) {}
+    return {
+      isOpen: false,
+      mode: 'login',
+      initialResetToken: '',
+      intendedCourse: null
+    };
   });
 
   const [activationToken, setActivationToken] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      return params.get('token') || '';
+      const pathname = window.location.pathname || '';
+      if (pathname.includes('reset') || params.has('reset_token') || params.get('mode') === 'reset') {
+        return '';
+      }
+      return params.get('token') || params.get('activation_token') || '';
     } catch (e) {
       return '';
     }
@@ -104,7 +125,11 @@ export default function App() {
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
-      return !!params.get('token');
+      const pathname = window.location.pathname || '';
+      if (pathname.includes('reset') || params.has('reset_token') || params.get('mode') === 'reset') {
+        return false;
+      }
+      return !!(params.get('token') || params.get('activation_token'));
     } catch (e) {
       return false;
     }
@@ -515,10 +540,11 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleOpenAuth = (tab = 'login', intendedCourse = null) => {
+  const handleOpenAuth = (mode = 'login', intendedCourse = null) => {
     setAuthModal({
       isOpen: true,
-      tab: tab,
+      mode: mode,
+      initialResetToken: '',
       intendedCourse: intendedCourse
     });
   };
@@ -1752,9 +1778,11 @@ export default function App() {
       {/* Auth Modal */}
       <AuthModal
         isOpen={authModal.isOpen}
-        onClose={() => setAuthModal({ isOpen: false, tab: 'login', intendedCourse: null })}
+        onClose={() => setAuthModal({ isOpen: false, mode: 'login', initialResetToken: '', intendedCourse: null })}
         onLogin={handleLogin}
         intendedCourseTitle={authModal.intendedCourse?.title}
+        initialMode={authModal.mode || 'login'}
+        initialResetToken={authModal.initialResetToken || ''}
       />
 
       {/* Account Activation Modal */}

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Lock, Mail, ArrowRight, Eye, EyeOff, ShieldAlert, KeyRound, CheckCircle2, ArrowLeft, RefreshCw } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import { api } from '../apiService';
 
-export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, intendedCourseTitle }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'forgot' | 'reset'
+export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, intendedCourseTitle, initialMode = 'login', initialResetToken = '' }) {
+  const [mode, setMode] = useState(initialMode); // 'login' | 'forgot' | 'reset'
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -14,9 +14,16 @@ export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, 
 
   // Forgot password & reset state
   const [forgotEmail, setForgotEmail] = useState('');
-  const [resetToken, setResetToken] = useState('');
+  const [resetToken, setResetToken] = useState(initialResetToken);
   const [newPassword, setNewPassword] = useState('');
   const [resetGeneratedLink, setResetGeneratedLink] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialMode) setMode(initialMode);
+      if (initialResetToken) setResetToken(initialResetToken);
+    }
+  }, [isOpen, initialMode, initialResetToken]);
 
   if (!isOpen) return null;
 

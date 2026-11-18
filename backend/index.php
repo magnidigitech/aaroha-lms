@@ -179,7 +179,7 @@ try {
         $admin = AuthMiddleware::requireAdmin();
         $response = CourseController::updateCourse((int)$matches[1], $inputData, (int)$admin['id'], (string)$admin['role']);
     }
-    elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/(?:admin/)?courses/(\d+)(?:/delete)?$#', $path, $matches)) {
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/(?:admin/)?courses/(\d+)$#', $path, $matches)) {
         $admin = AuthMiddleware::requireAdmin();
         $response = CourseController::deleteCourse((int)$matches[1], (int)$admin['id'], (string)$admin['role']);
     }
@@ -490,7 +490,7 @@ try {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::checkStudentDeletionEligibility((int)$matches[1]);
     }
-    elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/admin/students/(\d+)(?:/delete)?$#', $path, $matches)) {
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/students/(\d+)$#', $path, $matches)) {
         $actor = AuthMiddleware::requireAdmin();
         $response = AdminPortalController::deleteStudent((int)$matches[1], $actor);
     }
@@ -547,7 +547,7 @@ try {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::checkFacultyDeletionEligibility((int)$matches[1]);
     }
-    elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/admin/faculty/(\d+)(?:/delete)?$#', $path, $matches)) {
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/faculty/(\d+)$#', $path, $matches)) {
         $actor = AuthMiddleware::requireAdmin();
         $response = AdminPortalController::deleteFaculty((int)$matches[1], $actor);
     }

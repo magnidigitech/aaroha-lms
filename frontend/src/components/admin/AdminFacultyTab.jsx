@@ -1131,6 +1131,67 @@ export default function AdminFacultyTab({
                     </div>
                   )}
 
+                  {/* Credentials & WhatsApp Manual Setup Card */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs">Faculty Credentials & Access Setup</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        selectedFaculty.account_status === 'active'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {selectedFaculty.account_status === 'active' ? 'Active' : 'Link Generated'}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-600 text-xs">
+                      Single-use cryptographic links expire after <strong>24 hours</strong>. When regenerated or revoked, previous tokens are immediately invalidated. Full URLs and passwords are never logged.
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fid = selectedFaculty.id || selectedFaculty.user_id;
+                          if (onGenerateSetupLink) onGenerateSetupLink(fid, selectedFaculty);
+                          else onResendInvite(fid);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-[#0A7CB3] hover:bg-[#086491] text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <KeyRound size={13} />
+                        <span>Generate Setup Link</span>
+                      </button>
+
+                      {selectedFaculty.account_status === 'active' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const fid = selectedFaculty.id || selectedFaculty.user_id;
+                            if (onGenerateResetLink) onGenerateResetLink(fid, selectedFaculty);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <KeyRound size={13} />
+                          <span>Generate Password Reset Link</span>
+                        </button>
+                      )}
+
+                      {(selectedFaculty.account_status === 'invited' || selectedFaculty.account_status === 'link_generated') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const fid = selectedFaculty.id || selectedFaculty.user_id;
+                            onRevokeInvite(fid);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <XCircle size={13} />
+                          <span>Revoke Invitation</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Account Action Controls in Drawer */}
                   <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-700">Account Access Control:</span>

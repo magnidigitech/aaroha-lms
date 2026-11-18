@@ -496,6 +496,9 @@ export default function AdminPortalView({
         }
         await fetchFaculty();
         await fetchDashboardStats();
+        }
+        await fetchFaculty();
+        await fetchDashboardStats();
         return res;
       }
     } catch (err) {
