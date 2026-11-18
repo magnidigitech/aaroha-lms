@@ -37,46 +37,10 @@ def main():
     ftp = connect_ftp(server, username, password, timeout=15)
     initial_pwd = ftp.pwd()
     log(f'Initial FTP working directory: {initial_pwd}')
-
-    # LMS Document roots on Hostinger
-    candidate_paths = [
-        'domains/aaroha-inc.com/public_html/lms',
-        'domains/lms.aaroha-inc.com/public_html',
-        'public_html/lms',
-    ]
-    if raw_dir and raw_dir not in candidate_paths:
-        candidate_paths.insert(0, raw_dir)
-
-    discovered_roots = []
-    for cand in candidate_paths:
-        cand_clean = cand.strip('/')
-        try:
-            ftp.cwd(initial_pwd)
-        except Exception:
-            pass
-        try:
-            ftp.cwd(cand_clean)
-            discovered_roots.append(cand_clean)
-            log(f'  [FOUND LMS ROOT] {cand_clean}')
-            continue
-        except Exception:
-            pass
-        try:
-            target_cand = '/' + cand_clean
-            ftp.cwd(target_cand)
-            discovered_roots.append(target_cand)
-            log(f'  [FOUND LMS ROOT] {target_cand}')
-            continue
-        except Exception:
-            pass
-
-    if not discovered_roots:
-        discovered_roots.append(initial_pwd)
-
-    discovered_roots = list(dict.fromkeys(discovered_roots))
-    log(f'Target deployment destinations: {discovered_roots}')
+    log(f'FTP_SERVER_DIR environment variable: "{raw_dir}"')
 
     ftp_holder = {'conn': ftp}
+    active_dir_holder = {'dir': None}
 
     def get_active_ftp():
         f = ftp_holder['conn']
@@ -89,11 +53,14 @@ def main():
                 f.close()
             except Exception:
                 pass
+            active_dir_holder['dir'] = None
             new_f = connect_ftp(server, username, password, timeout=15)
             ftp_holder['conn'] = new_f
             return new_f
 
     def ensure_remote_directory(target_path):
+        if active_dir_holder['dir'] == target_path:
+            return
         f = get_active_ftp()
         try:
             f.cwd(initial_pwd)
@@ -118,6 +85,38 @@ def main():
                     f.cwd(p)
                 except Exception as e:
                     log(f'Warning: unable to enter remote dir {p}: {e}')
+                    raise
+        active_dir_holder['dir'] = target_path
+
+    # LMS Document roots on Hostinger
+    # 1. Subdomain document root under main domain (standard Hostinger cPanel mapping: public_html/lms)
+    # 2. Standalone domain document root (if lms.aaroha-inc.com is configured as separate website)
+    # 3. Main domain public_html (shared hosting root)
+    candidate_paths = [
+        'domains/aaroha-inc.com/public_html/lms',
+        'domains/lms.aaroha-inc.com/public_html',
+        'domains/aaroha-inc.com/public_html',
+    ]
+    if raw_dir:
+        cand_from_raw = f'domains/aaroha-inc.com/{raw_dir}' if raw_dir.startswith('public_html') else raw_dir
+        if cand_from_raw not in candidate_paths:
+            candidate_paths.insert(0, cand_from_raw)
+
+    discovered_roots = []
+    for cand in candidate_paths:
+        cand_clean = cand.strip('/')
+        try:
+            ensure_remote_directory(cand_clean)
+            discovered_roots.append(cand_clean)
+            log(f'  [FOUND/CREATED LMS ROOT] {cand_clean}')
+        except Exception as e:
+            log(f'  [SKIPPED ROOT] {cand_clean}: {e}')
+
+    if not discovered_roots:
+        discovered_roots.append(initial_pwd)
+
+    discovered_roots = list(dict.fromkeys(discovered_roots))
+    log(f'Target deployment destinations: {discovered_roots}')
 
     def upload_file(remote_dir, item, local_full, child_rel):
         file_size = os.path.getsize(local_full)
@@ -131,6 +130,7 @@ def main():
                 return
             except Exception as e:
                 log(f'     [RETRY {retry}/3] Error storing {child_rel}: {e}')
+                active_dir_holder['dir'] = None
                 time.sleep(1)
                 try:
                     ftp_holder['conn'].close()
@@ -164,7 +164,7 @@ def main():
                 if item.endswith('.sqlite') or item.endswith('.db'):
                     f = get_active_ftp()
                     try:
-                        f.cwd(remote_dir)
+                        ensure_remote_directory(remote_dir)
                         if item in f.nlst():
                             log(f'  [DATABASE PRESERVED] {child_rel}')
                             continue
@@ -176,6 +176,11 @@ def main():
     for target in discovered_roots:
         log(f'\n--- Synchronizing deployment payload to: {target} ---')
         sync_tree(local_dir, target)
+        marker_name = 'docroot_target.txt'
+        marker_path = os.path.join(local_dir, marker_name)
+        with open(marker_path, 'w', encoding='utf-8') as mf:
+            mf.write(f'Target: {target}\n')
+        upload_file(target, marker_name, marker_path, marker_name)
 
     # Save and upload deploy.log to all targets
     with open('deploy.log', 'w', encoding='utf-8') as f:
