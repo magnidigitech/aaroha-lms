@@ -157,18 +157,22 @@ class UploadController {
         $mimeType = finfo_file($finfo, $destPath) ?: 'application/octet-stream';
         finfo_close($finfo);
 
-        $pdo = getDBConnection();
-        $stmt = $pdo->prepare("
-            INSERT INTO uploaded_files (
-                storage_key, filename, mime_type, file_size, category,
-                is_public, uploader_user_id, storage_path, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-        ");
+        $pdo = Database::getConnection();
         $uploaderId = $user['id'] ?? null;
         $isPub = $cfg['is_public'] ? 1 : 0;
+        $vis = $cfg['is_public'] ? 'public' : 'private';
+
+        $stmt = $pdo->prepare("
+            INSERT INTO uploaded_files (
+                file_key, storage_key, original_filename, filename, mime_type,
+                file_size, category, visibility, is_public, uploaded_by,
+                uploader_user_id, storage_path, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ");
         $stmt->execute([
-            $storageKey, $filename, $mimeType, $fileSize, $category,
-            $isPub, $uploaderId, $cfg['dir'] . '/' . $destFilename
+            $storageKey, $storageKey, $filename, $filename, $mimeType,
+            $fileSize, $category, $vis, $isPub, $uploaderId,
+            $uploaderId, $cfg['dir'] . '/' . $destFilename
         ]);
 
         $publicUrl = '/api/uploads/public/' . $storageKey;
@@ -250,17 +254,18 @@ class UploadController {
             $fileSize = filesize($destPath);
             $mimeType = 'video/mp4';
 
-            $pdo = getDBConnection();
+            $pdo = Database::getConnection();
+            $uploaderId = $user['id'] ?? null;
             $stmt = $pdo->prepare("
                 INSERT INTO uploaded_files (
-                    storage_key, filename, mime_type, file_size, category,
-                    is_public, uploader_user_id, storage_path, created_at
-                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, datetime('now'))
+                    file_key, storage_key, original_filename, filename, mime_type,
+                    file_size, category, visibility, is_public, uploaded_by,
+                    uploader_user_id, storage_path, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'private', 0, ?, ?, ?, CURRENT_TIMESTAMP)
             ");
-            $uploaderId = $user['id'] ?? null;
             $stmt->execute([
-                $storageKey, $filename, $mimeType, $fileSize, $category,
-                $uploaderId, $cfg['dir'] . '/' . $destFilename
+                $storageKey, $storageKey, $filename, $filename, $mimeType,
+                $fileSize, $category, $uploaderId, $uploaderId, $cfg['dir'] . '/' . $destFilename
             ]);
 
             $streamUrl = '/api/uploads/stream/' . $storageKey;
@@ -290,9 +295,9 @@ class UploadController {
      * Serve Public Asset
      */
     public static function servePublic(string $fileKey): void {
-        $pdo = getDBConnection();
-        $stmt = $pdo->prepare("SELECT * FROM uploaded_files WHERE storage_key = ?");
-        $stmt->execute([$fileKey]);
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT * FROM uploaded_files WHERE storage_key = ? OR file_key = ? LIMIT 1");
+        $stmt->execute([$fileKey, $fileKey]);
         $row = $stmt->fetch();
 
         if (!$row) {
@@ -321,9 +326,9 @@ class UploadController {
      */
     public static function serveStream(string $fileKey, ?array $user): void {
         $token = $_GET['token'] ?? '';
-        $pdo = getDBConnection();
-        $stmt = $pdo->prepare("SELECT * FROM uploaded_files WHERE storage_key = ?");
-        $stmt->execute([$fileKey]);
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT * FROM uploaded_files WHERE storage_key = ? OR file_key = ? LIMIT 1");
+        $stmt->execute([$fileKey, $fileKey]);
         $row = $stmt->fetch();
 
         if (!$row) {

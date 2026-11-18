@@ -157,6 +157,15 @@ class Database {
                             if (!isset($colSet['instructor_avatar'])) {
                                 self::$pdo->exec("ALTER TABLE courses ADD COLUMN instructor_avatar VARCHAR(500) NULL");
                             }
+                            if (!isset($colSet['access_duration_type'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN access_duration_type VARCHAR(50) DEFAULT 'lifetime'");
+                            }
+                            if (!isset($colSet['access_duration_value'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN access_duration_value INT UNSIGNED DEFAULT 0");
+                            }
+                            if (!isset($colSet['access_duration_unit'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN access_duration_unit VARCHAR(50) DEFAULT 'months'");
+                            }
 
                             // Non-destructive table creation for certificates
                             self::$pdo->exec("CREATE TABLE IF NOT EXISTS certificates (
@@ -213,6 +222,12 @@ class Database {
                                 if (!isset($userColSet['deleted_at'])) {
                                     self::$pdo->exec("ALTER TABLE users ADD COLUMN deleted_at DATETIME NULL");
                                 }
+                                if (!isset($userColSet['archived_at'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN archived_at DATETIME NULL");
+                                }
+                                if (!isset($userColSet['archival_reason'])) {
+                                    self::$pdo->exec("ALTER TABLE users ADD COLUMN archival_reason TEXT NULL");
+                                }
                             } catch (Exception $uErr) {}
 
                             // Non-destructive column migrations for student_profiles
@@ -245,6 +260,36 @@ class Database {
                                     if (!isset($stuColSet['account_status'])) {
                                         self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN account_status VARCHAR(50) DEFAULT 'active'");
                                     }
+                                    if (!isset($stuColSet['admission_status'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN admission_status VARCHAR(50) DEFAULT 'enrolled'");
+                                    }
+                                    if (!isset($stuColSet['enrollment_status'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN enrollment_status VARCHAR(50) DEFAULT 'active'");
+                                    }
+                                    if (!isset($stuColSet['payment_status'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN payment_status VARCHAR(50) DEFAULT 'paid'");
+                                    }
+                                    if (!isset($stuColSet['archived_at'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN archived_at DATETIME NULL");
+                                    }
+                                    if (!isset($stuColSet['archival_reason'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN archival_reason TEXT NULL");
+                                    }
+                                    if (!isset($stuColSet['archived_enrolment_resolution'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN archived_enrolment_resolution VARCHAR(50) NULL");
+                                    }
+                                    if (!isset($stuColSet['withdrawn_at'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN withdrawn_at DATETIME NULL");
+                                    }
+                                    if (!isset($stuColSet['withdrawal_reason'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN withdrawal_reason TEXT NULL");
+                                    }
+                                    if (!isset($stuColSet['coordinator_id'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN coordinator_id INT UNSIGNED NULL");
+                                    }
+                                    if (!isset($stuColSet['internal_notes'])) {
+                                        self::$pdo->exec("ALTER TABLE student_profiles ADD COLUMN internal_notes TEXT NULL");
+                                    }
                                 }
                             } catch (Exception $spErr) {}
 
@@ -260,6 +305,9 @@ class Database {
                                     if (!isset($facColSet['qualifications'])) {
                                         self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN qualifications TEXT NULL");
                                     }
+                                    if (!isset($facColSet['expertise'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN expertise TEXT NULL");
+                                    }
                                     if (!isset($facColSet['experience_years'])) {
                                         self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN experience_years VARCHAR(50) NULL");
                                     }
@@ -272,8 +320,152 @@ class Database {
                                     if (!isset($facColSet['account_status'])) {
                                         self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN account_status VARCHAR(50) DEFAULT 'active'");
                                     }
+                                    if (!isset($facColSet['archived_at'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN archived_at DATETIME NULL");
+                                    }
+                                    if (!isset($facColSet['archival_reason'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN archival_reason TEXT NULL");
+                                    }
+                                    if (!isset($facColSet['reassignment_notes'])) {
+                                        self::$pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN reassignment_notes TEXT NULL");
+                                    }
                                 }
                             } catch (Exception $fpErr) {}
+
+                            // Non-destructive column migrations for batches
+                            try {
+                                $bCheck = self::$pdo->query("SHOW TABLES LIKE 'batches'")->fetch();
+                                if ($bCheck) {
+                                    $bCols = self::$pdo->query("SHOW COLUMNS FROM batches")->fetchAll(PDO::FETCH_COLUMN);
+                                    $bColSet = array_flip($bCols);
+                                    if (!isset($bColSet['archived_at'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN archived_at DATETIME NULL");
+                                    }
+                                    if (!isset($bColSet['archival_reason'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN archival_reason TEXT NULL");
+                                    }
+                                    if (!isset($bColSet['is_archived'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN is_archived TINYINT(1) DEFAULT 0");
+                                    }
+                                    if (!isset($bColSet['deleted_at'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN deleted_at DATETIME NULL");
+                                    }
+                                    if (!isset($bColSet['lead_faculty_id'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN lead_faculty_id INT UNSIGNED NULL");
+                                    }
+                                    if (!isset($bColSet['coordinator_id'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN coordinator_id INT UNSIGNED NULL");
+                                    }
+                                    if (!isset($bColSet['capacity'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN capacity INT UNSIGNED NOT NULL DEFAULT 30");
+                                    }
+                                    if (!isset($bColSet['delivery_mode'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN delivery_mode VARCHAR(50) NOT NULL DEFAULT 'Online Live'");
+                                    }
+                                    if (!isset($bColSet['timezone'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN timezone VARCHAR(50) NOT NULL DEFAULT 'Asia/Kolkata'");
+                                    }
+                                    if (!isset($bColSet['is_deleted'])) {
+                                        self::$pdo->exec("ALTER TABLE batches ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0");
+                                    }
+                                }
+                            } catch (Exception $bErr) {}
+
+                            // Non-destructive column migrations for enrollments
+                            try {
+                                $enrCheck = self::$pdo->query("SHOW TABLES LIKE 'enrollments'")->fetch();
+                                if ($enrCheck) {
+                                    $enrCols = self::$pdo->query("SHOW COLUMNS FROM enrollments")->fetchAll(PDO::FETCH_COLUMN);
+                                    $enrColSet = array_flip($enrCols);
+                                    if (!isset($enrColSet['access_start_at'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN access_start_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+                                    }
+                                    if (!isset($enrColSet['expires_at'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN expires_at TIMESTAMP NULL DEFAULT NULL");
+                                    }
+                                    if (!isset($enrColSet['access_duration_applied'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN access_duration_applied VARCHAR(50) NOT NULL DEFAULT '6 Months'");
+                                    }
+                                    if (!isset($enrColSet['access_status'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN access_status VARCHAR(50) NOT NULL DEFAULT 'active'");
+                                    }
+                                    if (!isset($enrColSet['withdrawal_reason'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN withdrawal_reason TEXT NULL");
+                                    }
+                                    if (!isset($enrColSet['withdrawn_at'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN withdrawn_at DATETIME NULL");
+                                    }
+                                    if (!isset($enrColSet['extension_history'])) {
+                                        self::$pdo->exec("ALTER TABLE enrollments ADD COLUMN extension_history LONGTEXT NULL");
+                                    }
+                                }
+                            } catch (Exception $enrErr) {}
+
+                            // Non-destructive table and column migrations for uploaded_files
+                            try {
+                                self::$pdo->exec("CREATE TABLE IF NOT EXISTS uploaded_files (
+                                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                                    file_key VARCHAR(191) NULL,
+                                    storage_key VARCHAR(191) NULL,
+                                    original_filename VARCHAR(255) NULL,
+                                    filename VARCHAR(255) NULL,
+                                    mime_type VARCHAR(100) NOT NULL,
+                                    file_size BIGINT UNSIGNED NOT NULL,
+                                    category VARCHAR(50) NOT NULL,
+                                    visibility VARCHAR(50) NOT NULL DEFAULT 'private',
+                                    is_public TINYINT(1) NOT NULL DEFAULT 0,
+                                    storage_path TEXT NOT NULL,
+                                    uploaded_by INT UNSIGNED NULL,
+                                    uploader_user_id INT UNSIGNED NULL,
+                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                    INDEX idx_uf_fkey (file_key),
+                                    INDEX idx_uf_skey (storage_key),
+                                    INDEX idx_uf_category (category)
+                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+                                $ufCols = self::$pdo->query("SHOW COLUMNS FROM uploaded_files")->fetchAll(PDO::FETCH_COLUMN);
+                                $ufColSet = array_flip($ufCols);
+                                if (!isset($ufColSet['storage_key'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN storage_key VARCHAR(191) NULL");
+                                }
+                                if (!isset($ufColSet['file_key'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN file_key VARCHAR(191) NULL");
+                                }
+                                if (!isset($ufColSet['filename'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN filename VARCHAR(255) NULL");
+                                }
+                                if (!isset($ufColSet['original_filename'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN original_filename VARCHAR(255) NULL");
+                                }
+                                if (!isset($ufColSet['is_public'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0");
+                                }
+                                if (!isset($ufColSet['visibility'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN visibility VARCHAR(50) NOT NULL DEFAULT 'private'");
+                                }
+                                if (!isset($ufColSet['uploader_user_id'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN uploader_user_id INT UNSIGNED NULL");
+                                }
+                                if (!isset($ufColSet['uploaded_by'])) {
+                                    self::$pdo->exec("ALTER TABLE uploaded_files ADD COLUMN uploaded_by INT UNSIGNED NULL");
+                                }
+                            } catch (Exception $ufErr) {}
+
+                            // Ensure audit_logs table exists
+                            try {
+                                self::$pdo->exec("CREATE TABLE IF NOT EXISTS audit_logs (
+                                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                                    user_id INT UNSIGNED NULL,
+                                    user_email VARCHAR(191) NULL,
+                                    user_role VARCHAR(50) NULL,
+                                    action VARCHAR(100) NOT NULL,
+                                    entity_type VARCHAR(50) NOT NULL,
+                                    entity_id VARCHAR(50) NULL,
+                                    details_json LONGTEXT NULL,
+                                    ip_address VARCHAR(50) NULL,
+                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                            } catch (Exception $audErr) {}
 
                             // Ensure faculty_batch_assignments table exists
                             try {
@@ -466,5 +658,11 @@ class Database {
 
     public static function setConnection(?PDO $pdo): void {
         self::$pdo = $pdo;
+    }
+}
+
+if (!function_exists('getDBConnection')) {
+    function getDBConnection(): PDO {
+        return Database::getConnection();
     }
 }

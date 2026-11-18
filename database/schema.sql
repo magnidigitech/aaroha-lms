@@ -154,18 +154,22 @@ CREATE TABLE IF NOT EXISTS enrollment_access_extensions (
 -- 7c. Uploaded Files Table (Durable Storage & Protected Media Registry)
 CREATE TABLE IF NOT EXISTS uploaded_files (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    file_key VARCHAR(191) NOT NULL UNIQUE,
-    original_filename VARCHAR(255) NOT NULL,
+    file_key VARCHAR(191) NULL,
+    storage_key VARCHAR(191) NULL,
+    original_filename VARCHAR(255) NULL,
+    filename VARCHAR(255) NULL,
     mime_type VARCHAR(100) NOT NULL,
     file_size BIGINT UNSIGNED NOT NULL,
     category VARCHAR(50) NOT NULL,
-    visibility ENUM('public', 'private') NOT NULL DEFAULT 'private',
+    visibility VARCHAR(50) NOT NULL DEFAULT 'private',
+    is_public TINYINT(1) NOT NULL DEFAULT 0,
     storage_path TEXT NOT NULL,
-    uploaded_by INT UNSIGNED NOT NULL,
+    uploaded_by INT UNSIGNED NULL,
+    uploader_user_id INT UNSIGNED NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_uf_key (file_key),
-    INDEX idx_uf_category (category),
-    CONSTRAINT fk_uf_uploader FOREIGN KEY (uploaded_by) REFERENCES users (id) ON DELETE RESTRICT
+    INDEX idx_uf_fkey (file_key),
+    INDEX idx_uf_skey (storage_key),
+    INDEX idx_uf_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Lesson Progress Table
@@ -316,6 +320,10 @@ CREATE TABLE IF NOT EXISTS batches (
     lead_faculty_id INT UNSIGNED NULL,
     status ENUM('upcoming', 'active', 'completed', 'cancelled') NOT NULL DEFAULT 'upcoming',
     is_deleted TINYINT(1) NOT NULL DEFAULT 0,
+    archived_at DATETIME NULL,
+    archival_reason TEXT NULL,
+    is_archived TINYINT(1) DEFAULT 0,
+    deleted_at DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_batch_course (course_id),

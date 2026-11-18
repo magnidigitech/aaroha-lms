@@ -169,16 +169,20 @@ def init_db():
 
     CREATE TABLE uploaded_files (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_key TEXT NOT NULL UNIQUE,
-        original_filename TEXT NOT NULL,
+        file_key TEXT,
+        storage_key TEXT,
+        original_filename TEXT,
+        filename TEXT,
         mime_type TEXT NOT NULL,
         file_size INTEGER NOT NULL,
         category TEXT NOT NULL,
         visibility TEXT NOT NULL DEFAULT 'private',
+        is_public INTEGER NOT NULL DEFAULT 0,
         storage_path TEXT NOT NULL,
-        uploaded_by INTEGER NOT NULL,
+        uploaded_by INTEGER,
+        uploader_user_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (uploaded_by) REFERENCES users (id) ON DELETE RESTRICT
+        FOREIGN KEY (uploaded_by) REFERENCES users (id) ON DELETE SET NULL
     );
 
     CREATE TABLE certificates (
@@ -300,6 +304,10 @@ def init_db():
         lead_faculty_id INTEGER,
         status TEXT NOT NULL DEFAULT 'upcoming',
         is_deleted INTEGER NOT NULL DEFAULT 0,
+        archived_at DATETIME,
+        archival_reason TEXT,
+        is_archived INTEGER DEFAULT 0,
+        deleted_at DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (course_id) REFERENCES courses (id),

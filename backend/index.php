@@ -131,7 +131,7 @@ try {
         $user = AuthMiddleware::requireAuth();
         $response = AuthController::me($user);
     }
-    elseif ($requestMethod === 'PUT' && $path === '/auth/profile') {
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && $path === '/auth/profile') {
         $user = AuthMiddleware::requireAuth();
         $response = AuthController::updateProfile((int)$user['id'], $inputData);
     }
@@ -250,18 +250,18 @@ try {
     // -------------------------------------------------------------
     // DIRECT UPLOADS & SECURE MEDIA DELIVERY
     // -------------------------------------------------------------
-    elseif ($requestMethod === 'POST' && $path === '/uploads') {
+    elseif ($requestMethod === 'POST' && ($path === '/uploads' || $path === '/upload')) {
         $user = AuthMiddleware::getOptionalAuth();
         $response = UploadController::upload($inputData, $user);
     }
-    elseif ($requestMethod === 'POST' && $path === '/uploads/chunk') {
+    elseif ($requestMethod === 'POST' && ($path === '/uploads/chunk' || $path === '/upload/chunk')) {
         $user = AuthMiddleware::getOptionalAuth();
         $response = UploadController::uploadChunk($inputData, $user);
     }
-    elseif ($requestMethod === 'GET' && preg_match('#^/uploads/public/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
+    elseif ($requestMethod === 'GET' && preg_match('#^/(?:uploads|upload)/public/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
         UploadController::servePublic($matches[1]);
     }
-    elseif ($requestMethod === 'GET' && preg_match('#^/uploads/stream/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
+    elseif ($requestMethod === 'GET' && preg_match('#^/(?:uploads|upload)/stream/([a-zA-Z0-9_-]+)$#', $path, $matches)) {
         $user = AuthMiddleware::getOptionalAuth();
         UploadController::serveStream($matches[1], $user);
     }
@@ -410,7 +410,7 @@ try {
         $actor = AuthMiddleware::requireAuth();
         $response = ProfileController::getProfile($actor);
     }
-    elseif ($requestMethod === 'PUT' && $path === '/user/profile') {
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && $path === '/user/profile') {
         $actor = AuthMiddleware::requireAuth();
         $response = ProfileController::updateProfile($actor, $inputData);
     }
