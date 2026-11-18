@@ -109,7 +109,7 @@ class AdminPortalController {
         $batchId = !empty($queryParams['batch_id']) ? (int)$queryParams['batch_id'] : null;
 
         $sql = "
-            SELECT u.id as user_id, u.full_name, u.email, u.avatar, u.status as user_status, u.is_archived,
+            SELECT u.id as id, u.id as user_id, u.full_name, u.email, u.avatar, u.status as user_status, u.is_archived,
                     sp.id as profile_id, sp.student_id_code, sp.mobile, sp.education, sp.experience_years,
                     sp.admission_date, sp.account_status, sp.admission_status, sp.enrollment_status,
                     sp.coordinator_id, sp.internal_notes, sp.created_at, sp.archived_at, sp.archival_reason,
@@ -1088,7 +1088,7 @@ class AdminPortalController {
         $search = trim($queryParams['search'] ?? '');
 
         $sql = "
-            SELECT u.id as user_id, u.full_name, u.email, u.title, u.avatar, u.status as user_status, u.is_archived,
+            SELECT u.id as id, u.id as user_id, u.full_name, u.email, u.title, u.avatar, u.status as user_status, u.is_archived,
                    fp.id as profile_id, 
                    COALESCE(fp.faculty_id_code, CONCAT('FAC-', LPAD(u.id, 4, '0'))) as faculty_id_code, 
                    fp.mobile, fp.expertise, fp.bio, fp.qualifications,
@@ -1760,7 +1760,7 @@ class AdminPortalController {
                        WHERE be.batch_id = b.id AND be.status = 'active'
                    ) as enrolled_count
             FROM batches b
-            JOIN courses c ON b.course_id = c.id
+            LEFT JOIN courses c ON b.course_id = c.id
             LEFT JOIN users coord ON b.coordinator_id = coord.id
             LEFT JOIN users fac ON b.lead_faculty_id = fac.id
             WHERE 1=1
@@ -1768,11 +1768,11 @@ class AdminPortalController {
         $params = [];
 
         if ($view === 'archived') {
-            $sql .= " AND (b.status = 'archived' OR b.is_deleted = 1)";
+            $sql .= " AND (b.status = 'archived' OR b.is_deleted = 1 OR b.is_archived = 1)";
         } elseif ($view === 'all') {
             $sql .= " AND (b.is_deleted = 0 OR b.is_deleted IS NULL)";
         } else {
-            $sql .= " AND b.is_deleted = 0 AND b.status != 'archived'";
+            $sql .= " AND (b.is_deleted = 0 OR b.is_deleted IS NULL) AND (b.is_archived = 0 OR b.is_archived IS NULL) AND (b.status != 'archived' OR b.status IS NULL)";
         }
 
         if ($search !== '') {
@@ -1860,8 +1860,8 @@ class AdminPortalController {
         $stmt = $pdo->prepare("
             INSERT INTO batches (
                 course_id, batch_code, title, start_date, end_date, capacity,
-                delivery_mode, timezone, coordinator_id, lead_faculty_id, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'upcoming', CURRENT_TIMESTAMP)
+                delivery_mode, timezone, coordinator_id, lead_faculty_id, status, is_deleted, is_archived, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'upcoming', 0, 0, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([
             $courseId, $batchCode, $title, $startDate, $endDate, $capacity,
@@ -3196,18 +3196,7 @@ class AdminPortalController {
         }
         $stmt = $pdo->query("
             SELECT id FROM batches 
-            WHERE (
-                batch_code LIKE 'TEST-%' 
-                OR batch_code LIKE 'PROBE-%' 
-                OR batch_code LIKE 'TOKEN-%' 
-                OR batch_code LIKE 'COHORT-VERIFY-%'
-                OR batch_code LIKE 'AAA%'
-                OR title LIKE '%Test Batch%' 
-                OR title LIKE '%Probe Test%'
-                OR title LIKE '%Verification%'
-                OR is_deleted = 1
-                OR id >= 14
-            )
+            WHERE batch_code LIKE 'TEST-DISPOSABLE-%'
             AND id NOT IN (SELECT DISTINCT batch_id FROM batch_enrollments WHERE status = 'active')
         ");
         $batches = $stmt->fetchAll();

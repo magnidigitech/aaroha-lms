@@ -76,6 +76,13 @@ export default function App() {
         return urlView;
       }
 
+      // Check session storage to maintain view persistence across refresh for authenticated users
+      const sessionView = sessionStorage.getItem('aaroha_view');
+      if (sessionView && user) {
+        if (sessionView === ROUTES.ADMIN && isFacultyRole(user.role)) return ROUTES.ADMIN;
+        if (sessionView === ROUTES.STUDENT) return ROUTES.STUDENT;
+      }
+
       // 2. Direct navigation to root '/' or no view query: always open configured public homepage
       // and ensure authentication guards do not automatically redirect logged-in users away from homepage
       return HOMEPAGE_ROUTE;
@@ -688,15 +695,13 @@ export default function App() {
     localStorage.setItem('aaroha_user', JSON.stringify(verifiedUser));
     localStorage.setItem('aaroha_token', token);
     setIsBackendLive(true);
-    if (isFacultyRole(verifiedUser.role)) {
-      setActiveView('admin');
-      showToast('Account activated! Welcome to the Administrative Portal, ' + verifiedUser.full_name);
-    } else {
-      setActiveView('student');
-      showToast('Account activated! Welcome to your Learning Workspace, ' + verifiedUser.full_name);
-    }
+    const targetView = isFacultyRole(verifiedUser.role) ? 'admin' : 'student';
+    setActiveView(targetView);
+    showToast('Account activated! Welcome to your workspace, ' + (verifiedUser.full_name || ''));
+    setIsActivationModalOpen(false);
+    setActivationToken('');
     try {
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState({}, document.title, '/?view=' + targetView);
     } catch (e) {}
   };
 
@@ -1792,8 +1797,17 @@ export default function App() {
         onClose={() => {
           setIsActivationModalOpen(false);
           setActivationToken('');
+          try {
+            const cleanPath = window.location.pathname.replace(/\/activate\/?$/, '/');
+            const params = new URLSearchParams(window.location.search);
+            params.delete('token');
+            params.delete('activation_token');
+            const q = params.toString();
+            window.history.replaceState({}, document.title, (cleanPath || '/') + (q ? ('?' + q) : ''));
+          } catch (e) {}
         }}
         onSuccess={handleActivationSuccess}
+        onOpenLogin={() => handleOpenAuth('login')}
       />
 
       {/* User Profile & Avatar Customization Modal */}

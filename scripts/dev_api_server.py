@@ -3083,8 +3083,8 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             if path == "/admin/batches/cleanup-test-batches":
                 if user['role'] != 'super_admin':
                     return self._send_json({"success": False, "error": "Super Admin authorization required for batch test cleanup."}, 403)
-                # Find batches >= 14 with 0 active students
-                target_batches = cur.execute("SELECT id, batch_code FROM batches WHERE id >= 14").fetchall()
+                # Find disposable test batches matching TEST-DISPOSABLE-%
+                target_batches = cur.execute("SELECT id, batch_code FROM batches WHERE batch_code LIKE 'TEST-DISPOSABLE-%'").fetchall()
                 b_ids = [r['id'] for r in target_batches]
                 if b_ids:
                     cur.execute(f"DELETE FROM class_sessions WHERE batch_id IN ({','.join('?' for _ in b_ids)})", b_ids)

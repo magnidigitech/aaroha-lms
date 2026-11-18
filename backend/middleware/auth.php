@@ -174,7 +174,7 @@ class AuthMiddleware {
     }
 
     public static function requireSuperAdmin() {
-        return self::requireRole(['super_admin']);
+        return self::requireRole(['super_admin', 'admin']);
     }
 
     public static function requireCoordinator() {
@@ -182,7 +182,7 @@ class AuthMiddleware {
     }
 
     public static function requireAccounts() {
-        return self::requireRole(['super_admin']);
+        return self::requireRole(['super_admin', 'admin']);
     }
 
     public static function requirePlacement() {

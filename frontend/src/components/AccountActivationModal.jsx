@@ -3,10 +3,11 @@ import { X, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, ArrowRight, CheckCircle
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import { api } from '../apiService';
 
-export default function AccountActivationModal({ isOpen, token, onClose, onSuccess }) {
+export default function AccountActivationModal({ isOpen, token, onClose, onSuccess, onOpenLogin }) {
   const [loading, setLoading] = useState(true);
   const [tokenUser, setTokenUser] = useState(null);
   const [verificationError, setVerificationError] = useState('');
+  const [isAlreadyActivated, setIsAlreadyActivated] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -18,6 +19,7 @@ export default function AccountActivationModal({ isOpen, token, onClose, onSucce
 
     setLoading(true);
     setVerificationError('');
+    setIsAlreadyActivated(false);
     setActionError('');
 
     api.verifyInvitation(token)
@@ -25,11 +27,19 @@ export default function AccountActivationModal({ isOpen, token, onClose, onSucce
         if (res && res.success && res.user) {
           setTokenUser(res.user);
         } else {
-          setVerificationError(res?.error || 'Invalid or revoked invitation token.');
+          const errMsg = res?.error || 'Invalid or revoked invitation token.';
+          setVerificationError(errMsg);
+          if (res?.already_activated || errMsg.toLowerCase().includes('already been used') || errMsg.toLowerCase().includes('already used')) {
+            setIsAlreadyActivated(true);
+          }
         }
       })
       .catch(err => {
-        setVerificationError(err.message || 'Unable to verify invitation link. It may have expired or been revoked.');
+        const errMsg = err.message || 'Unable to verify invitation link. It may have expired or been revoked.';
+        setVerificationError(errMsg);
+        if (err.already_activated || errMsg.toLowerCase().includes('already been used') || errMsg.toLowerCase().includes('already used')) {
+          setIsAlreadyActivated(true);
+        }
       })
       .finally(() => {
         setLoading(false);
@@ -104,16 +114,33 @@ export default function AccountActivationModal({ isOpen, token, onClose, onSucce
             </div>
           ) : verificationError ? (
             <div className="space-y-4 py-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200">
-                <AlertCircle className="w-6 h-6" />
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto border ${
+                isAlreadyActivated ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-rose-50 text-rose-600 border-rose-200'
+              }`}>
+                {isAlreadyActivated ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-slate-900 text-sm">Invitation Unavailable</h3>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  {isAlreadyActivated ? 'Account Already Activated' : 'Invitation Setup Unavailable'}
+                </h3>
                 <p className="text-slate-600 text-xs leading-relaxed max-w-sm mx-auto">
                   {verificationError}
                 </p>
               </div>
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+                {isAlreadyActivated && onOpenLogin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenLogin();
+                    }}
+                    className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white rounded-xl font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>Sign In With Password</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onClose}
@@ -148,8 +175,21 @@ export default function AccountActivationModal({ isOpen, token, onClose, onSucce
               </div>
 
               {actionError && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold">
-                  {actionError}
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold space-y-2">
+                  <p>{actionError}</p>
+                  {(actionError.toLowerCase().includes('already been used') || actionError.toLowerCase().includes('already used')) && onOpenLogin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenLogin();
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0A7CB3] text-white rounded-lg font-bold text-xs hover:bg-[#086491] transition-colors cursor-pointer"
+                    >
+                      <span>Sign In With Your Password</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               )}
 

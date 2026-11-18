@@ -14,6 +14,7 @@ export class ApiError extends Error {
     this.isHtmlResponse = details.isHtmlResponse || false;
     this.endpoint = details.endpoint || '';
     this.rawResponse = details.rawResponse || null;
+    this.already_activated = details.already_activated || false;
   }
 
   get isUnauthorized() { return this.status === 401; }
@@ -109,7 +110,8 @@ async function request(endpoint, options = {}) {
           validation_errors: data?.validation_errors || data?.fields,
           code: data?.code,
           endpoint: cleanEndpoint,
-          rawResponse: data
+          rawResponse: data,
+          already_activated: !!data?.already_activated
         });
       }
 
@@ -123,7 +125,11 @@ async function request(endpoint, options = {}) {
     let friendlyMessage;
     if (isHtml) {
       if (res.status === 404) {
-        friendlyMessage = 'The requested service endpoint was not found on the server (HTTP 404).';
+        if (cleanEndpoint.includes('/auth/verify-invitation') || cleanEndpoint.includes('/auth/activate')) {
+          friendlyMessage = 'This invitation setup link could not be found or has expired. Please ask your administrator to generate a fresh setup link.';
+        } else {
+          friendlyMessage = 'The requested service endpoint was not found or is temporarily updating (HTTP 404). Please try again.';
+        }
       } else if (res.status === 401) {
         friendlyMessage = 'Your session has expired. Please sign in again (HTTP 401).';
       } else if (res.status === 403) {

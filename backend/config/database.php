@@ -401,6 +401,15 @@ class Database {
                                     if (!isset($bColSet['is_deleted'])) {
                                         self::$pdo->exec("ALTER TABLE batches ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0");
                                     }
+                                    try {
+                                        self::$pdo->exec("ALTER TABLE batches MODIFY COLUMN delivery_mode VARCHAR(50) NOT NULL DEFAULT 'Online Live'");
+                                        self::$pdo->exec("ALTER TABLE batches MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'upcoming'");
+                                        self::$pdo->exec("ALTER TABLE batches MODIFY COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0");
+                                        self::$pdo->exec("ALTER TABLE batches MODIFY COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0");
+                                        self::$pdo->exec("UPDATE batches SET is_deleted = 0 WHERE is_deleted IS NULL");
+                                        self::$pdo->exec("UPDATE batches SET is_archived = 0 WHERE is_archived IS NULL");
+                                        self::$pdo->exec("UPDATE batches SET status = 'upcoming' WHERE status IS NULL OR status = ''");
+                                    } catch (Exception $e) {}
                                 }
                             } catch (Exception $bErr) {}
 

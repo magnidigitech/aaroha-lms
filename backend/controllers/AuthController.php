@@ -362,31 +362,32 @@ class AuthController {
         }
 
         $tokenHash = hash('sha256', $token);
+        $usedTokenMarker = 'used:' . $tokenHash;
         $pdo = Database::getConnection();
 
-        // Check student profile (supports hashed storage with legacy plaintext fallback)
+        // Check student profile (supports hashed storage, legacy plaintext, and consumed token detection)
         $stmt = $pdo->prepare("
-            SELECT sp.student_id_code as id_code, sp.account_status, sp.invitation_expires_at, sp.invitation_accepted_at,
+            SELECT sp.student_id_code as id_code, sp.account_status, sp.invitation_expires_at, sp.invitation_accepted_at, sp.invitation_token,
                    u.id as user_id, u.full_name, u.email, u.role
             FROM student_profiles sp
             JOIN users u ON sp.user_id = u.id
-            WHERE sp.invitation_token = ? OR sp.invitation_token = ?
+            WHERE sp.invitation_token = ? OR sp.invitation_token = ? OR sp.invitation_token = ?
             LIMIT 1
         ");
-        $stmt->execute([$tokenHash, $token]);
+        $stmt->execute([$tokenHash, $token, $usedTokenMarker]);
         $match = $stmt->fetch();
 
         if (!$match) {
             // Check faculty profile
             $stmt = $pdo->prepare("
-                SELECT fp.faculty_id_code as id_code, fp.account_status, fp.invitation_expires_at, fp.invitation_accepted_at,
+                SELECT fp.faculty_id_code as id_code, fp.account_status, fp.invitation_expires_at, fp.invitation_accepted_at, fp.invitation_token,
                        u.id as user_id, u.full_name, u.email, u.role
                 FROM faculty_profiles fp
                 JOIN users u ON fp.user_id = u.id
-                WHERE fp.invitation_token = ? OR fp.invitation_token = ?
+                WHERE fp.invitation_token = ? OR fp.invitation_token = ? OR fp.invitation_token = ?
                 LIMIT 1
             ");
-            $stmt->execute([$tokenHash, $token]);
+            $stmt->execute([$tokenHash, $token, $usedTokenMarker]);
             $match = $stmt->fetch();
         }
 
@@ -395,9 +396,13 @@ class AuthController {
             return ['success' => false, 'error' => 'Invalid or revoked setup link. Please contact your administrator.'];
         }
 
-        if (!empty($match['invitation_accepted_at'])) {
+        if (!empty($match['invitation_accepted_at']) || (!empty($match['invitation_token']) && strpos($match['invitation_token'], 'used:') === 0)) {
             http_response_code(400);
-            return ['success' => false, 'error' => 'This setup link has already been used. Please log in with your registered email and password.'];
+            return [
+                'success' => false,
+                'already_activated' => true,
+                'error' => 'This setup link has already been used. Please log in with your registered email and password.'
+            ];
         }
 
         if (!empty($match['invitation_expires_at']) && strtotime($match['invitation_expires_at']) < time()) {
@@ -435,16 +440,17 @@ class AuthController {
         }
 
         $tokenHash = hash('sha256', $token);
+        $usedTokenMarker = 'used:' . $tokenHash;
         $pdo = Database::getConnection();
 
-        $stmt = $pdo->prepare("SELECT user_id, invitation_expires_at, invitation_accepted_at FROM student_profiles WHERE invitation_token = ? OR invitation_token = ? LIMIT 1");
-        $stmt->execute([$tokenHash, $token]);
+        $stmt = $pdo->prepare("SELECT user_id, invitation_expires_at, invitation_accepted_at, invitation_token FROM student_profiles WHERE invitation_token = ? OR invitation_token = ? OR invitation_token = ? LIMIT 1");
+        $stmt->execute([$tokenHash, $token, $usedTokenMarker]);
         $target = $stmt->fetch();
         $isStudent = true;
 
         if (!$target) {
-            $stmt = $pdo->prepare("SELECT user_id, invitation_expires_at, invitation_accepted_at FROM faculty_profiles WHERE invitation_token = ? OR invitation_token = ? LIMIT 1");
-            $stmt->execute([$tokenHash, $token]);
+            $stmt = $pdo->prepare("SELECT user_id, invitation_expires_at, invitation_accepted_at, invitation_token FROM faculty_profiles WHERE invitation_token = ? OR invitation_token = ? OR invitation_token = ? LIMIT 1");
+            $stmt->execute([$tokenHash, $token, $usedTokenMarker]);
             $target = $stmt->fetch();
             $isStudent = false;
         }
@@ -454,9 +460,13 @@ class AuthController {
             return ['success' => false, 'error' => 'Invalid or revoked setup link. Please contact your administrator.'];
         }
 
-        if (!empty($target['invitation_accepted_at'])) {
+        if (!empty($target['invitation_accepted_at']) || (!empty($target['invitation_token']) && strpos($target['invitation_token'], 'used:') === 0)) {
             http_response_code(400);
-            return ['success' => false, 'error' => 'This setup link has already been used. Please log in with your registered email and password.'];
+            return [
+                'success' => false,
+                'already_activated' => true,
+                'error' => 'This setup link has already been used. Please log in with your registered email and password.'
+            ];
         }
 
         if (!empty($target['invitation_expires_at']) && strtotime($target['invitation_expires_at']) < time()) {
@@ -474,8 +484,8 @@ class AuthController {
 
             $now = date('Y-m-d H:i:s');
             if ($isStudent) {
-                $pStmt = $pdo->prepare("UPDATE student_profiles SET account_status = 'active', invitation_accepted_at = ?, invitation_token = NULL WHERE user_id = ?");
-                $pStmt->execute([$now, $userId]);
+                $pStmt = $pdo->prepare("UPDATE student_profiles SET account_status = 'active', invitation_accepted_at = ?, invitation_token = ? WHERE user_id = ?");
+                $pStmt->execute([$now, $usedTokenMarker, $userId]);
 
                 // Activate any enrollments waiting on account activation
                 try {
@@ -483,8 +493,8 @@ class AuthController {
                         ->execute([$userId]);
                 } catch (Exception $enrEx) {}
             } else {
-                $pStmt = $pdo->prepare("UPDATE faculty_profiles SET account_status = 'active', invitation_accepted_at = ?, invitation_token = NULL WHERE user_id = ?");
-                $pStmt->execute([$now, $userId]);
+                $pStmt = $pdo->prepare("UPDATE faculty_profiles SET account_status = 'active', invitation_accepted_at = ?, invitation_token = ? WHERE user_id = ?");
+                $pStmt->execute([$now, $usedTokenMarker, $userId]);
             }
 
             $pdo->commit();

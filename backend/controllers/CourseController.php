@@ -180,7 +180,7 @@ class CourseController {
         $pdo = Database::getConnection();
 
         $auth = AuthMiddleware::getOptionalAuth();
-        $isFacultyOrAdmin = $auth && in_array(strtolower($auth['role'] ?? ''), ['admin', 'faculty', 'instructor']);
+        $isFacultyOrAdmin = $auth && in_array(strtolower($auth['role'] ?? ''), ['super_admin', 'admin', 'coordinator', 'faculty', 'instructor']);
 
         // For public students/guests, show published non-deleted courses.
         // For faculty and administrators, show all non-deleted courses (including drafts/newly created).
