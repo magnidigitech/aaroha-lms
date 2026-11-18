@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   GraduationCap, PlusCircle, Search, Mail, Phone, Calendar,
   Layers, Clock, AlertTriangle, CheckCircle2, UserX, UserCheck, X, RefreshCw,
@@ -29,7 +30,65 @@ export default function AdminFacultyTab({
   const [rosterView, setRosterView] = useState('active'); // 'active' | 'archived'
   const [archivedFaculty, setArchivedFaculty] = useState([]);
   const [isArchivedLoading, setIsArchivedLoading] = useState(false);
-  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [actionMenuState, setActionMenuState] = useState(null); // { id, faculty, rect }
+
+  const handleToggleActionMenu = (e, fac) => {
+    e.stopPropagation();
+    if (actionMenuState?.id === fac.user_id) {
+      setActionMenuState(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setActionMenuState({
+        id: fac.user_id,
+        faculty: fac,
+        rect: {
+          top: rect.top,
+          bottom: rect.bottom,
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          height: rect.height,
+        },
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!actionMenuState) return;
+
+    const handlePointerDown = (e) => {
+      const isTrigger = e.target instanceof Element && e.target.closest('[data-action-menu-trigger]');
+      const isMenu = e.target instanceof Element && e.target.closest('[data-action-menu-dropdown]');
+      if (!isTrigger && !isMenu) {
+        setActionMenuState(null);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActionMenuState(null);
+      }
+    };
+
+    const handleScrollOrResize = (e) => {
+      if (e.target instanceof Element && e.target.closest('[data-action-menu-dropdown]')) {
+        return;
+      }
+      setActionMenuState(null);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [actionMenuState]);
 
   // Edit Faculty Profile Modal
   const [editProfileModal, setEditProfileModal] = useState({
@@ -688,170 +747,20 @@ export default function AdminFacultyTab({
                   <span>Teaching & Workload ({f.assigned_batches_count || 0})</span>
                 </button>
 
-                {/* Actions Dropdown */}
-                <div className="relative inline-block text-left">
-                  <button
-                    type="button"
-                    onClick={() => setOpenActionMenuId(openActionMenuId === f.user_id ? null : f.user_id)}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold flex items-center gap-1 cursor-pointer transition-colors text-xs"
-                  >
-                    <span>Actions</span>
-                    <ChevronDown size={12} />
-                  </button>
-
-                  {openActionMenuId === f.user_id && (
-                    <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-40 text-left text-xs">
-                      <button
-                        type="button"
-                        onClick={() => { setOpenActionMenuId(null); handleOpenFacultyDrawer(f, 'assignments'); }}
-                        className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                      >
-                        <Eye size={13} className="text-slate-500" />
-                        <span>Inspect Record & Workload</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setOpenActionMenuId(null); handleOpenEditProfile(f); }}
-                        className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                      >
-                        <Edit3 size={13} className="text-blue-600" />
-                        <span>Edit Faculty Profile</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setOpenActionMenuId(null); handleOpenFacultyDrawer(f, 'assignments'); }}
-                        className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                      >
-                        <Layers size={13} className="text-[#0a7cb3]" />
-                        <span>Manage Teaching Assignments</span>
-                      </button>
-
-                      <div className="my-1 border-t border-slate-100" />
-
-                      {/* Setup & Reset Link Actions */}
-                      {(f.account_status === 'invited' || f.account_status === 'link_generated' || !f.account_status) && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenActionMenuId(null);
-                              if (onGenerateSetupLink) onGenerateSetupLink(f.user_id, f);
-                              else onResendInvite(f.user_id);
-                            }}
-                            className="w-full px-3 py-1.5 text-left text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer font-medium"
-                          >
-                            <KeyRound size={13} className="text-blue-600" />
-                            <span>Generate Setup Link</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setOpenActionMenuId(null); onRevokeInvite(f.user_id); }}
-                            className="w-full px-3 py-1.5 text-left text-slate-600 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                          >
-                            <XCircle size={13} className="text-slate-500" />
-                            <span>Revoke Invitation</span>
-                          </button>
-                        </>
-                      )}
-
-                      {f.account_status === 'active' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenActionMenuId(null);
-                              if (onGenerateResetLink) onGenerateResetLink(f.user_id, f);
-                            }}
-                            className="w-full px-3 py-1.5 text-left text-indigo-700 hover:bg-indigo-50 flex items-center gap-2 cursor-pointer font-medium"
-                          >
-                            <KeyRound size={13} className="text-indigo-600" />
-                            <span>Generate Password Reset Link</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenActionMenuId(null);
-                              if (onGenerateSetupLink) onGenerateSetupLink(f.user_id, f);
-                              else onResendInvite(f.user_id);
-                            }}
-                            className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                          >
-                            <Mail size={13} className="text-[#0a7cb3]" />
-                            <span>Send Account Setup Invitation</span>
-                          </button>
-                        </>
-                      )}
-
-                      {f.account_status === 'deactivated' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpenActionMenuId(null);
-                            if (onGenerateSetupLink) onGenerateSetupLink(f.user_id, f);
-                            else onResendInvite(f.user_id);
-                          }}
-                          className="w-full px-3 py-1.5 text-left text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer font-medium"
-                        >
-                          <Mail size={13} className="text-blue-600" />
-                          <span>Send Account Setup Invitation</span>
-                        </button>
-                      )}
-
-                      <div className="my-1 border-t border-slate-100" />
-
-                      {f.account_status === 'active' ? (
-                        <button
-                          type="button"
-                          onClick={() => { setOpenActionMenuId(null); handleOpenWorkloadAction(f, 'deactivate'); }}
-                          className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                        >
-                          <UserX size={13} className="text-slate-600" />
-                          <span>Deactivate Account...</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => { setOpenActionMenuId(null); handleOpenAccountAction(f, 'reactivate'); }}
-                          className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                        >
-                          <UserCheck size={13} className="text-emerald-600" />
-                          <span>Reactivate Account</span>
-                        </button>
-                      )}
-
-                      {f.is_archived || f.account_status === 'archived' ? (
-                        <button
-                          type="button"
-                          onClick={() => { setOpenActionMenuId(null); handleOpenRestoreModal(f); }}
-                          className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                        >
-                          <RotateCcw size={13} className="text-blue-600" />
-                          <span>Restore Faculty</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => { setOpenActionMenuId(null); handleOpenWorkloadAction(f, 'archive'); }}
-                          className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                        >
-                          <Archive size={13} className="text-amber-600" />
-                          <span>Archive Faculty...</span>
-                        </button>
-                      )}
-
-                      <div className="my-1 border-t border-slate-100" />
-
-                      <button
-                        type="button"
-                        onClick={() => { setOpenActionMenuId(null); handleOpenDeleteModal(f); }}
-                        className="w-full px-3 py-1.5 text-left text-rose-700 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-medium"
-                      >
-                        <Trash2 size={13} className="text-rose-600" />
-                        <span>Delete Faculty...</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {/* Actions Dropdown Trigger */}
+                <button
+                  type="button"
+                  data-action-menu-trigger="true"
+                  onClick={(e) => handleToggleActionMenu(e, f)}
+                  className={`px-2.5 py-1.5 rounded-lg border font-semibold flex items-center gap-1 cursor-pointer transition-colors text-xs ${
+                    actionMenuState?.id === f.user_id
+                      ? 'bg-slate-200 border-slate-300 text-slate-900'
+                      : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <span>Actions</span>
+                  <ChevronDown size={12} className={actionMenuState?.id === f.user_id ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
               </div>
             </div>
           ))}
@@ -1988,6 +1897,188 @@ export default function AdminFacultyTab({
         </div>
         );
       })()}
+
+      {/* Portaled Actions Dropdown (Floating Outside Container Boundary) */}
+      {actionMenuState && typeof document !== 'undefined' && createPortal(
+        (() => {
+          const f = actionMenuState.faculty;
+          const { top, bottom, right } = actionMenuState.rect;
+          const spaceBelow = window.innerHeight - bottom;
+          const spaceAbove = top;
+          // Prefer opening downward if there's sufficient room (>= 280px) or if spaceBelow >= spaceAbove
+          const openUpward = spaceBelow < 280 && spaceAbove > spaceBelow;
+          const maxMenuHeight = openUpward
+            ? Math.max(140, top - 16)
+            : Math.max(140, window.innerHeight - bottom - 16);
+
+          return (
+            <div
+              data-action-menu-dropdown="true"
+              style={{
+                position: 'fixed',
+                zIndex: 99999,
+                right: Math.max(12, window.innerWidth - right),
+                maxHeight: `${maxMenuHeight}px`,
+                overflowY: 'auto',
+                ...(openUpward
+                  ? { bottom: Math.max(8, window.innerHeight - top + 4) }
+                  : { top: Math.min(window.innerHeight - 80, bottom + 4) }),
+              }}
+              className="w-56 max-w-[calc(100vw-24px)] bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 text-left text-xs animate-in fade-in zoom-in-95 duration-100"
+            >
+              <button
+                type="button"
+                onClick={() => { setActionMenuState(null); handleOpenFacultyDrawer(f, 'assignments'); }}
+                className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+              >
+                <Eye size={13} className="text-slate-500" />
+                <span>Inspect Record & Workload</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActionMenuState(null); handleOpenEditProfile(f); }}
+                className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+              >
+                <Edit3 size={13} className="text-blue-600" />
+                <span>Edit Faculty Profile</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActionMenuState(null); handleOpenFacultyDrawer(f, 'assignments'); }}
+                className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+              >
+                <Layers size={13} className="text-[#0a7cb3]" />
+                <span>Manage Teaching Assignments</span>
+              </button>
+
+              <div className="my-1 border-t border-slate-100" />
+
+              {/* Setup & Reset Link Actions */}
+              {(f.account_status === 'invited' || f.account_status === 'link_generated' || !f.account_status) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuState(null);
+                      if (onGenerateSetupLink) onGenerateSetupLink(f.user_id, f);
+                      else onResendInvite(f.user_id);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <KeyRound size={13} className="text-blue-600" />
+                    <span>Generate Setup Link</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActionMenuState(null); onRevokeInvite(f.user_id); }}
+                    className="w-full px-3 py-1.5 text-left text-slate-600 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <XCircle size={13} className="text-slate-500" />
+                    <span>Revoke Invitation</span>
+                  </button>
+                </>
+              )}
+
+              {f.account_status === 'active' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuState(null);
+                      if (onGenerateResetLink) onGenerateResetLink(f.user_id, f);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-indigo-700 hover:bg-indigo-50 flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <KeyRound size={13} className="text-indigo-600" />
+                    <span>Generate Password Reset Link</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuState(null);
+                      if (onGenerateSetupLink) onGenerateSetupLink(f.user_id, f);
+                      else onResendInvite(f.user_id);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Mail size={13} className="text-[#0a7cb3]" />
+                    <span>Send Account Setup Invitation</span>
+                  </button>
+                </>
+              )}
+
+              {f.account_status === 'deactivated' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionMenuState(null);
+                    if (onGenerateSetupLink) onGenerateSetupLink(f.user_id, f);
+                    else onResendInvite(f.user_id);
+                  }}
+                  className="w-full px-3 py-1.5 text-left text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer font-medium"
+                >
+                  <Mail size={13} className="text-blue-600" />
+                  <span>Send Account Setup Invitation</span>
+                </button>
+              )}
+
+              <div className="my-1 border-t border-slate-100" />
+
+              {f.account_status === 'active' ? (
+                <button
+                  type="button"
+                  onClick={() => { setActionMenuState(null); handleOpenWorkloadAction(f, 'deactivate'); }}
+                  className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <UserX size={13} className="text-slate-600" />
+                  <span>Deactivate Account...</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setActionMenuState(null); handleOpenAccountAction(f, 'reactivate'); }}
+                  className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <UserCheck size={13} className="text-emerald-600" />
+                  <span>Reactivate Account</span>
+                </button>
+              )}
+
+              {f.is_archived || f.account_status === 'archived' ? (
+                <button
+                  type="button"
+                  onClick={() => { setActionMenuState(null); handleOpenRestoreModal(f); }}
+                  className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <RotateCcw size={13} className="text-blue-600" />
+                  <span>Restore Faculty</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setActionMenuState(null); handleOpenWorkloadAction(f, 'archive'); }}
+                  className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <Archive size={13} className="text-amber-600" />
+                  <span>Archive Faculty...</span>
+                </button>
+              )}
+
+              <div className="my-1 border-t border-slate-100" />
+
+              <button
+                type="button"
+                onClick={() => { setActionMenuState(null); handleOpenDeleteModal(f); }}
+                className="w-full px-3 py-1.5 text-left text-rose-700 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Trash2 size={13} className="text-rose-600" />
+                <span>Delete Faculty...</span>
+              </button>
+            </div>
+          );
+        })(),
+        document.body
+      )}
 
     </div>
   );
