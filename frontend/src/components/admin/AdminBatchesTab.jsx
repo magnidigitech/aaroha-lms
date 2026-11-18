@@ -1254,7 +1254,13 @@ export default function AdminBatchesTab({
                   </div>
                 </div>
 
-                {deleteBatchModal.eligibility.can_delete_permanently ? (
+                {(() => {
+                  const canDeleteBatch = Boolean(
+                    deleteBatchModal.eligibility.can_delete_permanently ??
+                    deleteBatchModal.eligibility.can_delete ??
+                    deleteBatchModal.eligibility.eligible
+                  );
+                  return canDeleteBatch ? (
                   <div className="space-y-3">
                     <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1">
                       <span className="font-semibold block flex items-center gap-1.5">
@@ -1305,7 +1311,8 @@ export default function AdminBatchesTab({
                       </p>
                     </div>
                   </div>
-                )}
+                );
+                })()}
               </div>
             ) : null}
 
@@ -1348,7 +1355,7 @@ export default function AdminBatchesTab({
                 >
                   Cancel
                 </button>
-                {deleteBatchModal.eligibility?.can_delete_permanently ? (
+                {(deleteBatchModal.eligibility?.can_delete_permanently ?? deleteBatchModal.eligibility?.can_delete ?? deleteBatchModal.eligibility?.eligible) ? (
                   <button
                     type="button"
                     disabled={deleteBatchModal.isSubmitting || deleteBatchModal.confirmText !== 'DELETE'}

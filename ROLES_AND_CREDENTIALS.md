@@ -77,3 +77,4 @@ The administrative console dynamically mounts modules based on the authenticated
 - **Resend Invitation / Generate Setup Link**: Authorised administrators can generate a fresh setup link at any time from the student or faculty roster. Generating a replacement link automatically invalidates all previous links.
 - **Revoke Invitation**: An administrator can revoke a pending setup link, setting the account status to `deactivated` and blocking access.
 - **Generate Password Reset Link**: For active accounts, administrators can generate a private single-use 24-hour password reset link without exposing credentials.
+

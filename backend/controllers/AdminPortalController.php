@@ -969,10 +969,38 @@ class AdminPortalController {
         $pdo = Database::getConnection();
         $studentId = (int)$studentId;
 
-        $attCount = (int)$pdo->query("SELECT COUNT(*) FROM attendance_records WHERE user_id = {$studentId}")->fetchColumn();
-        $subCount = (int)$pdo->query("SELECT COUNT(*) FROM task_submissions ts JOIN enrollments e ON ts.enrollment_id = e.id WHERE e.user_id = {$studentId}")->fetchColumn();
-        $payCount = (int)$pdo->query("SELECT COUNT(*) FROM payments p JOIN fee_plans fp ON p.fee_plan_id = fp.id WHERE fp.user_id = {$studentId}")->fetchColumn();
-        $certCount = (int)$pdo->query("SELECT COUNT(*) FROM certificates WHERE user_id = {$studentId}")->fetchColumn();
+        $userStmt = $pdo->prepare("SELECT id, full_name, email, role, authorized_roles_json FROM users WHERE id = ?");
+        $userStmt->execute([$studentId]);
+        $u = $userStmt->fetch();
+
+        $roles = [];
+        if ($u && !empty($u['authorized_roles_json'])) {
+            $roles = json_decode($u['authorized_roles_json'], true) ?: [];
+        }
+        if ($u && empty($roles)) {
+            $roles = [$u['role']];
+        }
+        $isMultiRole = $u ? (count($roles) > 1 || $u['role'] !== 'student') : false;
+
+        $attCount = 0;
+        try {
+            $attCount = (int)$pdo->query("SELECT COUNT(*) FROM attendance_records WHERE user_id = {$studentId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $subCount = 0;
+        try {
+            $subCount = (int)$pdo->query("SELECT COUNT(*) FROM task_submissions ts JOIN enrollments e ON ts.enrollment_id = e.id WHERE e.user_id = {$studentId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $payCount = 0;
+        try {
+            $payCount = (int)$pdo->query("SELECT COUNT(*) FROM payments p JOIN fee_plans fp ON p.fee_plan_id = fp.id WHERE fp.user_id = {$studentId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $certCount = 0;
+        try {
+            $certCount = (int)$pdo->query("SELECT COUNT(*) FROM certificates WHERE user_id = {$studentId}")->fetchColumn();
+        } catch (Exception $e) {}
 
         $dependencies = [];
         if ($attCount > 0) $dependencies[] = "{$attCount} class attendance record(s)";
@@ -985,6 +1013,16 @@ class AdminPortalController {
         return [
             'success' => true,
             'eligible' => $isEligible,
+            'can_delete' => $isEligible,
+            'can_delete_permanently' => $isEligible,
+            'is_multi_role' => $isMultiRole,
+            'roles' => $roles,
+            'stats' => [
+                'attendance_count' => $attCount,
+                'submissions_count' => $subCount,
+                'payments_count' => $payCount,
+                'certificates_count' => $certCount,
+            ],
             'attendance_count' => $attCount,
             'submissions_count' => $subCount,
             'payments_count' => $payCount,
@@ -1032,6 +1070,10 @@ class AdminPortalController {
                 $roles = [$u['role']];
             }
 
+            try { $pdo->prepare("DELETE FROM fee_plans WHERE user_id = ?")->execute([$studentId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM placement_profiles WHERE user_id = ?")->execute([$studentId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM student_followups WHERE user_id = ?")->execute([$studentId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$studentId]); } catch (Exception $e) {}
             $pdo->prepare("DELETE FROM student_profiles WHERE user_id = ?")->execute([$studentId]);
             $pdo->prepare("DELETE FROM batch_enrollments WHERE user_id = ?")->execute([$studentId]);
             $pdo->prepare("DELETE FROM enrollments WHERE user_id = ?")->execute([$studentId]);
@@ -1053,7 +1095,11 @@ class AdminPortalController {
                 ");
                 $stmtUpd->execute([$newRole, json_encode($remainingRoles), $studentId]);
             } else {
-                $pdo->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id = ?")->execute([$studentId]);
+                try {
+                    $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$studentId]);
+                } catch (Exception $e) {
+                    $pdo->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id = ?")->execute([$studentId]);
+                }
             }
 
             $pdo->commit();
@@ -1068,6 +1114,14 @@ class AdminPortalController {
                 'remaining_role' => $newRole,
                 'message' => $multiRoleRetained
                     ? "Student profile removed. User account retained with remaining role: {$newRole}."
+                    : 'Student record permanently deleted.'
+            ];
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Database error during deletion: ' . $e->getMessage()];
+        }
+    }
                     : 'Eligible student account and profile permanently removed.'
             ];
         } catch (Exception $e) {
@@ -1630,12 +1684,46 @@ class AdminPortalController {
         $pdo = Database::getConnection();
         $facultyId = (int)$facultyId;
 
-        $sessCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE faculty_id = {$facultyId}")->fetchColumn();
-        $attCount = (int)$pdo->query("SELECT COUNT(*) FROM attendance_records WHERE marked_by = {$facultyId}")->fetchColumn();
-        $gradeCount = (int)$pdo->query("SELECT COUNT(*) FROM task_submissions WHERE graded_by = {$facultyId}")->fetchColumn();
-        $certCount = (int)$pdo->query("SELECT COUNT(*) FROM certificates WHERE issuer_id = {$facultyId}")->fetchColumn();
+        $userStmt = $pdo->prepare("SELECT id, full_name, email, role, authorized_roles_json FROM users WHERE id = ?");
+        $userStmt->execute([$facultyId]);
+        $u = $userStmt->fetch();
+
+        $roles = [];
+        if ($u && !empty($u['authorized_roles_json'])) {
+            $roles = json_decode($u['authorized_roles_json'], true) ?: [];
+        }
+        if ($u && empty($roles)) {
+            $roles = [$u['role']];
+        }
+        $isMultiRole = $u ? (count($roles) > 1 || !in_array($u['role'], ['faculty', 'instructor'])) : false;
+
+        $assignedBatches = 0;
+        try {
+            $assignedBatches = (int)$pdo->query("SELECT COUNT(*) FROM faculty_batch_assignments WHERE faculty_id = {$facultyId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $sessCount = 0;
+        try {
+            $sessCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE faculty_id = {$facultyId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $attCount = 0;
+        try {
+            $attCount = (int)$pdo->query("SELECT COUNT(*) FROM attendance_records WHERE marked_by = {$facultyId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $gradeCount = 0;
+        try {
+            $gradeCount = (int)$pdo->query("SELECT COUNT(*) FROM task_submissions WHERE graded_by = {$facultyId}")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $certCount = 0;
+        try {
+            $certCount = (int)$pdo->query("SELECT COUNT(*) FROM certificates WHERE issuer_id = {$facultyId}")->fetchColumn();
+        } catch (Exception $e) {}
 
         $dependencies = [];
+        if ($assignedBatches > 0) $dependencies[] = "{$assignedBatches} assigned cohort batch(es)";
         if ($sessCount > 0) $dependencies[] = "{$sessCount} scheduled/completed class session(s)";
         if ($attCount > 0) $dependencies[] = "{$attCount} attendance audit record(s) marked";
         if ($gradeCount > 0) $dependencies[] = "{$gradeCount} student assignment grading evaluation(s)";
@@ -1646,6 +1734,17 @@ class AdminPortalController {
         return [
             'success' => true,
             'eligible' => $isEligible,
+            'can_delete' => $isEligible,
+            'can_delete_permanently' => $isEligible,
+            'is_multi_role' => $isMultiRole,
+            'roles' => $roles,
+            'stats' => [
+                'assigned_batches' => $assignedBatches,
+                'past_classes' => $sessCount,
+                'attendance_sessions' => $attCount,
+                'graded_submissions' => $gradeCount,
+                'certificates_count' => $certCount,
+            ],
             'sessions_count' => $sessCount,
             'attendance_count' => $attCount,
             'grading_count' => $gradeCount,
@@ -1695,6 +1794,7 @@ class AdminPortalController {
 
             $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id = ?")->execute([$facultyId]);
             $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE faculty_id = ?")->execute([$facultyId]);
+            try { $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
 
             $remainingRoles = array_values(array_filter($roles, function($r) {
                 return !in_array($r, ['faculty', 'instructor']);
@@ -1713,7 +1813,11 @@ class AdminPortalController {
                 ");
                 $stmtUpd->execute([$newRole, json_encode($remainingRoles), $facultyId]);
             } else {
-                $pdo->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id = ?")->execute([$facultyId]);
+                try {
+                    $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$facultyId]);
+                } catch (Exception $e) {
+                    $pdo->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id = ?")->execute([$facultyId]);
+                }
             }
 
             $pdo->commit();
@@ -1728,7 +1832,7 @@ class AdminPortalController {
                 'remaining_role' => $newRole,
                 'message' => $multiRoleRetained
                     ? "Faculty profile removed. User account retained with remaining role: {$newRole}."
-                    : 'Eligible faculty record permanently removed.'
+                    : 'Faculty record permanently deleted.'
             ];
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -2134,6 +2238,7 @@ class AdminPortalController {
         return [
             'success' => true,
             'eligible' => $canDelete,
+            'can_delete' => $canDelete,
             'can_delete_permanently' => $canDelete,
             'dependencies' => [
                 'enrolled_students' => $enrolledStudents,
@@ -2143,6 +2248,7 @@ class AdminPortalController {
                 'task_submissions' => $taskSubmissions,
                 'issued_certificates' => $issuedCertificates,
             ],
+            'blocking_reasons' => $depList,
             'reason' => $canDelete
                 ? 'Batch has zero student enrollments or academic records and can be safely deleted.'
                 : 'Permanent deletion is prohibited to protect academic records. Retained: ' . implode(', ', $depList) . '.',

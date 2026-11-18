@@ -2727,20 +2727,28 @@ export default function AdminStudentsTab({
       {/* ------------------------------------------------------------- */}
       {/* MODAL: DELETE STUDENT WITH DEPENDENCY VERIFICATION            */}
       {/* ------------------------------------------------------------- */}
-      {deleteModal.isOpen && (
+      {deleteModal.isOpen && (() => {
+        const canDelete = Boolean(
+          deleteModal.eligibility?.can_delete ??
+          deleteModal.eligibility?.eligible ??
+          deleteModal.eligibility?.can_delete_permanently
+        );
+        const stats = deleteModal.eligibility?.stats || deleteModal.eligibility || {};
+
+        return (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl p-5 space-y-4 text-xs">
             <div className="flex items-start gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                deleteModal.eligibility?.can_delete
+                canDelete
                   ? 'bg-rose-50 border border-rose-200 text-rose-700'
                   : 'bg-amber-50 border border-amber-200 text-amber-700'
               }`}>
-                {deleteModal.eligibility?.can_delete ? <Trash2 className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+                {canDelete ? <Trash2 className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  {deleteModal.isChecking ? 'Checking Record Dependencies...' : deleteModal.eligibility?.can_delete ? 'Permanently Delete Student' : 'Permanent Deletion Blocked'}
+                  {deleteModal.isChecking ? 'Checking Record Dependencies...' : canDelete ? 'Permanently Delete Student' : 'Permanent Deletion Blocked'}
                 </h3>
                 <p className="text-slate-600 mt-0.5">
                   Student: <strong className="text-slate-900">{deleteModal.student?.full_name}</strong> ({deleteModal.student?.student_id_code || deleteModal.student?.email})
@@ -2750,7 +2758,7 @@ export default function AdminStudentsTab({
 
             {deleteModal.isChecking ? (
               <div className="p-4 text-center text-slate-500 font-medium">Checking academic and financial records...</div>
-            ) : !deleteModal.eligibility?.can_delete ? (
+            ) : !canDelete ? (
               <div className="space-y-3">
                 <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 space-y-2">
                   <div className="font-semibold flex items-center gap-1.5 text-xs text-rose-800">
@@ -2760,10 +2768,10 @@ export default function AdminStudentsTab({
                     Institutional governance strictly prohibits permanently deleting students with historical coursework or financial records. This student has active dependencies that must be retained for academic integrity and compliance.
                   </p>
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-rose-200/60 font-medium text-[11px]">
-                    <div>• Attendance Sessions: <strong className="font-mono">{deleteModal.eligibility?.stats?.attendance_count || 0}</strong></div>
-                    <div>• Task Submissions: <strong className="font-mono">{deleteModal.eligibility?.stats?.submissions_count || 0}</strong></div>
-                    <div>• Fee Payments: <strong className="font-mono">{deleteModal.eligibility?.stats?.payments_count || 0}</strong></div>
-                    <div>• Issued Certificates: <strong className="font-mono">{deleteModal.eligibility?.stats?.certificates_count || 0}</strong></div>
+                    <div>• Attendance Sessions: <strong className="font-mono">{stats.attendance_count || 0}</strong></div>
+                    <div>• Task Submissions: <strong className="font-mono">{stats.submissions_count || 0}</strong></div>
+                    <div>• Fee Payments: <strong className="font-mono">{stats.payments_count || 0}</strong></div>
+                    <div>• Issued Certificates: <strong className="font-mono">{stats.certificates_count || 0}</strong></div>
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-[11px] space-y-1">
@@ -2812,7 +2820,7 @@ export default function AdminStudentsTab({
               >
                 Cancel
               </button>
-              {deleteModal.eligibility?.can_delete ? (
+              {canDelete ? (
                 <button
                   type="button"
                   disabled={deleteModal.isSubmitting || deleteModal.confirmText !== 'DELETE'}
@@ -2837,7 +2845,8 @@ export default function AdminStudentsTab({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
     </div>
   );
