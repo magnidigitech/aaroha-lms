@@ -175,6 +175,14 @@ def main():
 
     for target in discovered_roots:
         log(f'\n--- Synchronizing deployment payload to: {target} ---')
+        # Clean up any residual root-level index.php from earlier deployments so DirectoryIndex serves index.html
+        f = get_active_ftp()
+        try:
+            ensure_remote_directory(target)
+            f.delete('index.php')
+            log(f'  [CLEANUP] Deleted residual root index.php in {target}')
+        except Exception:
+            pass
         sync_tree(local_dir, target)
         marker_name = 'docroot_target.txt'
         marker_path = os.path.join(local_dir, marker_name)

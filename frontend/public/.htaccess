@@ -1,6 +1,7 @@
 # Aaroha LMS - React SPA URL Rewriting for Hostinger LiteSpeed / Apache
 # Target Domain: lms.aaroha-inc.com
 
+DirectoryIndex index.html index.php
 Options -Indexes
 <IfModule mod_rewrite.c>
   RewriteEngine On
