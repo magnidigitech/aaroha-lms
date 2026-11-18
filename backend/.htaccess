@@ -2,17 +2,6 @@
 # Tailored for Hostinger Apache / LiteSpeed Shared Hosting
 
 Options -Indexes
-<IfModule mod_dir.c>
-  DirectorySlash Off
-</IfModule>
-
-# Pass Authorization Headers to PHP in FastCGI / LiteSpeed
-<IfModule mod_setenvif.c>
-  SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
-  SetEnvIf X-Authorization "(.*)" HTTP_X_AUTHORIZATION=$1
-  SetEnvIf X-Auth-Token "(.*)" HTTP_X_AUTH_TOKEN=$1
-</IfModule>
-
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
@@ -27,13 +16,10 @@ Options -Indexes
   # 2. Pass Authorization Header to PHP in FastCGI / LiteSpeed
   RewriteCond %{HTTP:Authorization} .
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-  RewriteCond %{HTTP:X-Authorization} .
-  RewriteRule .* - [E=HTTP_X_AUTHORIZATION:%{HTTP:X-Authorization}]
-  RewriteCond %{HTTP:X-Auth-Token} .
-  RewriteRule .* - [E=HTTP_X_AUTH_TOKEN:%{HTTP:X-Auth-Token}]
 
-  # 3. Route all API requests to index.php
+  # 3. Route all legitimate API requests to index.php
   RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.php [QSA,L]
 </IfModule>
 
