@@ -2,9 +2,6 @@
 # Tailored for Hostinger Apache / LiteSpeed Shared Hosting
 
 Options -Indexes
-<IfModule mod_dir.c>
-  DirectorySlash Off
-</IfModule>
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
@@ -20,8 +17,9 @@ Options -Indexes
   RewriteCond %{HTTP:Authorization} .
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-  # 3. Route all API requests to index.php
+  # 3. Route all legitimate API requests to index.php
   RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.php [QSA,L]
 </IfModule>
 

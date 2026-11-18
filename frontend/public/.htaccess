@@ -3,24 +3,24 @@
 
 DirectoryIndex index.html index.php
 Options -Indexes
-<IfModule mod_dir.c>
-  DirectorySlash Off
-</IfModule>
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
   # 1. Block direct HTTP access to hidden files and version control directories
   RewriteRule (^\.|\/\.) - [F,L]
 
-  # 2. Route all API requests directly to backend entrypoint (api/index.php) unconditionally
-  RewriteRule ^api(/.*)?$ api/index.php [QSA,L]
+  # 2. Route all API requests directly to backend entrypoint (api/index.php)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+  RewriteRule ^api/?$ api/index.php [QSA,L]
 
-  # 3. Serve physical static files directly
-  RewriteCond %{REQUEST_FILENAME} -f
+  # 3. Serve physical static files and directories directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
   # 4. Route client-side navigation requests to SPA index.html (EXCLUDING /api/)
-  RewriteCond %{REQUEST_URI} !^/api(/.*)?$ [NC]
+  RewriteCond %{REQUEST_URI} !^/api/ [NC]
   RewriteRule ^ index.html [L]
 </IfModule>
 
