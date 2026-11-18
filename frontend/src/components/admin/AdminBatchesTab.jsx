@@ -35,7 +35,7 @@ export default function AdminBatchesTab({
         if (id) {
           map.set(Number(id), {
             id: Number(id),
-            full_name: f.full_name,
+            full_name: f.full_name || f.name || f.email || ('Faculty #' + id),
             code: f.faculty_id_code || (f.title ? f.title : 'Faculty')
           });
         }
@@ -47,13 +47,13 @@ export default function AdminBatchesTab({
         if (id && !map.has(Number(id))) {
           map.set(Number(id), {
             id: Number(id),
-            full_name: c.full_name,
+            full_name: c.full_name || c.name || c.email || ('Coordinator #' + id),
             code: c.title || 'Academic Director'
           });
         }
       });
     }
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
   }, [faculty, coordinators]);
 
   // Load archived batches from database

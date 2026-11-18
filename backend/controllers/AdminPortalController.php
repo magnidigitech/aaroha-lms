@@ -6,6 +6,35 @@ require_once __DIR__ . '/../services/AuditLogger.php';
 
 class AdminPortalController {
 
+    public static function getPublicLmsUrl() {
+        $envConfig = [];
+        $candidates = [
+            __DIR__ . '/../config/env.php',
+            dirname(__DIR__, 2) . '/env.php'
+        ];
+        foreach ($candidates as $cand) {
+            if (file_exists($cand)) {
+                $envConfig = require $cand;
+                break;
+            }
+        }
+        if (!empty($envConfig['PUBLIC_LMS_URL'])) {
+            return rtrim($envConfig['PUBLIC_LMS_URL'], '/');
+        }
+        if (!empty($envConfig['APP_URL'])) {
+            return rtrim($envConfig['APP_URL'], '/');
+        }
+        $pdo = Database::getConnection();
+        try {
+            $settingStmt = $pdo->query("SELECT setting_value FROM system_settings WHERE setting_key = 'public_lms_url' OR setting_key = 'app_url' LIMIT 1");
+            $val = $settingStmt ? $settingStmt->fetchColumn() : null;
+            if (!empty($val)) {
+                return rtrim($val, '/');
+            }
+        } catch (Exception $e) {}
+        return 'https://lms.aaroha-inc.com';
+    }
+
     // -------------------------------------------------------------
     // 1. DASHBOARD OVERVIEW & METRICS
     // -------------------------------------------------------------
@@ -233,8 +262,9 @@ class AdminPortalController {
         $randSuffix = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
         $studentCode = 'STU-2026-' . $randSuffix;
         $defaultPasswordHash = '!INVITED_UNSET_CREDENTIALS!';
-        $invitationToken = bin2hex(random_bytes(24));
-        $invitationExpires = date('Y-m-d H:i:s', strtotime('+7 days'));
+        $rawInvitationToken = bin2hex(random_bytes(32));
+        $hashedInvitationToken = hash('sha256', $rawInvitationToken);
+        $invitationExpires = date('Y-m-d H:i:s', strtotime('+24 hours'));
 
         $pdo->beginTransaction();
         try {
@@ -246,7 +276,7 @@ class AdminPortalController {
             $stmt->execute([$fullName, $email, $defaultPasswordHash]);
             $userId = (int)$pdo->lastInsertId();
 
-            // 2. Create Student Profile
+            // 2. Create Student Profile (stores only cryptographic hash of token)
             $stmt = $pdo->prepare("
                 INSERT INTO student_profiles (
                     user_id, student_id_code, mobile, normalized_mobile, education, experience_years,
@@ -264,7 +294,7 @@ class AdminPortalController {
                 date('Y-m-d'),
                 $coordinatorId,
                 $internalNotes,
-                $invitationToken,
+                $hashedInvitationToken,
                 $invitationExpires
             ]);
 
@@ -300,15 +330,25 @@ class AdminPortalController {
                 'student_code' => $studentCode,
                 'email' => $email,
                 'course_id' => $courseId,
-                'batch_id' => $batchId
+                'batch_id' => $batchId,
+                'expires_at' => $invitationExpires
             ], $actor);
+
+            $invitationUrl = self::getPublicLmsUrl() . "/activate?token={$rawInvitationToken}";
 
             return [
                 'success' => true,
                 'message' => "Student {$fullName} onboarded successfully with ID {$studentCode}.",
                 'student_id' => $userId,
                 'student_code' => $studentCode,
-                'invitation_url' => "https://lms.aaroha-inc.com/activate?token={$invitationToken}"
+                'account_status' => 'invited',
+                'invitation_status' => 'Link Generated',
+                'invitation_url' => $invitationUrl,
+                'setup_url' => $invitationUrl,
+                'expires_at' => $invitationExpires,
+                'delivery_method' => 'manual_share',
+                'email_sent' => false,
+                'email_notice' => 'Email server is unconfigured. Share this private setup link directly via WhatsApp.'
             ];
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -1086,8 +1126,9 @@ class AdminPortalController {
         $codeSuffix = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
         $facultyCode = 'FAC-2026-' . $codeSuffix;
         $defaultPasswordHash = '!INVITED_UNSET_CREDENTIALS!';
-        $invitationToken = bin2hex(random_bytes(24));
-        $invitationExpires = date('Y-m-d H:i:s', strtotime('+7 days'));
+        $rawInvitationToken = bin2hex(random_bytes(32));
+        $hashedInvitationToken = hash('sha256', $rawInvitationToken);
+        $invitationExpires = date('Y-m-d H:i:s', strtotime('+24 hours'));
 
         $pdo->beginTransaction();
         try {
@@ -1101,10 +1142,10 @@ class AdminPortalController {
             $stmt = $pdo->prepare("
                 INSERT INTO faculty_profiles (
                     user_id, faculty_id_code, mobile, expertise, courses_taught_json,
-                    availability_json, account_status, internal_notes, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP)
+                    availability_json, account_status, internal_notes, invitation_token, invitation_expires_at, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'invited', ?, ?, ?, CURRENT_TIMESTAMP)
             ");
-            $stmt->execute([$userId, $facultyCode, $mobile, $expertise, $coursesTaught, $availability, $data['internal_notes'] ?? '']);
+            $stmt->execute([$userId, $facultyCode, $mobile, $expertise, $coursesTaught, $availability, $data['internal_notes'] ?? '', $hashedInvitationToken, $invitationExpires]);
 
             // Assign batches
             if (!empty($assignedBatchIds)) {
@@ -1121,13 +1162,25 @@ class AdminPortalController {
 
             AuditLogger::log('CREATE_FACULTY', 'faculty', $userId, [
                 'code' => $facultyCode,
-                'email' => $email
+                'email' => $email,
+                'expires_at' => $invitationExpires
             ], $actor);
+
+            $invitationUrl = self::getPublicLmsUrl() . "/activate?token={$rawInvitationToken}";
 
             return [
                 'success' => true,
                 'message' => "Faculty {$fullName} onboarded with code {$facultyCode}.",
-                'faculty_id' => $userId
+                'faculty_id' => $userId,
+                'faculty_code' => $facultyCode,
+                'account_status' => 'invited',
+                'invitation_status' => 'Link Generated',
+                'invitation_url' => $invitationUrl,
+                'setup_url' => $invitationUrl,
+                'expires_at' => $invitationExpires,
+                'delivery_method' => 'manual_share',
+                'email_sent' => false,
+                'email_notice' => 'Email server is unconfigured. Share this private setup link directly via WhatsApp.'
             ];
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -2011,8 +2064,8 @@ class AdminPortalController {
             $issuedCertificates = (int)$pdo->query("SELECT COUNT(*) FROM certificates WHERE batch_id = {$batchId}")->fetchColumn();
         } catch (Exception $e) {}
 
-        $totalDependencies = $enrolledStudents + $facultyAssignments + $scheduledSessions + $attendanceRecords + $taskSubmissions + $issuedCertificates;
-        $canDelete = ($totalDependencies === 0);
+        $criticalDependencies = $enrolledStudents + $scheduledSessions + $attendanceRecords + $taskSubmissions + $issuedCertificates;
+        $canDelete = ($criticalDependencies === 0);
 
         $depList = [];
         if ($enrolledStudents > 0) $depList[] = "{$enrolledStudents} enrolled student(s)";
@@ -2035,7 +2088,7 @@ class AdminPortalController {
                 'issued_certificates' => $issuedCertificates,
             ],
             'reason' => $canDelete
-                ? 'Batch has zero academic dependencies and can be safely deleted.'
+                ? 'Batch has zero student enrollments or academic records and can be safely deleted.'
                 : 'Permanent deletion is prohibited to protect academic records. Retained: ' . implode(', ', $depList) . '.',
             'recommendation' => $canDelete ? null : 'Use Archive Batch instead to preserve cohort audit records.'
         ];
@@ -2786,7 +2839,7 @@ class AdminPortalController {
     }
 
     /**
-     * Resend / Refresh Single-Use Invitation Link
+     * Generate / Refresh Single-Use Account Setup Link (WhatsApp manual sharing workflow)
      */
     public static function resendInvitation($data, $actor) {
         $userId = (int)($data['user_id'] ?? 0);
@@ -2796,34 +2849,110 @@ class AdminPortalController {
         }
 
         $pdo = Database::getConnection();
-        $token = bin2hex(random_bytes(24));
-        $expires = date('Y-m-d H:i:s', strtotime('+7 days'));
+
+        // Check user existence
+        $uStmt = $pdo->prepare("SELECT id, full_name, email, role, password_hash FROM users WHERE id = ? LIMIT 1");
+        $uStmt->execute([$userId]);
+        $userRow = $uStmt->fetch();
+        if (!$userRow) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'User account not found'];
+        }
+
+        // Generate 32-byte cryptographically secure token and store only SHA-256 hash
+        $rawToken = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $rawToken);
+        $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
 
         $sStmt = $pdo->prepare("SELECT id FROM student_profiles WHERE user_id = ? LIMIT 1");
         $sStmt->execute([$userId]);
         if ($sStmt->fetch()) {
-            $up = $pdo->prepare("UPDATE student_profiles SET invitation_token = ?, invitation_expires_at = ?, account_status = 'invited' WHERE user_id = ?");
-            $up->execute([$token, $expires, $userId]);
+            $up = $pdo->prepare("UPDATE student_profiles SET invitation_token = ?, invitation_expires_at = ?, invitation_accepted_at = NULL, account_status = 'invited' WHERE user_id = ?");
+            $up->execute([$tokenHash, $expires, $userId]);
         } else {
             $fStmt = $pdo->prepare("SELECT id FROM faculty_profiles WHERE user_id = ? LIMIT 1");
             $fStmt->execute([$userId]);
             if ($fStmt->fetch()) {
-                $up = $pdo->prepare("UPDATE faculty_profiles SET invitation_token = ?, invitation_expires_at = ?, account_status = 'invited' WHERE user_id = ?");
-                $up->execute([$token, $expires, $userId]);
+                $up = $pdo->prepare("UPDATE faculty_profiles SET invitation_token = ?, invitation_expires_at = ?, invitation_accepted_at = NULL, account_status = 'invited' WHERE user_id = ?");
+                $up->execute([$tokenHash, $expires, $userId]);
             } else {
-                http_response_code(404);
-                return ['success' => false, 'error' => 'Profile not found for this user'];
+                // If profile missing but user exists, link appropriate profile without losing history
+                if ($userRow['role'] === 'student') {
+                    $randSuffix = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                    $ins = $pdo->prepare("INSERT INTO student_profiles (user_id, student_id_code, account_status, invitation_token, invitation_expires_at, created_at) VALUES (?, ?, 'invited', ?, ?, CURRENT_TIMESTAMP)");
+                    $ins->execute([$userId, 'STU-2026-' . $randSuffix, $tokenHash, $expires]);
+                } else {
+                    $randSuffix = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                    $ins = $pdo->prepare("INSERT INTO faculty_profiles (user_id, faculty_id_code, account_status, invitation_token, invitation_expires_at, created_at) VALUES (?, ?, 'invited', ?, ?, CURRENT_TIMESTAMP)");
+                    $ins->execute([$userId, 'FAC-2026-' . $randSuffix, $tokenHash, $expires]);
+                }
             }
         }
 
-        $invUrl = "https://lms.aaroha-inc.com/activate?token=" . $token;
-        AuditLogger::log('RESEND_INVITATION', 'user', $userId, ['invitation_url' => $invUrl], $actor);
+        // If credentials were not established, ensure unmatchable marker
+        if (empty($userRow['password_hash']) || $userRow['password_hash'] === '!INVITED_UNSET_CREDENTIALS!') {
+            $pdo->prepare("UPDATE users SET password_hash = '!INVITED_UNSET_CREDENTIALS!' WHERE id = ?")->execute([$userId]);
+        }
+
+        $invUrl = self::getPublicLmsUrl() . "/activate?token=" . $rawToken;
+        AuditLogger::log('GENERATE_SETUP_LINK', 'user', $userId, ['expires_at' => $expires], $actor);
 
         return [
             'success' => true,
-            'message' => 'A new single-use invitation link has been generated.',
+            'message' => 'A new single-use setup link has been generated (valid for 24 hours). Previous links have been invalidated.',
             'invitation_url' => $invUrl,
-            'email_notice' => 'Email delivery provider is unconfigured in System Settings. Please share this invitation link directly.'
+            'setup_url' => $invUrl,
+            'expires_at' => $expires,
+            'account_status' => 'invited',
+            'invitation_status' => 'Link Generated',
+            'delivery_method' => 'manual_share',
+            'email_sent' => false,
+            'email_notice' => 'Email server is unconfigured. Copy this setup link and share it directly via WhatsApp.'
+        ];
+    }
+
+    /**
+     * Generate Single-Use Password Reset Link for Authorised Admin to Share Manually
+     */
+    public static function adminGenerateResetLink($data, $actor) {
+        $userId = (int)($data['user_id'] ?? 0);
+        if (!$userId) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'User ID is required'];
+        }
+
+        $pdo = Database::getConnection();
+        $uStmt = $pdo->prepare("SELECT id, full_name, email, role FROM users WHERE id = ? LIMIT 1");
+        $uStmt->execute([$userId]);
+        $userRow = $uStmt->fetch();
+        if (!$userRow) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'User not found'];
+        }
+
+        // Invalidate previous unconsumed reset tokens for this user
+        $pdo->prepare("UPDATE password_resets SET used_at = CURRENT_TIMESTAMP WHERE user_id = ? AND used_at IS NULL")
+            ->execute([$userId]);
+
+        // Generate 32-byte cryptographically secure token and store only SHA-256 hash
+        $rawToken = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $rawToken);
+        $expires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
+        $ins = $pdo->prepare("INSERT INTO password_resets (user_id, token, expires_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)");
+        $ins->execute([$userId, $tokenHash, $expires]);
+
+        $resetUrl = self::getPublicLmsUrl() . "/reset-password?token=" . $rawToken;
+        AuditLogger::log('ADMIN_GENERATE_RESET_LINK', 'user', $userId, ['expires_at' => $expires], $actor);
+
+        return [
+            'success' => true,
+            'message' => 'Password reset link generated successfully (valid for 24 hours). Previous reset links have been invalidated.',
+            'reset_url' => $resetUrl,
+            'expires_at' => $expires,
+            'delivery_method' => 'manual_share',
+            'email_sent' => false,
+            'email_notice' => 'Email server is unconfigured. Copy this password reset link and share it directly via WhatsApp.'
         ];
     }
 
@@ -2838,17 +2967,17 @@ class AdminPortalController {
         }
 
         $pdo = Database::getConnection();
-        $sStmt = $pdo->prepare("UPDATE student_profiles SET invitation_token = NULL, account_status = 'deactivated' WHERE user_id = ?");
+        $sStmt = $pdo->prepare("UPDATE student_profiles SET invitation_token = NULL, invitation_expires_at = NULL, account_status = 'deactivated' WHERE user_id = ?");
         $sStmt->execute([$userId]);
 
-        $fStmt = $pdo->prepare("UPDATE faculty_profiles SET invitation_token = NULL, account_status = 'deactivated' WHERE user_id = ?");
+        $fStmt = $pdo->prepare("UPDATE faculty_profiles SET invitation_token = NULL, invitation_expires_at = NULL, account_status = 'deactivated' WHERE user_id = ?");
         $fStmt->execute([$userId]);
 
         AuditLogger::log('REVOKE_INVITATION', 'user', $userId, ['action' => 'revoked'], $actor);
 
         return [
             'success' => true,
-            'message' => 'Invitation link has been revoked and account deactivated.'
+            'message' => 'Invitation setup link has been revoked and account deactivated.'
         ];
     }
 

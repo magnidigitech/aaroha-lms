@@ -4,7 +4,7 @@ import {
   MoreVertical, CheckCircle2, XCircle, AlertTriangle, Mail,
   Eye, Edit3, UserCheck, UserX, RefreshCw, Layers, FileText,
   Calendar, Clock, ExternalLink, X, ShieldAlert, UserMinus, UserPlus, AlertCircle,
-  RotateCcw, Trash2, Archive, ChevronDown
+  RotateCcw, Trash2, Archive, ChevronDown, KeyRound, Link as LinkIcon
 } from 'lucide-react';
 import { exportToCsv, formatDate, formatDateTime, calculateAccessExpiry, getAccessWindowInfo } from '../../adminUtils';
 import api from '../../apiService';
@@ -20,6 +20,8 @@ export default function AdminStudentsTab({
   onTransferBatch,
   onToggleStatus,
   onResendInvite,
+  onGenerateSetupLink,
+  onGenerateResetLink,
   onRevokeInvite,
   onViewStudentDetail,
   selectedStudentDetail = null,
@@ -769,7 +771,7 @@ export default function AdminStudentsTab({
             title="Filter roster by Login Status"
           >
             <option value="all">All Login Statuses</option>
-            <option value="invited">Invited — Pending Activation</option>
+            <option value="invited">Link Generated / Pending Setup</option>
             <option value="active">Active</option>
             <option value="deactivated">Deactivated</option>
             <option value="suspended">Suspended</option>
@@ -886,16 +888,16 @@ export default function AdminStudentsTab({
 
                       {/* Login Status */}
                       <td className="py-3 px-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium tracking-wide ${
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
                           s.account_status === 'active'
                             ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                            : s.account_status === 'invited'
-                            ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                            : (s.account_status === 'invited' || s.account_status === 'link_generated')
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300 font-bold'
                             : s.account_status === 'suspended'
                             ? 'bg-rose-100 text-rose-900 border border-rose-200'
                             : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}>
-                          {s.account_status === 'invited' ? 'Invited — Pending' : (s.account_status || 'active')}
+                          {(s.account_status === 'invited' || s.account_status === 'link_generated') ? 'Link Generated' : (s.account_status || 'active')}
                         </span>
                       </td>
 
@@ -962,6 +964,77 @@ export default function AdminStudentsTab({
                                   <UserPlus size={13} className="text-emerald-600" />
                                   <span>Enrol in Course</span>
                                 </button>
+
+                                <div className="my-1 border-t border-slate-100" />
+
+                                {/* Setup & Reset Link Actions */}
+                                {(s.account_status === 'invited' || s.account_status === 'link_generated' || !s.account_status) && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        if (onGenerateSetupLink) onGenerateSetupLink(s.user_id, s);
+                                        else onResendInvite(s.user_id);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-left text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer font-medium"
+                                    >
+                                      <KeyRound size={13} className="text-blue-600" />
+                                      <span>Generate Setup Link</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOpenActionMenuId(null); onRevokeInvite(s.user_id); }}
+                                      className="w-full px-3 py-1.5 text-left text-slate-600 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                    >
+                                      <XCircle size={13} className="text-slate-500" />
+                                      <span>Revoke Invitation</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {s.account_status === 'active' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        if (onGenerateResetLink) onGenerateResetLink(s.user_id, s);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-left text-indigo-700 hover:bg-indigo-50 flex items-center gap-2 cursor-pointer font-medium"
+                                    >
+                                      <KeyRound size={13} className="text-indigo-600" />
+                                      <span>Generate Password Reset Link</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null);
+                                        if (onGenerateSetupLink) onGenerateSetupLink(s.user_id, s);
+                                        else onResendInvite(s.user_id);
+                                      }}
+                                      className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                    >
+                                      <Mail size={13} className="text-[#0a7cb3]" />
+                                      <span>Send Account Setup Invitation</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {s.account_status === 'deactivated' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      if (onGenerateSetupLink) onGenerateSetupLink(s.user_id, s);
+                                      else onResendInvite(s.user_id);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-left text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer font-medium"
+                                  >
+                                    <Mail size={13} className="text-blue-600" />
+                                    <span>Send Account Setup Invitation</span>
+                                  </button>
+                                )}
 
                                 <div className="my-1 border-t border-slate-100" />
 
@@ -2298,22 +2371,64 @@ export default function AdminStudentsTab({
               {/* Tab 7: Communications */}
               {detailTab === 'communications' && (
                 <div className="space-y-3">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                    <span className="font-semibold text-slate-900 block">Single-Use Account Activation Link</span>
-                    <p className="text-slate-500 text-xs">
-                      Invitation status: <strong className="text-amber-700 uppercase font-mono">{selectedStudentDetail.student?.account_status}</strong>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs">Account Credentials & Access Setup</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        selectedStudentDetail.student?.account_status === 'active'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {selectedStudentDetail.student?.account_status === 'active' ? 'Active' : 'Link Generated'}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-600 text-xs">
+                      Single-use cryptographic links expire after <strong>24 hours</strong>. When regenerated or revoked, previous tokens are immediately invalidated. Full URLs and passwords are never logged.
                     </p>
-                    {selectedStudentDetail.student?.invitation_token && (
-                      <div className="p-2.5 rounded bg-white border border-slate-200 font-mono text-[#0A7CB3] text-[11px] break-all select-all">
-                        https://lms.aaroha-inc.com/activate?token={selectedStudentDetail.student.invitation_token}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => onResendInvite(selectedStudentDetail.student?.id)}
-                      className="mt-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs"
-                    >
-                      Regenerate & Resend Link
-                    </button>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sid = selectedStudentDetail.student?.id || selectedStudentDetail.student?.user_id;
+                          if (onGenerateSetupLink) onGenerateSetupLink(sid, selectedStudentDetail.student);
+                          else onResendInvite(sid);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-[#0A7CB3] hover:bg-[#086491] text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <KeyRound size={13} />
+                        <span>Generate Setup Link</span>
+                      </button>
+
+                      {selectedStudentDetail.student?.account_status === 'active' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sid = selectedStudentDetail.student?.id || selectedStudentDetail.student?.user_id;
+                            if (onGenerateResetLink) onGenerateResetLink(sid, selectedStudentDetail.student);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <KeyRound size={13} />
+                          <span>Generate Password Reset Link</span>
+                        </button>
+                      )}
+
+                      {(selectedStudentDetail.student?.account_status === 'invited' || selectedStudentDetail.student?.account_status === 'link_generated') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sid = selectedStudentDetail.student?.id || selectedStudentDetail.student?.user_id;
+                            onRevokeInvite(sid);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <XCircle size={13} />
+                          <span>Revoke Invitation</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

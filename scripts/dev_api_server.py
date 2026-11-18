@@ -385,14 +385,16 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if not token:
                     return self._send_json({"success": False, "error": "Invitation token is required"}, 400)
 
-                # Check student profiles first
+                token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+                # Check student profiles first (supports sha256 hashed token with legacy fallback)
                 row = cur.execute("""
                     SELECT sp.student_id_code as id_code, sp.account_status, sp.invitation_expires_at, sp.invitation_accepted_at,
                            u.full_name, u.email, u.role
                     FROM student_profiles sp
                     JOIN users u ON sp.user_id = u.id
-                    WHERE sp.invitation_token = ?
-                """, (token,)).fetchone()
+                    WHERE sp.invitation_token = ? OR sp.invitation_token = ?
+                """, (token_hash, token)).fetchone()
 
                 if not row:
                     row = cur.execute("""
@@ -400,19 +402,19 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                                u.full_name, u.email, u.role
                         FROM faculty_profiles fp
                         JOIN users u ON fp.user_id = u.id
-                        WHERE fp.invitation_token = ?
-                    """, (token,)).fetchone()
+                        WHERE fp.invitation_token = ? OR fp.invitation_token = ?
+                    """, (token_hash, token)).fetchone()
 
                 if not row:
-                    return self._send_json({"success": False, "error": "Invalid or revoked invitation token."}, 404)
+                    return self._send_json({"success": False, "error": "Invalid or revoked setup link. Please contact your administrator."}, 404)
 
                 r_dict = dict(row)
                 if r_dict.get('invitation_accepted_at'):
-                    return self._send_json({"success": False, "error": "This invitation has already been accepted and cannot be reused."}, 400)
+                    return self._send_json({"success": False, "error": "This setup link has already been used. Please log in with your registered email and password."}, 400)
 
                 exp = str(r_dict.get('invitation_expires_at') or '')
                 if exp and exp < time.strftime('%Y-%m-%d %H:%M:%S'):
-                    return self._send_json({"success": False, "error": "This invitation link has expired. Please contact your administrator."}, 400)
+                    return self._send_json({"success": False, "error": "This setup link has expired (valid for 24 hours). Please contact your administrator for a new setup link."}, 400)
 
                 return self._send_json({
                     "success": True,
@@ -2116,31 +2118,33 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if len(password) < 8:
                     return self._send_json({"success": False, "error": "Password must be at least 8 characters long"}, 400)
 
+                token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+
                 # Locate in student profiles
                 profile_type = 'student'
                 target_user_id = None
 
-                sp = cur.execute("SELECT * FROM student_profiles WHERE invitation_token = ?", (token,)).fetchone()
+                sp = cur.execute("SELECT * FROM student_profiles WHERE invitation_token = ? OR invitation_token = ?", (token_hash, token)).fetchone()
                 if sp:
                     profile_type = 'student'
                     target_user_id = sp['user_id']
                     if sp['invitation_accepted_at']:
-                        return self._send_json({"success": False, "error": "This invitation has already been accepted and cannot be reused."}, 400)
+                        return self._send_json({"success": False, "error": "This setup link has already been used. Please log in with your registered email and password."}, 400)
                     exp = str(sp['invitation_expires_at'] or '')
                     if exp and exp < time.strftime('%Y-%m-%d %H:%M:%S'):
-                        return self._send_json({"success": False, "error": "This invitation has expired. Contact your administrator."}, 400)
+                        return self._send_json({"success": False, "error": "This setup link has expired (valid for 24 hours). Please contact your administrator for a new setup link."}, 400)
                 else:
-                    fp = cur.execute("SELECT * FROM faculty_profiles WHERE invitation_token = ?", (token,)).fetchone()
+                    fp = cur.execute("SELECT * FROM faculty_profiles WHERE invitation_token = ? OR invitation_token = ?", (token_hash, token)).fetchone()
                     if fp:
                         profile_type = 'faculty'
                         target_user_id = fp['user_id']
                         if fp['invitation_accepted_at']:
-                            return self._send_json({"success": False, "error": "This invitation has already been accepted and cannot be reused."}, 400)
+                            return self._send_json({"success": False, "error": "This setup link has already been used. Please log in with your registered email and password."}, 400)
                         exp = str(fp['invitation_expires_at'] or '')
                         if exp and exp < time.strftime('%Y-%m-%d %H:%M:%S'):
-                            return self._send_json({"success": False, "error": "This invitation has expired. Contact your administrator."}, 400)
+                            return self._send_json({"success": False, "error": "This setup link has expired (valid for 24 hours). Please contact your administrator for a new setup link."}, 400)
                     else:
-                        return self._send_json({"success": False, "error": "Invalid or revoked invitation token."}, 404)
+                        return self._send_json({"success": False, "error": "Invalid or revoked setup link. Please contact your administrator."}, 404)
 
                 # Hash password and activate
                 pw_hash = hash_password(password)
@@ -2149,7 +2153,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if profile_type == 'student':
                     cur.execute("""
                         UPDATE student_profiles
-                        SET account_status = 'active', invitation_accepted_at = datetime('now'), updated_at = datetime('now')
+                        SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = NULL, updated_at = datetime('now')
                         WHERE user_id = ?
                     """, (target_user_id,))
                     # Activate any pending enrollments whose clock was waiting on account activation
@@ -2174,14 +2178,14 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 else:
                     cur.execute("""
                         UPDATE faculty_profiles
-                        SET account_status = 'active', invitation_accepted_at = datetime('now'), updated_at = datetime('now')
+                        SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = NULL, updated_at = datetime('now')
                         WHERE user_id = ?
                     """, (target_user_id,))
 
                 user_row = cur.execute("SELECT id, full_name, email, role, title, avatar FROM users WHERE id = ?", (target_user_id,)).fetchone()
                 u = dict(user_row)
 
-                # Audit log
+                # Audit log without credentials or tokens
                 cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'ACTIVATE_ACCOUNT', ?, ?, ?)",
                             (u['id'], u['email'], u['role'], profile_type, str(u['id']), json.dumps({"action": "account_activated"})))
 
@@ -2203,7 +2207,6 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
                 user_row = cur.execute("SELECT * FROM users WHERE LOWER(email) = ?", (email,)).fetchone()
                 if not user_row:
-                    # Generic success for security
                     return self._send_json({
                         "success": True,
                         "message": "If this email address is registered, password reset instructions have been generated.",
@@ -2213,28 +2216,23 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
                 u = dict(user_row)
 
-                # Check if account is deactivated
-                if u['role'] == 'student':
-                    sp = cur.execute("SELECT account_status FROM student_profiles WHERE user_id = ?", (u['id'],)).fetchone()
-                    if sp and sp['account_status'] in ('deactivated', 'suspended'):
-                        return self._send_json({"success": False, "error": "This account is currently deactivated. Please contact your administrator."}, 403)
-                elif u['role'] in ('faculty', 'instructor'):
-                    fp = cur.execute("SELECT account_status FROM faculty_profiles WHERE user_id = ?", (u['id'],)).fetchone()
-                    if fp and fp['account_status'] in ('deactivated', 'suspended'):
-                        return self._send_json({"success": False, "error": "This account is currently deactivated. Please contact your administrator."}, 403)
+                # Invalidate previous unconsumed reset tokens
+                cur.execute("UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ? AND used_at IS NULL", (u['id'],))
 
-                reset_token = secrets.token_hex(24)
-                cur.execute("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, datetime('now', '+1 hour'))", (u['id'], reset_token))
+                raw_token = secrets.token_hex(32)
+                token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                cur.execute("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, datetime('now', '+24 hours'))", (u['id'], token_hash))
                 conn.commit()
 
-                reset_url = f"http://localhost:5173/reset-password?token={reset_token}"
+                reset_url = f"https://lms.aaroha-inc.com/reset-password?token={raw_token}"
                 return self._send_json({
                     "success": True,
-                    "message": "Password reset token generated.",
-                    "reset_token": reset_token,
+                    "message": "Password reset link generated successfully.",
+                    "reset_token": raw_token,
                     "reset_url": reset_url,
+                    "expires_at": (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S"),
                     "email_sent": False,
-                    "email_notice": "Email delivery provider is unconfigured in System Settings (SMTP credentials required). Simulated password reset link generated."
+                    "email_notice": "Email delivery provider is unconfigured in System Settings. Simulated password reset link generated."
                 })
 
             # 4. Reset Password with Token
@@ -2248,13 +2246,26 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if len(new_password) < 8:
                     return self._send_json({"success": False, "error": "Password must be at least 8 characters long"}, 400)
 
-                pr = cur.execute("SELECT * FROM password_resets WHERE token = ? AND expires_at > datetime('now') AND used_at IS NULL", (token,)).fetchone()
+                token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+                pr = cur.execute("SELECT * FROM password_resets WHERE token = ? OR token = ? ORDER BY id DESC LIMIT 1", (token_hash, token)).fetchone()
                 if not pr:
-                    return self._send_json({"success": False, "error": "Invalid or expired password reset token."}, 400)
+                    return self._send_json({"success": False, "error": "Invalid or revoked password reset link."}, 404)
+
+                if pr['used_at']:
+                    return self._send_json({"success": False, "error": "This password reset link has already been used. Please request a new password reset link if needed."}, 400)
+
+                exp = str(pr['expires_at'] or '')
+                if exp and exp < time.strftime('%Y-%m-%d %H:%M:%S'):
+                    return self._send_json({"success": False, "error": "This password reset link has expired (valid for 24 hours). Please request a new password reset link."}, 400)
 
                 new_hash = hash_password(new_password)
                 cur.execute("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?", (new_hash, pr['user_id']))
                 cur.execute("UPDATE password_resets SET used_at = datetime('now') WHERE id = ?", (pr['id'],))
+
+                # Activate account if it was awaiting activation
+                cur.execute("UPDATE student_profiles SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = NULL WHERE user_id = ? AND account_status IN ('invited', 'link_generated')", (pr['user_id'],))
+                cur.execute("UPDATE faculty_profiles SET account_status = 'active', invitation_accepted_at = datetime('now'), invitation_token = NULL WHERE user_id = ? AND account_status IN ('invited', 'link_generated')", (pr['user_id'],))
+
                 conn.commit()
 
                 return self._send_json({
@@ -2268,41 +2279,63 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 if not target_uid:
                     return self._send_json({"success": False, "error": "User ID is required"}, 400)
 
-                new_token = secrets.token_hex(24)
+                u_target = cur.execute("SELECT id, full_name, email, role, password_hash FROM users WHERE id = ?", (target_uid,)).fetchone()
+                if not u_target:
+                    return self._send_json({"success": False, "error": "User account not found"}, 404)
+
+                raw_token = secrets.token_hex(32)
+                token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                expires_at = (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
 
                 # Check student
                 sp = cur.execute("SELECT id FROM student_profiles WHERE user_id = ?", (target_uid,)).fetchone()
                 if sp:
                     cur.execute("""
                         UPDATE student_profiles
-                        SET invitation_token = ?, invitation_expires_at = datetime('now', '+7 days'),
+                        SET invitation_token = ?, invitation_expires_at = datetime('now', '+24 hours'),
                             invitation_accepted_at = NULL, account_status = 'invited', updated_at = datetime('now')
                         WHERE user_id = ?
-                    """, (new_token, target_uid))
+                    """, (token_hash, target_uid))
                 else:
                     fp = cur.execute("SELECT id FROM faculty_profiles WHERE user_id = ?", (target_uid,)).fetchone()
                     if fp:
                         cur.execute("""
                             UPDATE faculty_profiles
-                            SET invitation_token = ?, invitation_expires_at = datetime('now', '+7 days'),
+                            SET invitation_token = ?, invitation_expires_at = datetime('now', '+24 hours'),
                                 invitation_accepted_at = NULL, account_status = 'invited', updated_at = datetime('now')
                             WHERE user_id = ?
-                        """, (new_token, target_uid))
+                        """, (token_hash, target_uid))
                     else:
-                        return self._send_json({"success": False, "error": "Profile not found"}, 404)
+                        # Link profile for existing user
+                        if u_target['role'] == 'student':
+                            rand_code = f"STU-2026-{target_uid:04d}"
+                            cur.execute("INSERT INTO student_profiles (user_id, student_id_code, account_status, invitation_token, invitation_expires_at, created_at) VALUES (?, ?, 'invited', ?, datetime('now', '+24 hours'), datetime('now'))",
+                                        (target_uid, rand_code, token_hash))
+                        else:
+                            rand_code = f"FAC-2026-{target_uid:04d}"
+                            cur.execute("INSERT INTO faculty_profiles (user_id, faculty_id_code, account_status, invitation_token, invitation_expires_at, created_at) VALUES (?, ?, 'invited', ?, datetime('now', '+24 hours'), datetime('now'))",
+                                        (target_uid, rand_code, token_hash))
 
-                cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'RESEND_INVITATION', 'user', ?, ?)",
-                            (user['id'], user['email'], user['role'], str(target_uid), json.dumps({"token": new_token})))
+                if not u_target['password_hash'] or u_target['password_hash'] == '!INVITED_UNSET_CREDENTIALS!':
+                    cur.execute("UPDATE users SET password_hash = '!INVITED_UNSET_CREDENTIALS!' WHERE id = ?", (target_uid,))
+
+                cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'GENERATE_SETUP_LINK', 'user', ?, ?)",
+                            (user['id'], user['email'], user['role'], str(target_uid), json.dumps({"action": "setup_link_generated", "expires_at": expires_at})))
                 conn.commit()
 
-                invitation_url = f"http://localhost:5173/activate?token={new_token}"
+                invitation_url = f"https://lms.aaroha-inc.com/activate?token={raw_token}"
                 return self._send_json({
                     "success": True,
-                    "message": "Invitation renewed successfully.",
-                    "invitation_token": new_token,
+                    "message": "A new single-use setup link has been generated (valid for 24 hours). Previous links have been invalidated.",
+                    "invitation_token": raw_token,
                     "invitation_url": invitation_url,
+                    "setup_url": invitation_url,
+                    "expires_at": expires_at,
+                    "account_status": "invited",
+                    "invitation_status": "Link Generated",
+                    "delivery_method": "manual_share",
                     "email_sent": False,
-                    "email_notice": "Email delivery provider is unconfigured in System Settings (SMTP credentials required). Simulated invitation link generated."
+                    "email_notice": "Email server is unconfigured. Copy this setup link and share it directly via WhatsApp."
                 })
 
             # 6. Revoke Invitation Token
@@ -2319,7 +2352,44 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
                 return self._send_json({
                     "success": True,
-                    "message": "Invitation revoked. Account set to deactivated."
+                    "message": "Invitation setup link has been revoked and account deactivated."
+                })
+
+            # 6.1 Generate Password Reset Link (Authorised Admin Manual Share)
+            if path in ("/admin/users/generate-reset-link", "/admin/invitations/generate-reset-link") or (path.startswith("/admin/users/") and path.endswith("/generate-reset-link")):
+                target_uid = int(data.get("user_id", 0))
+                if not target_uid and path.startswith("/admin/users/"):
+                    m = re.match(r'^/admin/users/(\d+)/generate-reset-link', path)
+                    if m:
+                        target_uid = int(m.group(1))
+                if not target_uid:
+                    return self._send_json({"success": False, "error": "User ID is required"}, 400)
+
+                u_target = cur.execute("SELECT id, full_name, email, role FROM users WHERE id = ?", (target_uid,)).fetchone()
+                if not u_target:
+                    return self._send_json({"success": False, "error": "User not found"}, 404)
+
+                # Invalidate previous unconsumed reset tokens
+                cur.execute("UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ? AND used_at IS NULL", (target_uid,))
+
+                raw_token = secrets.token_hex(32)
+                token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                expires_at = (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+
+                cur.execute("INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, datetime('now', '+24 hours'))", (target_uid, token_hash))
+                cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'ADMIN_GENERATE_RESET_LINK', 'user', ?, ?)",
+                            (user['id'], user['email'], user['role'], str(target_uid), json.dumps({"action": "reset_link_generated", "expires_at": expires_at})))
+                conn.commit()
+
+                reset_url = f"https://lms.aaroha-inc.com/reset-password?token={raw_token}"
+                return self._send_json({
+                    "success": True,
+                    "message": "Password reset link generated successfully (valid for 24 hours). Previous reset links have been invalidated.",
+                    "reset_url": reset_url,
+                    "expires_at": expires_at,
+                    "delivery_method": "manual_share",
+                    "email_sent": False,
+                    "email_notice": "Email server is unconfigured. Copy this password reset link and share it directly via WhatsApp."
                 })
 
             # 7. Create Student (With Account Reuse & Single-Use Invitation)
@@ -2382,7 +2452,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 while cur.execute("SELECT id FROM student_profiles WHERE student_id_code = ?", (rand_code,)).fetchone():
                     rand_code = f"STU-2026-{(int(time.time() * 1000) + 17) % 10000:04d}"
 
-                invitation_token = secrets.token_hex(24)
+                raw_token = secrets.token_hex(32)
+                token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                expires_at = (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
                 # Password hash is unmatchable marker until recipient activates and sets their password
                 pw_hash = "!INVITED_UNSET_CREDENTIALS!"
 
@@ -2396,8 +2468,8 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                         experience_years, admission_date, coordinator_id, account_status,
                         admission_status, enrollment_status, payment_status, internal_notes,
                         invitation_token, invitation_expires_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, 'invited', 'admitted', 'enrolled', 'offline_handled', ?, ?, datetime('now', '+7 days'))
-                """, (uid, rand_code, mobile, norm_mobile, education, experience, user['id'], internal_notes, invitation_token))
+                    ) VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, 'invited', 'admitted', 'enrolled', 'offline_handled', ?, ?, datetime('now', '+24 hours'))
+                """, (uid, rand_code, mobile, norm_mobile, education, experience, user['id'], internal_notes, token_hash))
 
                 if course_id:
                     cur.execute("INSERT INTO enrollments (user_id, course_id, batch_id, status) VALUES (?, ?, ?, 'active')", (uid, course_id, batch_id))
@@ -2408,20 +2480,25 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 cur.execute("INSERT INTO placement_profiles (user_id, readiness_score, placement_status) VALUES (?, 0, 'training')", (uid,))
 
                 cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'CREATE_STUDENT', 'student', ?, ?)",
-                            (user['id'], user['email'], user['role'], str(uid), json.dumps({"student_code": rand_code, "name": full_name})))
+                            (user['id'], user['email'], user['role'], str(uid), json.dumps({"student_code": rand_code, "name": full_name, "expires_at": expires_at})))
 
                 conn.commit()
 
-                invitation_url = f"http://localhost:5173/activate?token={invitation_token}"
+                invitation_url = f"https://lms.aaroha-inc.com/activate?token={raw_token}"
                 return self._send_json({
                     "success": True,
                     "message": f"Student {full_name} onboarded successfully with ID {rand_code}",
                     "student_id": uid,
                     "student_code": rand_code,
-                    "invitation_token": invitation_token,
+                    "account_status": "invited",
+                    "invitation_status": "Link Generated",
+                    "invitation_token": raw_token,
                     "invitation_url": invitation_url,
+                    "setup_url": invitation_url,
+                    "expires_at": expires_at,
+                    "delivery_method": "manual_share",
                     "email_sent": False,
-                    "email_notice": "Email delivery provider is unconfigured in System Settings (SMTP credentials required). Simulated invitation link generated."
+                    "email_notice": "Email server is unconfigured. Copy this setup link and share it directly via WhatsApp."
                 })
 
             # 8. Create Faculty (With Account Reuse & Single-Use Invitation)
@@ -2472,7 +2549,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 while cur.execute("SELECT id FROM faculty_profiles WHERE faculty_id_code = ?", (rand_code,)).fetchone():
                     rand_code = f"FAC-2026-{(int(time.time() * 1000) + 23) % 10000:04d}"
 
-                invitation_token = secrets.token_hex(24)
+                raw_token = secrets.token_hex(32)
+                token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                expires_at = (datetime.now() + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
                 pw_hash = "!INVITED_UNSET_CREDENTIALS!"
 
                 cur.execute("INSERT INTO users (full_name, email, password_hash, role, title) VALUES (?, ?, ?, 'faculty', ?)",
@@ -2483,27 +2562,32 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     INSERT INTO faculty_profiles (
                         user_id, faculty_id_code, mobile, expertise, courses_taught_json,
                         availability_json, account_status, internal_notes, invitation_token, invitation_expires_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, 'invited', ?, ?, datetime('now', '+7 days'))
-                """, (uid, rand_code, mobile, expertise, json.dumps(courses_taught), json.dumps(availability), internal_notes, invitation_token))
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'invited', ?, ?, datetime('now', '+24 hours'))
+                """, (uid, rand_code, mobile, expertise, json.dumps(courses_taught), json.dumps(availability), internal_notes, token_hash))
 
                 for b_id in batch_ids:
                     cur.execute("INSERT OR IGNORE INTO faculty_batch_assignments (faculty_id, batch_id, role) VALUES (?, ?, 'Primary Faculty')", (uid, int(b_id)))
 
                 cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'CREATE_FACULTY', 'faculty', ?, ?)",
-                            (user['id'], user['email'], user['role'], str(uid), json.dumps({"faculty_code": rand_code, "name": full_name})))
+                            (user['id'], user['email'], user['role'], str(uid), json.dumps({"faculty_code": rand_code, "name": full_name, "expires_at": expires_at})))
 
                 conn.commit()
 
-                invitation_url = f"http://localhost:5173/activate?token={invitation_token}"
+                invitation_url = f"https://lms.aaroha-inc.com/activate?token={raw_token}"
                 return self._send_json({
                     "success": True,
                     "message": f"Faculty {full_name} onboarded successfully with ID {rand_code}",
                     "faculty_id": uid,
                     "faculty_code": rand_code,
-                    "invitation_token": invitation_token,
+                    "account_status": "invited",
+                    "invitation_status": "Link Generated",
+                    "invitation_token": raw_token,
                     "invitation_url": invitation_url,
+                    "setup_url": invitation_url,
+                    "expires_at": expires_at,
+                    "delivery_method": "manual_share",
                     "email_sent": False,
-                    "email_notice": "Email delivery provider is unconfigured in System Settings (SMTP credentials required). Simulated invitation link generated."
+                    "email_notice": "Email server is unconfigured. Copy this setup link and share it directly via WhatsApp."
                 })
 
             # 9. Toggle Faculty Status (With Session Invalidation & Reassignment Flag)

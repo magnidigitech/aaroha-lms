@@ -246,6 +246,14 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ user_id: userId })
   }),
+  adminGenerateSetupLink: (userId) => request('/admin/invitations/resend', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId })
+  }),
+  adminGenerateResetLink: (userId) => request('/admin/users/generate-reset-link', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId })
+  }),
   adminRevokeInvitation: (userId) => request('/admin/invitations/revoke', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId })

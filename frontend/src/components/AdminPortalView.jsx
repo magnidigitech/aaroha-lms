@@ -314,12 +314,15 @@ export default function AdminPortalView({
         showToast(res.message || 'Student enrolled successfully');
         if (res.invitation_url) {
           setInvitationModalData({
-            title: res.reused ? 'Student Account Reused & Cohort Enrolled' : 'Student Onboarded - Single-Use Invitation Link',
+            type: 'setup',
+            title: res.reused ? 'Student Account Reused & Cohort Enrolled' : 'Student Onboarded — Setup Link Generated',
             name: studentData?.full_name || 'Student Fellow',
             code: res.student_code || '',
             email: studentData?.email || '',
             invitation_url: res.invitation_url,
-            email_notice: res.email_notice || 'Email delivery provider is unconfigured in System Settings. Share link manually.',
+            expires_at: res.expires_at || '24 hours',
+            email_notice: res.email_notice || 'Email server is unconfigured. Copy this setup link and share it directly via WhatsApp.',
+            btn_label: 'Copy Setup Link',
             reused: !!res.reused
           });
         }
@@ -383,29 +386,66 @@ export default function AdminPortalView({
     }
   };
 
-  const handleResendInvite = async (userId) => {
+  const handleGenerateSetupLink = async (userId, userObj = {}) => {
     try {
-      const res = await api.adminResendInvitation(userId);
+      const res = await api.adminGenerateSetupLink(userId);
       if (res?.success) {
-        showToast(res.message || 'Invitation refreshed');
-        if (res.invitation_url) {
+        showToast(res.message || 'Setup link generated (valid 24h)');
+        const link = res.setup_url || res.invitation_url;
+        if (link) {
           setInvitationModalData({
-            title: 'Single-Use Invitation Refreshed',
-            name: 'Account Member',
-            code: '',
-            email: '',
-            invitation_url: res.invitation_url,
-            email_notice: res.email_notice || 'Email delivery provider is unconfigured in System Settings. Share link directly.'
+            type: 'setup',
+            title: 'Account Setup Link Generated',
+            name: userObj.full_name || userObj.name || 'Account Member',
+            code: userObj.student_id_code || userObj.faculty_id_code || '',
+            email: userObj.email || '',
+            invitation_url: link,
+            expires_at: res.expires_at || '24 hours',
+            email_notice: res.email_notice || 'Email server is unconfigured. Copy and share this setup link directly via WhatsApp.',
+            btn_label: 'Copy Setup Link'
           });
         }
         await fetchStudents();
         await fetchFaculty();
+        return res;
       } else {
-        throw new Error(res?.error || 'Failed to resend invitation');
+        throw new Error(res?.error || 'Failed to generate setup link');
       }
     } catch (err) {
-      showToast(err.message || 'Error renewing invitation', 'error');
+      showToast(err.message || 'Error generating setup link', 'error');
     }
+  };
+
+  const handleGenerateResetLink = async (userId, userObj = {}) => {
+    try {
+      const res = await api.adminGenerateResetLink(userId);
+      if (res?.success) {
+        showToast(res.message || 'Password reset link generated (valid 24h)');
+        const link = res.reset_url;
+        if (link) {
+          setInvitationModalData({
+            type: 'reset',
+            title: 'Password Reset Link Generated',
+            name: userObj.full_name || userObj.name || 'Account Member',
+            code: userObj.student_id_code || userObj.faculty_id_code || '',
+            email: userObj.email || '',
+            invitation_url: link,
+            expires_at: res.expires_at || '24 hours',
+            email_notice: res.email_notice || 'Email server is unconfigured. Share this password reset link directly via WhatsApp after verifying identity.',
+            btn_label: 'Copy Reset Link'
+          });
+        }
+        return res;
+      } else {
+        throw new Error(res?.error || 'Failed to generate password reset link');
+      }
+    } catch (err) {
+      showToast(err.message || 'Error generating password reset link', 'error');
+    }
+  };
+
+  const handleResendInvite = async (userId, userObj = {}) => {
+    return handleGenerateSetupLink(userId, userObj);
   };
 
   const handleRevokeInvite = async (userId) => {
@@ -442,12 +482,15 @@ export default function AdminPortalView({
         showToast(res.message || 'Faculty onboarded successfully');
         if (res.invitation_url) {
           setInvitationModalData({
-            title: res.reused ? 'Faculty Account Reused & Cohorts Assigned' : 'Faculty Onboarded - Single-Use Invitation Link',
+            type: 'setup',
+            title: res.reused ? 'Faculty Account Reused & Cohorts Assigned' : 'Faculty Onboarded — Setup Link Generated',
             name: facultyData?.full_name || 'Faculty Member',
             code: res.faculty_code || '',
             email: facultyData?.email || '',
             invitation_url: res.invitation_url,
-            email_notice: res.email_notice || 'Email delivery provider is unconfigured in System Settings. Share link manually.',
+            expires_at: res.expires_at || '24 hours',
+            email_notice: res.email_notice || 'Email server is unconfigured. Copy this setup link and share it directly via WhatsApp.',
+            btn_label: 'Copy Setup Link',
             reused: !!res.reused
           });
         }
@@ -1055,6 +1098,8 @@ export default function AdminPortalView({
               onTransferBatch={handleTransferBatch}
               onToggleStatus={handleToggleStudentStatus}
               onResendInvite={handleResendInvite}
+              onGenerateSetupLink={handleGenerateSetupLink}
+              onGenerateResetLink={handleGenerateResetLink}
               onRevokeInvite={handleRevokeInvite}
               onViewStudentDetail={handleViewStudentDetail}
               selectedStudentDetail={selectedStudentDetail}
@@ -1072,6 +1117,8 @@ export default function AdminPortalView({
               onDeleteFaculty={fetchFaculty}
               onToggleFacultyStatus={handleToggleFacultyStatus}
               onResendInvite={handleResendInvite}
+              onGenerateSetupLink={handleGenerateSetupLink}
+              onGenerateResetLink={handleGenerateResetLink}
               onRevokeInvite={handleRevokeInvite}
             />
           )}
@@ -1234,7 +1281,7 @@ export default function AdminPortalView({
         </main>
       </div>
 
-      {/* Generated Single-Use Invitation Link Modal */}
+      {/* Generated Single-Use Setup / Reset Link Modal */}
       {invitationModalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 text-xs animate-in fade-in zoom-in-95">
@@ -1245,7 +1292,7 @@ export default function AdminPortalView({
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm">{invitationModalData.title}</h3>
-                  <p className="text-[11px] text-slate-500">Expiring Single-Use Cryptographic Token</p>
+                  <p className="text-[11px] text-slate-500">Expiring Single-Use Cryptographic Token (24h Validity)</p>
                 </div>
               </div>
               <button
@@ -1264,33 +1311,39 @@ export default function AdminPortalView({
                 </div>
                 {invitationModalData.code && (
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Generated ID:</span>
+                    <span className="text-slate-500">Institutional ID:</span>
                     <span className="font-mono font-semibold text-[#0A7CB3]">{invitationModalData.code}</span>
                   </div>
                 )}
                 {invitationModalData.email && (
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Email:</span>
+                    <span className="text-slate-500">Registered Email:</span>
                     <span className="font-mono text-slate-800">{invitationModalData.email}</span>
                   </div>
                 )}
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Status Recorded:</span>
+                  <span className="font-semibold text-amber-700">Link Generated</span>
+                </div>
               </div>
             )}
 
-            {/* Email Provider Unconfigured Warning Notice */}
+            {/* Email Provider Unconfigured Manual WhatsApp Notice */}
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-950">
                 <ShieldAlert size={14} className="text-amber-700 shrink-0" />
                 <span>Notice: Email Delivery Provider Unconfigured</span>
               </div>
               <p className="text-[10px] leading-relaxed text-amber-800">
-                {invitationModalData.email_notice}
+                {invitationModalData.email_notice || 'Email server is unconfigured. Copy this link and share it directly with the recipient in a private WhatsApp chat. Regenerating or revoking invalidates previous links.'}
               </p>
             </div>
 
             {/* Link Box */}
             <div className="space-y-1">
-              <label className="font-bold text-slate-700 block text-[11px]">Single-Use Activation URL (Expires in 7 days):</label>
+              <label className="font-bold text-slate-700 block text-[11px]">
+                {invitationModalData.type === 'reset' ? 'Single-Use Password Reset URL (Expires in 24 hours):' : 'Single-Use Activation URL (Expires in 24 hours):'}
+              </label>
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-[11px] text-slate-800 break-all select-all">
                 {invitationModalData.invitation_url}
               </div>
@@ -1301,11 +1354,11 @@ export default function AdminPortalView({
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(invitationModalData.invitation_url);
-                  showToast('Activation link copied to clipboard!');
+                  showToast((invitationModalData.btn_label || 'Setup link') + ' copied to clipboard!');
                 }}
                 className="px-3 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                Copy Activation Link
+                {invitationModalData.btn_label || 'Copy Setup Link'}
               </button>
               <button
                 type="button"
