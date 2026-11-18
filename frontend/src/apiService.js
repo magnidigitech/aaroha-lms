@@ -808,7 +808,7 @@ export const api = {
   uploadFile: (file, category = 'material_document', onProgress = null, signal = null) => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE_URL}/uploads`);
+      xhr.open('POST', `${API_BASE_URL}/upload`);
       
       const token = localStorage.getItem('aaroha_token');
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -850,7 +850,7 @@ export const api = {
     });
   },
 
-  uploadChunk: (chunkData) => request('/uploads/chunk', {
+  uploadChunk: (chunkData) => request('/upload/chunk', {
     method: 'POST',
     body: JSON.stringify(chunkData)
   }),
