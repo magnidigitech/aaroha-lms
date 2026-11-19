@@ -334,7 +334,7 @@ class CourseController {
                 WHERE enrollment_id = ? AND is_completed = 1
             ");
             $progStmt->execute([$enrollmentId]);
-            $completedLessonIds = $progStmt->fetchAll(PDO::FETCH_COLUMN);
+            $completedLessonIds = array_map('intval', $progStmt->fetchAll(PDO::FETCH_COLUMN));
         }
 
         $modStmt = $pdo->prepare("
@@ -346,6 +346,7 @@ class CourseController {
         $modStmt->execute([$courseId]);
         $modules = $modStmt->fetchAll();
 
+        $totalLessonsCount = 0;
         foreach ($modules as &$mod) {
             $moduleId = (int)$mod['id'];
             $lesStmt = $pdo->prepare("
@@ -356,6 +357,7 @@ class CourseController {
             ");
             $lesStmt->execute([$moduleId]);
             $lessons = $lesStmt->fetchAll();
+            $totalLessonsCount += count($lessons);
 
             foreach ($lessons as &$l) {
                 $l['is_completed'] = in_array((int)$l['id'], $completedLessonIds);
@@ -377,6 +379,13 @@ class CourseController {
 
         $course['modules'] = $modules;
         $course['is_enrolled'] = $isEnrolled;
+        $course['enrollment_id'] = $enrollmentId;
+        $course['completed_lesson_ids'] = $completedLessonIds;
+        $course['completed_lessons_count'] = count($completedLessonIds);
+        $course['total_lessons_count'] = $totalLessonsCount;
+        $course['progress_percentage'] = ($totalLessonsCount > 0 && $isEnrolled) 
+            ? (int)round((count($completedLessonIds) / $totalLessonsCount) * 100) 
+            : 0;
 
         return ['success' => true, 'course' => $course];
     }

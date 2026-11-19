@@ -327,7 +327,7 @@ export default function StudentDashboardView({
                 <BookOpen size={32} />
               </div>
               <div className="space-y-1.5 max-w-md mx-auto">
-                <div className="text-base font-bold text-slate-900">No courses assigned yet. Please contact your coordinator.</div>
+                <div className="text-base font-bold text-slate-900">No courses assigned yet.</div>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   You are currently not enrolled in any academic curriculum or cohort batches. Once your academic coordinator assigns your courses, your syllabus, lecture schedules, and materials will appear here.
                 </p>

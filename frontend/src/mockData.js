@@ -483,99 +483,12 @@ export const initialCourses = [
   }
 ];
 
-export const initialEnrollments = [
-  {
-    id: 501,
-    user_id: 2, // Elena Rostova
-    course_id: 1,
-    status: 'active',
-    enrolled_at: '2026-10-15T10:00:00Z',
-    expires_at: '2027-04-15T10:00:00Z',
-    completed_at: null
-  },
-  {
-    id: 502,
-    user_id: 2,
-    course_id: 2,
-    status: 'completed',
-    enrolled_at: '2026-11-13T12:26:27Z',
-    expires_at: '2027-05-13T12:26:27Z',
-    completed_at: '2026-11-14T05:51:16Z'
-  },
-  {
-    id: 503,
-    user_id: 2,
-    course_id: 9,
-    status: 'completed',
-    enrolled_at: '2026-11-13T12:28:43Z',
-    expires_at: '2027-05-13T12:28:43Z',
-    completed_at: '2026-11-14T05:51:09Z'
-  }
-];
+export const initialEnrollments = [];
 
-export const initialLessonProgress = [
-  {
-    id: 601,
-    enrollment_id: 501,
-    lesson_id: 1001,
-    is_completed: true,
-    completed_at: '2026-10-16T14:30:00Z'
-  },
-  {
-    id: 602,
-    enrollment_id: 501,
-    lesson_id: 1002,
-    is_completed: true,
-    completed_at: '2026-10-17T09:15:00Z'
-  }
-];
+export const initialLessonProgress = [];
 
-export const initialTaskSubmissions = [
-  {
-    id: 701,
-    task_id: 2001,
-    enrollment_id: 501,
-    student_name: 'Elena Rostova',
-    submission_text: 'For the active-active multi-region ingress configuration, we establish BGP Anycast routes with Route Health Injection (RHI) to ensure traffic withdraws cleanly within 3 seconds of health check failure. TLS session tickets are secured using a distributed Redis cluster with asymmetric session encryption keys rotated hourly via HashiCorp Vault. Rate-limiting is enforced at the Envoy edge using token bucket algorithms with a maximum burst capacity of 150% baseline.',
-    attachment_url: 'https://aaroha-inc.com/artifacts/rfc-ingress-failover-v1.pdf',
-    status: 'passed',
-    score: 96,
-    feedback: 'Rigorous architectural breakdown. The BGP withdrawal timeframe and Redis session key rotation meet enterprise production standards.',
-    graded_by: 1,
-    submitted_at: '2026-10-18T16:20:00Z',
-    graded_at: '2026-10-19T11:00:00Z'
-  },
-  {
-    id: 702,
-    task_id: 2002,
-    enrollment_id: 501,
-    student_name: 'Elena Rostova',
-    submission_text: 'Benchmarking report attached demonstrating horizontal sharding across 4 shards using MurmurHash3 for composite key distribution. Under 20k writes/sec, P95 latency remained under 4.2ms, and P99 stayed bounded at 11.8ms.',
-    attachment_url: 'https://aaroha-inc.com/artifacts/sharding-benchmark-metrics.zip',
-    status: 'under_review',
-    score: null,
-    feedback: null,
-    graded_by: null,
-    submitted_at: '2026-10-22T19:45:00Z',
-    graded_at: null
-  }
-];
+export const initialTaskSubmissions = [];
 
-export const initialCertificates = [
-  {
-    id: 1,
-    certificate_code: 'AAROHA-CERT-2026-9E4F-8812',
-    course_id: 1,
-    course_title: 'Distributed Cloud Architecture & High-Throughput Systems',
-    user_id: 2,
-    recipient_name: 'Elena Rostova',
-    recipient_email: 'elena.rostova@enterprise.io',
-    issuer_id: 1,
-    issuer_name: 'Dr. Aris Thorne',
-    issuer_title: 'Director of Curriculum & Distributed Systems Faculty',
-    grade: 'Executive Distinction (98% Pass · Verified Peer Reviewed)',
-    issued_at: '2026-11-13T12:00:00Z'
-  }
-];
+export const initialCertificates = [];
 
 export const initialDegrees = [];

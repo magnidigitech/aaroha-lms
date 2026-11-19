@@ -479,6 +479,8 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 c['modules'] = modules
                 auth_user = self._get_auth_user()
                 is_enrolled = False
+                enrollment_id = None
+                completed_lesson_ids = []
                 if auth_user:
                     role_str = str(auth_user.get('role', '')).lower()
                     if role_str not in ('student', 'learner'):
@@ -492,16 +494,32 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                         """, (auth_user['id'], c['id'])).fetchone()
                         if enr_row:
                             exp_val = enr_row['expires_at']
+                            valid = True
                             if exp_val:
                                 try:
                                     exp_dt = datetime.strptime(exp_val[:19], "%Y-%m-%d %H:%M:%S")
-                                    if datetime.now() <= exp_dt:
-                                        is_enrolled = True
+                                    if datetime.now() > exp_dt:
+                                        valid = False
                                 except Exception:
-                                    is_enrolled = True
-                            else:
+                                    pass
+                            if valid:
                                 is_enrolled = True
+                                enrollment_id = enr_row['id']
+                                comp_rows = cur.execute("SELECT lesson_id FROM lesson_progress WHERE enrollment_id = ? AND is_completed = 1", (enrollment_id,)).fetchall()
+                                completed_lesson_ids = [int(r[0]) for r in comp_rows]
+
+                total_lessons_count = 0
+                for m in c.get('modules', []):
+                    for l in m.get('lessons', []):
+                        total_lessons_count += 1
+                        l['is_completed'] = (int(l.get('id', 0)) in completed_lesson_ids)
+
                 c['is_enrolled'] = is_enrolled
+                c['enrollment_id'] = enrollment_id
+                c['completed_lesson_ids'] = completed_lesson_ids
+                c['completed_lessons_count'] = len(completed_lesson_ids)
+                c['total_lessons_count'] = total_lessons_count
+                c['progress_percentage'] = int(round((len(completed_lesson_ids) / total_lessons_count) * 100)) if (total_lessons_count > 0 and is_enrolled) else 0
                 return self._send_json({"success": True, "course": c})
 
             # User Complete Profile & Account Settings (All Roles)
@@ -743,7 +761,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     comp_lessons = cur.execute("SELECT COUNT(*) FROM lesson_progress WHERE enrollment_id = ? AND is_completed = 1", (eid,)).fetchone()[0]
                     prog_pct = int(round((comp_lessons / tot_lessons * 100))) if tot_lessons > 0 else 0
                     c['progress_percentage'] = prog_pct
+                    c['total_lessons'] = tot_lessons
                     c['total_lessons_count'] = tot_lessons
+                    c['completed_lessons'] = comp_lessons
                     c['completed_lessons_count'] = comp_lessons
                     total_completed_lessons += comp_lessons
                     total_required_lessons += tot_lessons
@@ -2028,6 +2048,92 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
             # 1. Login with Account Status & Session Enforcement
             
+            # Student Enroll in Course
+            if path.startswith("/courses/") and path.endswith("/enroll"):
+                user = self._get_auth_user()
+                if not user:
+                    return self._send_json({"success": False, "error": "Unauthorized: Sign in required."}, 401)
+                try:
+                    cid = int(path.split("/")[2])
+                except (IndexError, ValueError):
+                    return self._send_json({"success": False, "error": "Invalid course ID."}, 400)
+
+                course_row = cur.execute("SELECT id FROM courses WHERE id = ? AND (is_deleted = 0 OR is_deleted IS NULL)", (cid,)).fetchone()
+                if not course_row:
+                    return self._send_json({"success": False, "error": "Program not found or unavailable for enrollment"}, 404)
+
+                existing = cur.execute("SELECT id FROM enrollments WHERE user_id = ? AND course_id = ? LIMIT 1", (user['id'], cid)).fetchone()
+                if existing:
+                    return self._send_json({
+                        "success": True,
+                        "message": "Already enrolled",
+                        "enrollment_id": existing[0]
+                    })
+
+                cur.execute("""
+                    INSERT INTO enrollments (user_id, course_id, status, enrolled_at, expires_at)
+                    VALUES (?, ?, 'active', datetime('now'), datetime('now', '+6 months'))
+                """, (user['id'], cid))
+                conn.commit()
+                eid = cur.lastrowid
+                return self._send_json({
+                    "success": True,
+                    "message": "Enrolled successfully",
+                    "enrollment_id": eid
+                }, 201)
+
+            # Student Mark Lesson Complete
+            if path.startswith("/lessons/") and path.endswith("/complete"):
+                user = self._get_auth_user()
+                if not user:
+                    return self._send_json({"success": False, "error": "Unauthorized: Sign in required."}, 401)
+                try:
+                    lesson_id = int(path.split("/")[2])
+                except (IndexError, ValueError):
+                    return self._send_json({"success": False, "error": "Invalid lesson ID."}, 400)
+
+                enr_row = cur.execute("""
+                    SELECT e.id as enrollment_id, m.course_id
+                    FROM lessons l
+                    JOIN modules m ON l.module_id = m.id
+                    JOIN enrollments e ON m.course_id = e.course_id
+                    WHERE l.id = ? AND e.user_id = ? AND e.status IN ('active', 'completed')
+                    LIMIT 1
+                """, (lesson_id, user['id'])).fetchone()
+
+                if not enr_row:
+                    return self._send_json({"success": False, "error": "You must be actively enrolled in this program to track progress"}, 403)
+
+                eid = enr_row['enrollment_id']
+                cid = enr_row['course_id']
+                cur.execute("""
+                    INSERT OR REPLACE INTO lesson_progress (enrollment_id, lesson_id, is_completed, completed_at)
+                    VALUES (?, ?, 1, datetime('now'))
+                """, (eid, lesson_id))
+                conn.commit()
+
+                tot_lessons = cur.execute("SELECT COUNT(l.id) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = ? AND l.is_deleted = 0", (cid,)).fetchone()[0]
+                comp_lessons = cur.execute("SELECT COUNT(lp.id) FROM lesson_progress lp WHERE lp.enrollment_id = ? AND lp.is_completed = 1", (eid,)).fetchone()[0]
+                is_course_done = (tot_lessons > 0 and comp_lessons >= tot_lessons)
+                if is_course_done:
+                    cur.execute("UPDATE enrollments SET status = 'completed', completed_at = datetime('now') WHERE id = ?", (eid,))
+                    conn.commit()
+
+                comp_ids = [int(r[0]) for r in cur.execute("SELECT lesson_id FROM lesson_progress WHERE enrollment_id = ? AND is_completed = 1", (eid,)).fetchall()]
+                prog_pct = int(round((comp_lessons / tot_lessons) * 100)) if tot_lessons > 0 else 0
+                return self._send_json({
+                    "success": True,
+                    "message": "Course completed successfully" if is_course_done else "Lecture marked as completed",
+                    "course_completed": is_course_done,
+                    "enrollment_id": eid,
+                    "course_id": cid,
+                    "lesson_id": lesson_id,
+                    "completed_lesson_ids": comp_ids,
+                    "completed_lessons_count": comp_lessons,
+                    "total_lessons_count": tot_lessons,
+                    "progress_percentage": prog_pct
+                })
+
             # Student Submit Task Deliverable (Enforces Expiry and Supports File Uploads)
             if path.startswith("/tasks/") and path.endswith("/submit"):
                 task_id = int(path.split("/")[2])
@@ -4119,16 +4225,34 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         finally:
             conn.close()
 
+class RobustThreadingHTTPServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        # Ignore client disconnect errors cleanly without exiting
+        ex = sys.exc_info()[1]
+        if isinstance(ex, (ConnectionResetError, BrokenPipeError, ConnectionAbortedError)):
+            return
+        super().handle_error(request, client_address)
+
 def run_server(port=8000):
-    server = ThreadingHTTPServer(('127.0.0.1', port), LMSRequestHandler)
+    server = RobustThreadingHTTPServer(('127.0.0.1', port), LMSRequestHandler)
     server.daemon_threads = True
     print(f"[*] Aaroha LMS Development REST API Server listening on http://127.0.0.1:{port}", flush=True)
     try:
-        server.serve_forever()
+        while True:
+            try:
+                server.serve_forever()
+            except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError, OSError):
+                time.sleep(0.05)
+                continue
+            except KeyboardInterrupt:
+                break
     except KeyboardInterrupt:
         print("\nStopping dev server...", flush=True)
     finally:
-        server.server_close()
+        try:
+            server.server_close()
+        except Exception:
+            pass
 
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000

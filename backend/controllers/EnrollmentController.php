@@ -183,10 +183,26 @@ class EnrollmentController {
             $upd->execute([$enrollmentId]);
         }
 
+        $progListStmt = $pdo->prepare("
+            SELECT lesson_id 
+            FROM lesson_progress 
+            WHERE enrollment_id = ? AND is_completed = 1
+        ");
+        $progListStmt->execute([$enrollmentId]);
+        $completedLessonIds = array_map('intval', $progListStmt->fetchAll(PDO::FETCH_COLUMN));
+        $progressPct = ($totalLessons > 0) ? (int)round(($completedLessons / $totalLessons) * 100) : 0;
+
         return [
             'success' => true,
             'message' => $courseCompleted ? 'Course completed successfully' : 'Lecture marked as completed',
-            'course_completed' => $courseCompleted
+            'course_completed' => $courseCompleted,
+            'enrollment_id' => $enrollmentId,
+            'course_id' => $courseId,
+            'lesson_id' => (int)$lessonId,
+            'completed_lesson_ids' => $completedLessonIds,
+            'completed_lessons_count' => $completedLessons,
+            'total_lessons_count' => $totalLessons,
+            'progress_percentage' => $progressPct
         ];
     }
 

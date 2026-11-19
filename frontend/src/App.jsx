@@ -185,50 +185,11 @@ export default function App() {
     }
   });
 
-  const [enrollments, setEnrollments] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aaroha_enrollments');
-      return saved ? JSON.parse(saved) : initialEnrollments;
-    } catch (e) {
-      return initialEnrollments;
-    }
-  });
-
-  const [lessonProgress, setLessonProgress] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aaroha_lesson_progress');
-      return saved ? JSON.parse(saved) : initialLessonProgress;
-    } catch (e) {
-      return initialLessonProgress;
-    }
-  });
-
-  const [taskSubmissions, setTaskSubmissions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aaroha_task_submissions');
-      return saved ? JSON.parse(saved) : initialTaskSubmissions;
-    } catch (e) {
-      return initialTaskSubmissions;
-    }
-  });
-
-  const [certificates, setCertificates] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aaroha_certificates');
-      return saved ? JSON.parse(saved) : initialCertificates;
-    } catch (e) {
-      return initialCertificates;
-    }
-  });
-
-  const [degrees, setDegrees] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aaroha_degrees');
-      return saved ? JSON.parse(saved) : initialDegrees;
-    } catch (e) {
-      return initialDegrees;
-    }
-  });
+  const [enrollments, setEnrollments] = useState([]);
+  const [lessonProgress, setLessonProgress] = useState([]);
+  const [taskSubmissions, setTaskSubmissions] = useState([]);
+  const [certificates, setCertificates] = useState([]);
+  const [degrees, setDegrees] = useState([]);
   
   const [selectedCourse, setSelectedCourse] = useState(() => {
     try {
@@ -464,29 +425,32 @@ export default function App() {
             } else {
               api.getMyEnrollments()
                 .then(enrRes => {
-                  if (enrRes && enrRes.enrollments && enrRes.enrollments.length > 0) {
+                  if (enrRes && Array.isArray(enrRes.enrollments)) {
                     setEnrollments(enrRes.enrollments.map(e => ({
                       ...e,
                       id: e.enrollment_id || e.id,
                       user_id: e.user_id || verifiedUser.id,
                       status: e.status || e.enrollment_status || 'active'
                     })));
+                  } else {
+                    setEnrollments([]);
                   }
                 })
-                .catch(() => {});
+                .catch(() => {
+                  setEnrollments([]);
+                });
 
               api.getMyCertificates()
                 .then(certRes => {
-                  if (certRes && certRes.certificates && certRes.certificates.length > 0) {
-                    setCertificates(prev => {
-                      const codeMap = new Map();
-                      prev.forEach(c => codeMap.set(c.certificate_code, c));
-                      certRes.certificates.forEach(c => codeMap.set(c.certificate_code, c));
-                      return Array.from(codeMap.values());
-                    });
+                  if (certRes && Array.isArray(certRes.certificates)) {
+                    setCertificates(certRes.certificates);
+                  } else {
+                    setCertificates([]);
                   }
                 })
-                .catch(() => {});
+                .catch(() => {
+                  setCertificates([]);
+                });
             }
           }
         })
@@ -613,6 +577,18 @@ export default function App() {
           ...serverCourse,
           modules: (serverCourse.modules && serverCourse.modules.length > 0) ? serverCourse.modules : (fb?.modules || [])
         });
+        if (serverCourse.enrollment_id && Array.isArray(serverCourse.completed_lesson_ids)) {
+          setLessonProgress(prev => {
+            const filtered = prev.filter(p => p.enrollment_id !== serverCourse.enrollment_id);
+            const current = serverCourse.completed_lesson_ids.map(lesId => ({
+              enrollment_id: serverCourse.enrollment_id,
+              lesson_id: lesId,
+              is_completed: true,
+              completed_at: new Date().toISOString()
+            }));
+            return [...filtered, ...current];
+          });
+        }
       }
     } catch (err) {
       // Retain existing selected course
@@ -663,16 +639,20 @@ export default function App() {
           showToast('Welcome back, ' + loggedUser.full_name);
           api.getMyEnrollments()
             .then(enrRes => {
-              if (enrRes && enrRes.enrollments) {
+              if (enrRes && Array.isArray(enrRes.enrollments)) {
                 setEnrollments(enrRes.enrollments.map(e => ({
                   ...e,
                   id: e.enrollment_id || e.id,
                   user_id: e.user_id || loggedUser.id,
                   status: e.status || e.enrollment_status || 'active'
                 })));
+              } else {
+                setEnrollments([]);
               }
             })
-            .catch(() => {});
+            .catch(() => {
+              setEnrollments([]);
+            });
         }
         return true;
       }
@@ -822,18 +802,33 @@ export default function App() {
     localStorage.removeItem('aaroha_user');
     localStorage.removeItem('aaroha_view');
     localStorage.removeItem('aaroha_selected_course_id');
+    localStorage.removeItem('aaroha_enrollments');
+    localStorage.removeItem('aaroha_lesson_progress');
+    localStorage.removeItem('aaroha_task_submissions');
+    localStorage.removeItem('aaroha_certificates');
+    localStorage.removeItem('aaroha_degrees');
     try {
       sessionStorage.removeItem('aaroha_view');
       sessionStorage.removeItem('aaroha_selected_course_id');
+      sessionStorage.removeItem('aaroha_active_dashboard_role');
     } catch (e) {}
     setCurrentUser(null);
+    setEnrollments([]);
+    setLessonProgress([]);
+    setTaskSubmissions([]);
+    setCertificates([]);
+    setSelectedCourse(null);
     setActiveView('catalog');
     showToast('Signed out of workspace.');
   };
 
   const executeEnrollment = async (userId, courseId) => {
+    let enrollmentId = null;
     try {
-      await api.enroll(courseId);
+      const res = await api.enroll(courseId);
+      if (res && res.enrollment_id) {
+        enrollmentId = res.enrollment_id;
+      }
     } catch (err) {
       console.warn('API enrollment sync skipped (or offline):', err.message);
     }
@@ -845,7 +840,8 @@ export default function App() {
       expiresDate.setMonth(expiresDate.getMonth() + 6);
 
       const newEnrollment = {
-        id: Date.now(),
+        id: enrollmentId || Date.now(),
+        enrollment_id: enrollmentId || Date.now(),
         user_id: userId,
         course_id: courseId,
         status: 'active',
@@ -856,10 +852,7 @@ export default function App() {
       setEnrollments(prev => [...prev, newEnrollment]);
     }
     setActiveStudentCourseId(courseId);
-    const targetCourse = courses.find(c => c.id === courseId);
-    if (targetCourse) setSelectedCourse(targetCourse);
-    // Unlocks Course Interface upon enrollment!
-    setActiveView('course-classroom');
+    handleOpenCourseDetails({ id: courseId });
     showToast('Enrolled successfully! Course interface unlocked.');
   };
 
@@ -883,47 +876,52 @@ export default function App() {
   const handleCompleteLesson = async (lessonId) => {
     if (!currentUser) return;
     try {
-      await api.completeLesson(lessonId);
-    } catch (err) {
-      console.warn('API lesson completion sync skipped:', err.message);
-    }
+      const res = await api.completeLesson(lessonId);
+      if (res && res.success) {
+        const enrollmentId = res.enrollment_id || selectedCourse?.enrollment_id;
+        setLessonProgress(prev => {
+          const exists = prev.some(p => p.lesson_id === lessonId && p.enrollment_id === enrollmentId);
+          if (exists) return prev;
+          return [
+            ...prev,
+            {
+              id: Date.now(),
+              enrollment_id: enrollmentId,
+              lesson_id: lessonId,
+              is_completed: true,
+              completed_at: new Date().toISOString()
+            }
+          ];
+        });
 
-    setLessonProgress(prev => {
-      const idx = prev.findIndex(p => p.lesson_id === lessonId);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = { ...copy[idx], is_completed: true, completed_at: new Date().toISOString() };
-        return copy;
-      }
-      return [
-        ...prev,
-        {
-          id: Date.now(),
-          enrollment_id: 501,
-          lesson_id: lessonId,
-          is_completed: true,
-          completed_at: new Date().toISOString()
+        if (selectedCourse) {
+          const updatedCompletedIds = res.completed_lesson_ids || [
+            ...((selectedCourse.completed_lesson_ids) || []),
+            lessonId
+          ];
+          setSelectedCourse(prev => ({
+            ...prev,
+            completed_lesson_ids: updatedCompletedIds,
+            completed_lessons_count: res.completed_lessons_count ?? (prev?.completed_lessons_count ? prev.completed_lessons_count + 1 : 1),
+            progress_percentage: res.progress_percentage ?? prev?.progress_percentage ?? 0
+          }));
+
+          if (res.course_completed) {
+            setEnrollments(prev => prev.map(e => 
+              e.course_id === selectedCourse.id && e.user_id === currentUser.id
+                ? { ...e, status: 'completed', completed_at: new Date().toISOString() }
+                : e
+            ));
+          }
         }
-      ];
-    });
-
-    if (selectedCourse) {
-      const allLessons = (selectedCourse.modules || []).flatMap(m => m.lessons || []);
-      const completedIds = new Set(
-        lessonProgress.filter(p => p.is_completed).map(p => p.lesson_id)
-      );
-      completedIds.add(lessonId);
-      const isAllDone = allLessons.length > 0 && allLessons.every(l => completedIds.has(l.id));
-      if (isAllDone) {
-        setEnrollments(prev => prev.map(e => 
-          e.course_id === selectedCourse.id && (!currentUser || e.user_id === currentUser.id)
-            ? { ...e, status: 'completed', completed_at: new Date().toISOString() }
-            : e
-        ));
+        showToast('Lecture marked as completed.');
+      } else {
+        showToast(res?.error || 'Could not mark lesson completed.');
       }
+    } catch (err) {
+      console.warn('API lesson completion error:', err.message);
+      showToast(err.message || 'Failed to complete lesson.');
     }
-
-    showToast('Lecture marked as completed.');
   };
 
   const handleSubmitTask = async ({ taskId, submissionText, attachmentUrl }) => {

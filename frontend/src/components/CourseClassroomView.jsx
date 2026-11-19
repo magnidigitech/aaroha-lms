@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, Play, FileText, CheckCircle2, Lock, ArrowRight, BookOpen, Clock, 
   ChevronDown, ChevronUp, ChevronRight, Award, Check, 
@@ -84,8 +84,10 @@ export default function CourseClassroomView({
       const match = allLessons.find(l => l.id === initialLessonId);
       if (match) return match;
     }
-    if (hasAccess && lessonProgress.length > 0) {
+    if (hasAccess) {
+      const serverCompleted = new Set(course?.completed_lesson_ids || []);
       const firstIncomplete = allLessons.find(l => 
+        !serverCompleted.has(l.id) &&
         !lessonProgress.some(p => p.lesson_id === l.id && p.is_completed)
       );
       if (firstIncomplete) return firstIncomplete;
@@ -119,8 +121,10 @@ export default function CourseClassroomView({
           return;
         }
       }
-      if (hasAccess && lessonProgress.length > 0) {
+      if (hasAccess) {
+        const serverCompleted = new Set(course?.completed_lesson_ids || []);
         const firstIncomplete = allLessons.find(l => 
+          !serverCompleted.has(l.id) &&
           !lessonProgress.some(p => p.lesson_id === l.id && p.is_completed)
         );
         if (firstIncomplete) {
@@ -222,9 +226,24 @@ export default function CourseClassroomView({
 
   // Calculate course progress percentage
   const totalLessonsCount = allLessons.length;
-  const completedLessonIds = new Set(
-    lessonProgress.filter(p => p.is_completed).map(p => p.lesson_id)
-  );
+  const completedLessonIds = useMemo(() => {
+    const ids = new Set();
+    if (Array.isArray(course?.completed_lesson_ids)) {
+      course.completed_lesson_ids.forEach(id => ids.add(Number(id)));
+    }
+    (course?.modules || []).forEach(m => {
+      (m?.lessons || []).forEach(l => {
+        if (l?.is_completed) ids.add(Number(l.id));
+      });
+    });
+    (lessonProgress || []).forEach(p => {
+      if (p?.is_completed && (!course?.enrollment_id || !p.enrollment_id || p.enrollment_id === course.enrollment_id)) {
+        ids.add(Number(p.lesson_id));
+      }
+    });
+    return ids;
+  }, [course?.completed_lesson_ids, course?.modules, course?.enrollment_id, lessonProgress]);
+
   const completedCount = allLessons.filter(l => completedLessonIds.has(l.id)).length;
   const progressPct = totalLessonsCount > 0 
     ? Math.round((completedCount / totalLessonsCount) * 100) 
@@ -237,7 +256,7 @@ export default function CourseClassroomView({
     }));
   };
 
-  const isLessonCompleted = (lessonId) => completedLessonIds.has(lessonId);
+  const isLessonCompleted = (lessonId) => completedLessonIds.has(Number(lessonId));
 
   const canPlayLesson = (lesson) => {
     if (!lesson) return false;
@@ -270,30 +289,35 @@ export default function CourseClassroomView({
       return;
     }
     const wasCompleted = isLessonCompleted(lessonId);
+    if (wasCompleted) {
+      // Replaying or clicking an already completed lesson preserves progress without awarding duplicate completion
+      if (hasNextLesson) {
+        handleNextLesson();
+      }
+      return;
+    }
     onCompleteLesson(lessonId);
 
-    if (!wasCompleted) {
-      // Check if all lessons across all modules in this course are now completed
-      const willBeCourseCompleted = totalLessonsCount > 0 && (completedCount + 1) >= totalLessonsCount;
+    // Check if all lessons across all modules in this course are now completed
+    const willBeCourseCompleted = totalLessonsCount > 0 && (completedCount + 1) >= totalLessonsCount;
 
-      if (willBeCourseCompleted) {
-        // Course is now 100% completed across all modules!
-        // Automatically close the course and redirect to dashboard
-        setTimeout(() => {
-          if (onCourseComplete) {
-            onCourseComplete(course);
-          } else if (onBack) {
-            onBack();
-          }
-        }, 800);
-        return;
-      }
+    if (willBeCourseCompleted) {
+      // Course is now 100% completed across all modules!
+      // Automatically close the course and redirect to dashboard
+      setTimeout(() => {
+        if (onCourseComplete) {
+          onCourseComplete(course);
+        } else if (onBack) {
+          onBack();
+        }
+      }, 800);
+      return;
+    }
 
-      if (hasNextLesson) {
-        setTimeout(() => {
-          handleNextLesson();
-        }, 300);
-      }
+    if (hasNextLesson) {
+      setTimeout(() => {
+        handleNextLesson();
+      }, 300);
     }
   };
 
