@@ -102,7 +102,14 @@ async function request(endpoint, options = {}) {
 
       if (!res.ok) {
         const errorMsg = data?.error || data?.message || `Request failed with status ${res.status}`;
-        if (res.status === 401) {
+        if (
+          res.status === 401 &&
+          !cleanEndpoint.startsWith('/auth/login') &&
+          !cleanEndpoint.startsWith('/auth/register') &&
+          !cleanEndpoint.startsWith('/auth/forgot-password') &&
+          !cleanEndpoint.startsWith('/auth/reset-password') &&
+          !cleanEndpoint.startsWith('/auth/verify-invitation')
+        ) {
           notifyUnauthorized({ endpoint: cleanEndpoint, error: errorMsg, status: 401 });
         }
         throw new ApiError(errorMsg, res.status, {

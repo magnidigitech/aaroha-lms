@@ -23,6 +23,18 @@ def init_db():
         role TEXT NOT NULL DEFAULT 'student',
         title TEXT,
         avatar TEXT,
+        display_name TEXT,
+        phone TEXT,
+        timezone TEXT DEFAULT 'Asia/Kolkata',
+        preferred_language TEXT DEFAULT 'en',
+        notification_preferences_json TEXT,
+        security_settings_json TEXT,
+        authorized_roles_json TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        deleted_at DATETIME,
+        archived_at DATETIME,
+        archival_reason TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -619,17 +631,17 @@ def init_db():
 
     # 3. Seed Realistic Enterprise LMS Data
     pw_hash = '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy' # 'password123'
-    cur.executemany("INSERT INTO users (id, full_name, email, password_hash, role, title, avatar) VALUES (?, ?, ?, ?, ?, ?, ?)", [
-        (1, 'Dr. Aris Thorne', 'admin@aaroha-inc.com', pw_hash, 'super_admin', 'Director of Curriculum & Technical Operations', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'),
-        (2, 'Elena Rostova', 'elena.rostova@enterprise.io', pw_hash, 'faculty', 'Lead Systems & AI Faculty', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80'),
-        (3, 'Marcus Vance', 'marcus.vance@aaroha-inc.com', pw_hash, 'faculty', 'Chief Cyber Defense Architect', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'),
-        (4, 'Priya Sharma', 'priya.sharma@aaroha-inc.com', pw_hash, 'coordinator', 'Senior Academic Coordinator & Operations Lead', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80'),
-        (5, 'Rajesh Kulkarni', 'accounts@aaroha-inc.com', pw_hash, 'accounts', 'Finance & Bursar Officer', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'),
-        (6, 'Deepa Nair', 'placement@aaroha-inc.com', pw_hash, 'placement_officer', 'Head of Corporate Relations & Placements', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80'),
-        (7, 'Aarav Patel', 'aarav.patel@student.aaroha-inc.com', pw_hash, 'student', 'Associate Cloud Engineer', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80'),
-        (8, 'Sneha Reddy', 'sneha.reddy@student.aaroha-inc.com', pw_hash, 'student', 'Systems Analyst Fellow', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80'),
-        (9, 'Karthik Raman', 'karthik.raman@student.aaroha-inc.com', pw_hash, 'student', 'DevOps Trainee Fellow', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=200&q=80'),
-        (10, 'Meera Joshi', 'meera.joshi@student.aaroha-inc.com', pw_hash, 'student', 'Cyber Security Apprentice', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80')
+    cur.executemany("INSERT INTO users (id, full_name, email, password_hash, role, title, avatar, status, is_archived, authorized_roles_json) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 0, ?)", [
+        (1, 'Dr. Aris Thorne', 'admin@aaroha-inc.com', pw_hash, 'super_admin', 'Director of Curriculum & Technical Operations', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', '["super_admin","admin"]'),
+        (2, 'Elena Rostova', 'elena.rostova@enterprise.io', pw_hash, 'faculty', 'Lead Systems & AI Faculty', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80', '["faculty"]'),
+        (3, 'Marcus Vance', 'marcus.vance@aaroha-inc.com', pw_hash, 'faculty', 'Chief Cyber Defense Architect', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', '["faculty"]'),
+        (4, 'Priya Sharma', 'priya.sharma@aaroha-inc.com', pw_hash, 'coordinator', 'Senior Academic Coordinator & Operations Lead', 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80', '["coordinator"]'),
+        (5, 'Rajesh Kulkarni', 'accounts@aaroha-inc.com', pw_hash, 'accounts', 'Finance & Bursar Officer', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80', '["accounts"]'),
+        (6, 'Deepa Nair', 'placement@aaroha-inc.com', pw_hash, 'placement_officer', 'Head of Corporate Relations & Placements', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80', '["placement_officer"]'),
+        (7, 'Aarav Patel', 'aarav.patel@student.aaroha-inc.com', pw_hash, 'student', 'Associate Cloud Engineer', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&q=80', '["student"]'),
+        (8, 'Sneha Reddy', 'sneha.reddy@student.aaroha-inc.com', pw_hash, 'student', 'Systems Analyst Fellow', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', '["student"]'),
+        (9, 'Karthik Raman', 'karthik.raman@student.aaroha-inc.com', pw_hash, 'student', 'DevOps Trainee Fellow', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=200&q=80', '["student"]'),
+        (10, 'Meera Joshi', 'meera.joshi@student.aaroha-inc.com', pw_hash, 'student', 'Cyber Security Apprentice', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80', '["student"]')
     ])
 
     cur.executemany("""
@@ -735,6 +747,7 @@ def init_db():
         (1004, 102, 'LSM Trees vs B-Trees in Modern Storage Engines', 'article', '18 min read', 'Choosing between Log-Structured Merge trees and traditional B+Trees.', None, 2, 0),
         (1005, 103, 'Transactional Outbox Pattern & CDC Stream Pipelines', 'article', '16 min read', 'Dual-write operations between a relational database and a message broker.', None, 1, 0),
         (2001, 201, 'FP16, INT8 & INT4 Quantization Dynamics', 'video', '25 min', 'Techniques for compressing deep neural network weights.', 'https://www.youtube.com/embed/dQw4w9WgXcQ', 1, 1),
+        (2002, 201, 'KV-Cache Eviction & Paged Attention Mechanics', 'video', '20 min', 'Optimizing memory footprint during autoregressive decoding in LLM inference engines.', 'https://video.bunnycdn.com/play/312456/7b243b7e-9762-42fe-bd35-123456789abc', 2, 0),
         (3001, 301, 'STRIDE Threat Modeling for Cloud-Native Microservices', 'video', '24 min', 'Deconstructing real-world attack vectors against containerized microservices.', 'https://www.youtube.com/embed/dQw4w9WgXcQ', 1, 1)
     ])
 

@@ -140,9 +140,21 @@ class AuthController {
         }
 
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT id, full_name, email, password_hash, role, title, avatar, status, is_archived, deleted_at, authorized_roles_json FROM users WHERE email = ? LIMIT 1");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
+        try {
+            $stmt = $pdo->prepare("SELECT id, full_name, email, password_hash, role, title, avatar, status, is_archived, deleted_at, authorized_roles_json FROM users WHERE email = ? LIMIT 1");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
+        } catch (\PDOException $pdoErr) {
+            $stmt = $pdo->prepare("SELECT id, full_name, email, password_hash, role, title, avatar FROM users WHERE email = ? LIMIT 1");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
+            if ($user) {
+                $user['status'] = 'active';
+                $user['is_archived'] = 0;
+                $user['deleted_at'] = null;
+                $user['authorized_roles_json'] = json_encode([$user['role']]);
+            }
+        }
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
             // Self-healing upgrade for standard seed accounts

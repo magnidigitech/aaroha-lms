@@ -1046,13 +1046,15 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 # If lesson media is an uploaded file, sign token
                 video_url = lesson_row['media_url'] or ""
                 playback_token = "signed_bunny_stream_verified_token"
-                if lesson_row['storage_key'] or (video_url and '/api/uploads/' in video_url):
-                    file_key = lesson_row['storage_key'] or video_url.split('/')[-1].split('?')[0]
+                lesson_keys = lesson_row.keys()
+                storage_key = lesson_row['storage_key'] if 'storage_key' in lesson_keys else None
+                if storage_key or (video_url and '/api/uploads/' in video_url):
+                    file_key = storage_key or video_url.split('/')[-1].split('?')[0]
                     playback_token = sign_file_token(file_key, user['id'], valid_seconds=7200)
                     video_url = f"/api/uploads/stream/{file_key}?token={playback_token}"
 
                 provider = lesson_row['video_provider'] or ''
-                is_bunny = (provider == 'bunny_stream') or ('bunny.net' in video_url) or video_url.startswith('bunny:')
+                is_bunny = (provider in ('bunny_stream', 'bunny')) or ('bunny' in video_url) or video_url.startswith('bunny:')
                 resp_payload = {
                     "success": True,
                     "lesson_id": lesson_id,

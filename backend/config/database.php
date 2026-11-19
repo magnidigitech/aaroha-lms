@@ -53,6 +53,7 @@ class Database {
                         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     ]);
                     self::$pdo->exec("PRAGMA foreign_keys = ON;");
+                    self::ensureSqliteSchema(self::$pdo);
                     return self::$pdo;
                 } catch (PDOException $e) {
                     http_response_code(500);
@@ -723,6 +724,82 @@ class Database {
             }
         }
         return self::$pdo;
+    }
+
+    private static function ensureSqliteSchema(PDO $pdo): void {
+        try {
+            $colStmt = $pdo->query("PRAGMA table_info(users)");
+            $userCols = [];
+            while ($r = $colStmt->fetch(PDO::FETCH_ASSOC)) {
+                $userCols[] = $r['name'];
+            }
+            $userColSet = array_flip($userCols);
+            $requiredCols = [
+                'display_name' => "VARCHAR(120) NULL",
+                'phone' => "VARCHAR(50) NULL",
+                'timezone' => "VARCHAR(100) DEFAULT 'Asia/Kolkata'",
+                'preferred_language' => "VARCHAR(20) DEFAULT 'en'",
+                'notification_preferences_json' => "TEXT NULL",
+                'security_settings_json' => "TEXT NULL",
+                'authorized_roles_json' => "TEXT NULL",
+                'status' => "VARCHAR(50) DEFAULT 'active'",
+                'is_archived' => "TINYINT(1) DEFAULT 0",
+                'deleted_at' => "DATETIME NULL",
+                'archived_at' => "DATETIME NULL",
+                'archival_reason' => "TEXT NULL",
+            ];
+            foreach ($requiredCols as $col => $type) {
+                if (!isset($userColSet[$col])) {
+                    $pdo->exec("ALTER TABLE users ADD COLUMN {$col} {$type}");
+                }
+            }
+
+            $spStmt = $pdo->query("PRAGMA table_info(student_profiles)");
+            $spCols = [];
+            while ($r = $spStmt->fetch(PDO::FETCH_ASSOC)) {
+                $spCols[] = $r['name'];
+            }
+            $spColSet = array_flip($spCols);
+            $spReq = [
+                'skills' => 'TEXT NULL',
+                'career_interests' => 'TEXT NULL',
+                'resume_url' => 'VARCHAR(500) NULL',
+                'portfolio_url' => 'VARCHAR(500) NULL',
+                'github_url' => 'VARCHAR(500) NULL',
+                'work_experience' => 'TEXT NULL',
+                'experience_years' => 'VARCHAR(50) NULL',
+                'account_status' => "VARCHAR(50) DEFAULT 'active'",
+                'admission_status' => "VARCHAR(50) DEFAULT 'admitted'",
+                'enrollment_status' => "VARCHAR(50) DEFAULT 'enrolled'",
+                'payment_status' => "VARCHAR(50) DEFAULT 'unpaid'",
+                'invitation_token' => 'VARCHAR(100) NULL',
+                'invitation_expires_at' => 'DATETIME NULL',
+                'invitation_accepted_at' => 'DATETIME NULL',
+            ];
+            foreach ($spReq as $col => $type) {
+                if (!isset($spColSet[$col])) {
+                    $pdo->exec("ALTER TABLE student_profiles ADD COLUMN {$col} {$type}");
+                }
+            }
+
+            $fpStmt = $pdo->query("PRAGMA table_info(faculty_profiles)");
+            $fpCols = [];
+            while ($r = $fpStmt->fetch(PDO::FETCH_ASSOC)) {
+                $fpCols[] = $r['name'];
+            }
+            $fpColSet = array_flip($fpCols);
+            $fpReq = [
+                'account_status' => "VARCHAR(50) DEFAULT 'active'",
+                'invitation_token' => 'VARCHAR(100) NULL',
+                'invitation_expires_at' => 'DATETIME NULL',
+                'invitation_accepted_at' => 'DATETIME NULL',
+            ];
+            foreach ($fpReq as $col => $type) {
+                if (!isset($fpColSet[$col])) {
+                    $pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN {$col} {$type}");
+                }
+            }
+        } catch (\Throwable $e) {}
     }
 
     public static function setConnection(?PDO $pdo): void {

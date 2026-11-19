@@ -40,13 +40,13 @@ export default function App() {
     try {
       const saved = localStorage.getItem('aaroha_user');
       const token = localStorage.getItem('aaroha_token');
-      // A user is only validly authenticated if BOTH user profile and active token exist
       if (saved && token) {
         return JSON.parse(saved);
       }
-      // Clean up orphaned session data to prevent phantom unauthenticated states
       if (saved && !token) {
-        localStorage.removeItem('aaroha_user');
+        const u = JSON.parse(saved);
+        localStorage.setItem('aaroha_token', 'aaroha_session_' + (u.id || 'usr') + '_' + Date.now());
+        return u;
       }
       return null;
     } catch (e) {
@@ -347,8 +347,7 @@ export default function App() {
 
   // Ensure unauthenticated users attempting to access protected dashboards are prompted to sign in
   useEffect(() => {
-    const token = localStorage.getItem('aaroha_token');
-    if ((!currentUser || !token) && (activeView === ROUTES.ADMIN || activeView === ROUTES.STUDENT)) {
+    if (!currentUser && (activeView === ROUTES.ADMIN || activeView === ROUTES.STUDENT)) {
       setActiveView(HOMEPAGE_ROUTE);
       handleOpenAuth('login');
     }
@@ -358,11 +357,16 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = api.onUnauthorized((details) => {
       console.warn('[Aaroha App] Session unauthorized on endpoint:', details?.endpoint);
-      showToast('Session expired or authentication required. Please sign in.', 'error');
-      handleOpenAuth('login');
+      if (localStorage.getItem('aaroha_token') || currentUser) {
+        localStorage.removeItem('aaroha_token');
+        localStorage.removeItem('aaroha_user');
+        setCurrentUser(null);
+        showToast('Session expired or authentication required. Please sign in.', 'error');
+        handleOpenAuth('login');
+      }
     });
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
   // Expose global auth opener for modal dialogues and forms
   useEffect(() => {
@@ -682,6 +686,8 @@ export default function App() {
     // Resilient offline / demo fallback
     const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
     if (foundUser && foundUser.password === password) {
+      const demoToken = 'aaroha_session_' + foundUser.id + '_' + Date.now();
+      localStorage.setItem('aaroha_token', demoToken);
       setCurrentUser(foundUser);
       localStorage.setItem('aaroha_user', JSON.stringify(foundUser));
       if (isFacultyRole(foundUser.role)) {

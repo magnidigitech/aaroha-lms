@@ -235,10 +235,18 @@ export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, 
                 {/* Sample Credentials Quick Autofill */}
                 <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
                   <span className="font-medium">Demo Access:</span>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     <button
                       type="button"
                       onClick={() => handleAutofill('admin@aaroha-inc.com', 'password123')}
+                      className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
+                    >
+                      Admin
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAutofill('elena.rostova@enterprise.io', 'password123')}
                       className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
                     >
                       Faculty
@@ -246,7 +254,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, 
                     <span>•</span>
                     <button
                       type="button"
-                      onClick={() => handleAutofill('elena.rostova@enterprise.io', 'password123')}
+                      onClick={() => handleAutofill('aarav.patel@student.aaroha-inc.com', 'password123')}
                       className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
                     >
                       Student
@@ -263,10 +271,10 @@ export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, 
                   className="w-full py-2.5 sm:py-3 bg-[#0A7CB3] hover:bg-[#086491] disabled:opacity-50 text-white font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading ? (
-                    <span>Verifying Credentials...</span>
+                    <span>Logging in...</span>
                   ) : (
                     <>
-                      <span>Access Dashboard</span>
+                      <span>Login</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
