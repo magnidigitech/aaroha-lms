@@ -7,6 +7,7 @@ import aarohaLogo from '../assets/aaroha_logo.webp';
 import heroStudentsImg from '../assets/hero_learning_students.webp';
 import TechSearchBar from './TechSearchBar';
 import HeroTechBackground from './HeroTechBackground';
+import CourseCardBadge from './CourseCardBadge';
 import { courseMatchesQuery, POPULAR_TECHNOLOGY_TAGS } from '../techTaxonomy';
 
 export default function UserCatalogView({ 
@@ -237,29 +238,20 @@ export default function UserCatalogView({
           const cleanLevel = (course.level || 'Advanced').replace(' Level', '');
           const cleanType = course.partner_type || 'Specialization';
 
-          // Determine Coursera tag badge
-          let badgeText = course.badge_text;
-          let badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200/80';
-
-          if (!badgeText) {
+          // Determine Coursera tag badge text (blank hides badge)
+          let badgeText = '';
+          if (course.badge_text !== undefined && course.badge_text !== null) {
+            badgeText = String(course.badge_text).trim();
+          } else if (!course.badge_color) {
+            // Legacy heuristic defaults for initial seed catalog where no explicit badge_color is set
             if (course.id === 1) {
               badgeText = 'Recently updated';
-              badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
-            } else if (course.id === 2 || course.category === 'Applied AI' || course.title.toLowerCase().includes('nlp')) {
+            } else if (course.id === 2 || course.category === 'Applied AI' || (course.title && course.title.toLowerCase().includes('nlp'))) {
               badgeText = 'Top AI program';
-              badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200/60';
             } else if (course.id === 3) {
               badgeText = 'New';
-              badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200/80';
             } else if (course.modules?.some(m => m.lessons?.some(l => l.is_free_preview))) {
               badgeText = 'Free Preview';
-              badgeStyle = 'bg-blue-50 text-[#0A7CB3] border-blue-200/60';
-            }
-          } else {
-            if (badgeText.toLowerCase().includes('updated')) {
-              badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
-            } else if (badgeText.toLowerCase().includes('ai') || badgeText.toLowerCase().includes('top')) {
-              badgeStyle = 'bg-purple-50 text-purple-700 border-purple-200/60';
             }
           }
 
@@ -315,12 +307,10 @@ export default function UserCatalogView({
                   </div>
                 </div>
 
-                {/* Bottom Tag Badge Pill */}
+                {/* Bottom Tag Badge Pill (Unified Component) */}
                 {badgeText && (
                   <div className="pt-0.5">
-                    <span className={'inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ' + badgeStyle}>
-                      {badgeText}
-                    </span>
+                    <CourseCardBadge text={badgeText} color={course.badge_color} course={course} />
                   </div>
                 )}
               </div>

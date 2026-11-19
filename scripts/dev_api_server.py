@@ -2766,14 +2766,27 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 wyl_data = data.get("what_you_will_learn", [])
                 wyl_json = json.dumps(wyl_data if isinstance(wyl_data, list) else [str(wyl_data)])
 
+                # Validate Badge Colour Preset
+                valid_badge_colors = {'neutral', 'blue', 'aaroha_blue', 'green', 'purple', 'amber'}
+                raw_badge_color = data.get("badge_color")
+                if raw_badge_color is not None and str(raw_badge_color).strip():
+                    norm_badge_color = str(raw_badge_color).strip().lower()
+                    if norm_badge_color not in valid_badge_colors:
+                        return self._send_json({"success": False, "error": "Invalid badge colour preset. Allowed presets: neutral, aaroha_blue, blue, green, purple, amber."}, 400)
+                    badge_color = 'blue' if norm_badge_color == 'aaroha_blue' else norm_badge_color
+                else:
+                    badge_color = 'neutral'
+
+                badge_text = str(data.get("badge_text", "")).strip() if "badge_text" in data else "New"
+
                 cur.execute("""
                     INSERT INTO courses (
                         title, slug, category, level, duration, access_duration_type, access_duration_value, access_duration_unit,
                         partner_type, rating, reviews_count,
-                        badge_text, description, thumbnail_url, skills, what_you_will_learn,
+                        badge_text, badge_color, description, thumbnail_url, skills, what_you_will_learn,
                         prerequisites, about, instructor_name, instructor_title, instructor_department,
                         instructor_bio, instructor_avatar, is_published, is_deleted, created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
                 """, (
                     title, slug, data.get("category", "Computer Science"), data.get("level", "Intermediate"),
                     data.get("duration", "8 Weeks"),
@@ -2782,7 +2795,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     str(data.get("access_duration_unit", "months")).lower(),
                     data.get("partner_type", "Specialization"),
                     float(data.get("rating", 4.9)), str(data.get("reviews_count", "0")),
-                    data.get("badge_text", "New"), data.get("description", ""), data.get("thumbnail_url", ""),
+                    badge_text, badge_color, data.get("description", ""), data.get("thumbnail_url", ""),
                     skills_json, wyl_json, data.get("prerequisites", ""), data.get("about", data.get("description", "")),
                     data.get("instructor_name", user.get("full_name", "Aaroha Faculty")),
                     data.get("instructor_title", "Instructional Faculty"),
@@ -2794,7 +2807,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 cur.execute("INSERT INTO audit_logs (user_id, user_email, user_role, action, entity_type, entity_id, details_json) VALUES (?, ?, ?, 'CREATE_COURSE', 'course', ?, ?)",
                             (user['id'], user['email'], user['role'], str(cid), json.dumps({"title": title, "slug": slug})))
                 conn.commit()
-                return self._send_json({"success": True, "message": "Course created successfully", "course_id": cid, "course": {"id": cid, "title": title, "slug": slug}})
+                return self._send_json({"success": True, "message": "Course created successfully", "course_id": cid, "course": {"id": cid, "title": title, "slug": slug, "badge_text": badge_text, "badge_color": badge_color}})
 
             # 11. Create Batch (With Robust Validation & Uniqueness Gates)
             if path == "/admin/batches":
@@ -3777,10 +3790,21 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 cid = int(path.split("/")[-1])
                 fields = []
                 vals = []
-                for k in ["title", "slug", "category", "level", "duration", "access_duration_type", "access_duration_value", "access_duration_unit", "description", "thumbnail_url", "prerequisites", "about", "instructor_name"]:
+                for k in ["title", "slug", "category", "level", "duration", "access_duration_type", "access_duration_value", "access_duration_unit", "description", "thumbnail_url", "prerequisites", "about", "instructor_name", "badge_text"]:
                     if k in data:
                         fields.append(f"{k} = ?")
                         vals.append(data[k])
+                if "badge_color" in data:
+                    raw_bcolor = data.get("badge_color")
+                    if raw_bcolor is not None and str(raw_bcolor).strip():
+                        norm_bcolor = str(raw_bcolor).strip().lower()
+                        valid_badge_colors = {'neutral', 'blue', 'aaroha_blue', 'green', 'purple', 'amber'}
+                        if norm_bcolor not in valid_badge_colors:
+                            return self._send_json({"success": False, "error": "Invalid badge colour preset. Allowed presets: neutral, aaroha_blue, blue, green, purple, amber."}, 400)
+                        fields.append("badge_color = ?")
+                        vals.append('blue' if norm_bcolor == 'aaroha_blue' else norm_bcolor)
+                    else:
+                        fields.append("badge_color = NULL")
                 if "is_published" in data:
                     fields.append("is_published = ?")
                     vals.append(1 if data["is_published"] else 0)

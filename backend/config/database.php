@@ -167,6 +167,9 @@ class Database {
                             if (!isset($colSet['access_duration_unit'])) {
                                 self::$pdo->exec("ALTER TABLE courses ADD COLUMN access_duration_unit VARCHAR(50) DEFAULT 'months'");
                             }
+                            if (!isset($colSet['badge_color'])) {
+                                self::$pdo->exec("ALTER TABLE courses ADD COLUMN badge_color VARCHAR(30) NULL DEFAULT NULL");
+                            }
 
                             // Non-destructive table creation for certificates
                             self::$pdo->exec("CREATE TABLE IF NOT EXISTS certificates (
@@ -799,6 +802,16 @@ class Database {
                 if (!isset($fpColSet[$col])) {
                     $pdo->exec("ALTER TABLE faculty_profiles ADD COLUMN {$col} {$type}");
                 }
+            }
+
+            $courseStmt = $pdo->query("PRAGMA table_info(courses)");
+            $courseCols = [];
+            while ($r = $courseStmt->fetch(PDO::FETCH_ASSOC)) {
+                $courseCols[] = $r['name'];
+            }
+            $courseColSet = array_flip($courseCols);
+            if (!isset($courseColSet['badge_color'])) {
+                $pdo->exec("ALTER TABLE courses ADD COLUMN badge_color VARCHAR(30) NULL DEFAULT NULL");
             }
         } catch (\Throwable $e) {}
     }

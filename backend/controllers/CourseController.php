@@ -399,6 +399,22 @@ class CourseController {
         $duration = trim($data['duration'] ?? '');
         $partnerType = trim($data['partner_type'] ?? 'Specialization');
         $badgeText = trim($data['badge_text'] ?? '');
+
+        // Badge Colour Preset Validation & Defaulting
+        $validBadgeColors = ['neutral', 'blue', 'aaroha_blue', 'green', 'purple', 'amber'];
+        $badgeColor = 'neutral'; // Default for new badges
+        if (isset($data['badge_color']) && trim((string)$data['badge_color']) !== '') {
+            $normColor = strtolower(trim((string)$data['badge_color']));
+            if (!in_array($normColor, $validBadgeColors, true)) {
+                self::setHttpStatus(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid badge colour preset. Allowed presets: neutral, aaroha_blue, blue, green, purple, amber.'
+                ];
+            }
+            $badgeColor = ($normColor === 'aaroha_blue') ? 'blue' : $normColor;
+        }
+
         $skills = is_array($data['skills'] ?? null) ? json_encode($data['skills']) : json_encode([]);
         $whatYouWillLearn = is_array($data['what_you_will_learn'] ?? null) ? json_encode($data['what_you_will_learn']) : json_encode([]);
         $prerequisites = trim($data['prerequisites'] ?? '');
@@ -441,11 +457,11 @@ class CourseController {
 
         $stmt = $pdo->prepare("
             INSERT INTO courses 
-            (title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, prerequisites, about, instructor_name, instructor_title, instructor_department, instructor_bio, instructor_avatar, is_published, is_deleted, created_by, access_duration_type, access_duration_value, access_duration_unit, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            (title, slug, category, level, duration, partner_type, badge_text, badge_color, description, thumbnail_url, skills, what_you_will_learn, prerequisites, about, instructor_name, instructor_title, instructor_department, instructor_bio, instructor_avatar, is_published, is_deleted, created_by, access_duration_type, access_duration_value, access_duration_unit, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ");
         $stmt->execute([
-            $title, $slug, $category, $level, $duration, $partnerType, $badgeText, 
+            $title, $slug, $category, $level, $duration, $partnerType, $badgeText, $badgeColor,
             $description, $thumbnailUrl, $skills, $whatYouWillLearn,
             $prerequisites, $about, $instructorName, $instructorTitle, $instructorDepartment, $instructorBio, $instructorAvatar,
             $isPublished, $adminId, $accessDurationType, $accessDurationValue, $accessDurationUnit
@@ -463,6 +479,7 @@ class CourseController {
             'rating' => 4.90,
             'reviews_count' => 'New',
             'badge_text' => $badgeText,
+            'badge_color' => $badgeColor,
             'description' => $description,
             'thumbnail_url' => $thumbnailUrl,
             'skills' => json_decode($skills, true) ?: [],
@@ -525,6 +542,26 @@ class CourseController {
         $duration = isset($data['duration']) && trim($data['duration']) !== '' ? trim($data['duration']) : $existing['duration'];
         $partnerType = isset($data['partner_type']) && trim($data['partner_type']) !== '' ? trim($data['partner_type']) : $existing['partner_type'];
         $badgeText = array_key_exists('badge_text', $data) ? trim((string)$data['badge_text']) : $existing['badge_text'];
+
+        // Validate and update badge_color if supplied
+        $validBadgeColors = ['neutral', 'blue', 'aaroha_blue', 'green', 'purple', 'amber'];
+        $badgeColor = $existing['badge_color'] ?? null;
+        if (array_key_exists('badge_color', $data)) {
+            $rawColor = trim((string)$data['badge_color']);
+            if ($rawColor === '') {
+                $badgeColor = null;
+            } else {
+                $normColor = strtolower($rawColor);
+                if (!in_array($normColor, $validBadgeColors, true)) {
+                    self::setHttpStatus(400);
+                    return [
+                        'success' => false,
+                        'error' => 'Invalid badge colour preset. Allowed presets: neutral, aaroha_blue, blue, green, purple, amber.'
+                    ];
+                }
+                $badgeColor = ($normColor === 'aaroha_blue') ? 'blue' : $normColor;
+            }
+        }
         $description = isset($data['description']) && trim($data['description']) !== '' ? trim($data['description']) : $existing['description'];
         $thumbnailUrl = isset($data['thumbnail_url']) && trim($data['thumbnail_url']) !== '' ? trim($data['thumbnail_url']) : $existing['thumbnail_url'];
         $skills = isset($data['skills']) ? (is_array($data['skills']) ? json_encode($data['skills']) : (is_string($data['skills']) ? $data['skills'] : json_encode([]))) : $existing['skills'];
@@ -545,14 +582,14 @@ class CourseController {
         $stmt = $pdo->prepare("
             UPDATE courses SET
                 title = ?, slug = ?, category = ?, level = ?, duration = ?, partner_type = ?,
-                badge_text = ?, description = ?, thumbnail_url = ?, skills = ?, what_you_will_learn = ?,
+                badge_text = ?, badge_color = ?, description = ?, thumbnail_url = ?, skills = ?, what_you_will_learn = ?,
                 prerequisites = ?, about = ?, instructor_name = ?, instructor_title = ?, instructor_department = ?, instructor_bio = ?, instructor_avatar = ?,
                 is_published = ?, access_duration_type = ?, access_duration_value = ?, access_duration_unit = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND is_deleted = 0
         ");
         $stmt->execute([
             $title, $slug, $category, $level, $duration, $partnerType,
-            $badgeText, $description, $thumbnailUrl, $skills, $whatYouWillLearn,
+            $badgeText, $badgeColor, $description, $thumbnailUrl, $skills, $whatYouWillLearn,
             $prerequisites, $about, $instructorName, $instructorTitle, $instructorDepartment, $instructorBio, $instructorAvatar,
             $isPublished, $accessDurationType, $accessDurationValue, $accessDurationUnit, $courseId
         ]);
@@ -569,6 +606,7 @@ class CourseController {
                 'duration' => $duration,
                 'partner_type' => $partnerType,
                 'badge_text' => $badgeText,
+            'badge_color' => $badgeColor,
                 'description' => $description,
                 'thumbnail_url' => $thumbnailUrl,
                 'skills' => json_decode($skills, true) ?: [],
@@ -821,13 +859,13 @@ class CourseController {
                         $learnStr = is_array($courseRow['what_you_will_learn']) ? json_encode($courseRow['what_you_will_learn']) : ($courseRow['what_you_will_learn'] ?? '[]');
                         $stmt = $sqlitePdo->prepare("
                             INSERT OR REPLACE INTO courses 
-                            (id, title, slug, category, level, duration, partner_type, badge_text, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                            (id, title, slug, category, level, duration, partner_type, badge_text, badge_color, description, thumbnail_url, skills, what_you_will_learn, is_published, is_deleted, created_by, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                         ");
                         $stmt->execute([
                             $courseRow['id'], $courseRow['title'], $courseRow['slug'], $courseRow['category'],
                             $courseRow['level'], $courseRow['duration'], $courseRow['partner_type'],
-                            $courseRow['badge_text'], $courseRow['description'], $courseRow['thumbnail_url'],
+                            $courseRow['badge_text'], $courseRow['badge_color'] ?? null, $courseRow['description'], $courseRow['thumbnail_url'],
                             $skillsStr, $learnStr,
                             !empty($courseRow['is_published']) ? 1 : 0, (int)($courseRow['created_by'] ?? 1)
                         ]);

@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS courses (
     rating DECIMAL(3,2) NOT NULL DEFAULT 4.90,
     reviews_count VARCHAR(50) NOT NULL DEFAULT '0',
     badge_text VARCHAR(50) NULL,
+    badge_color VARCHAR(30) NULL DEFAULT NULL,
     description TEXT,
     thumbnail_url VARCHAR(500),
     skills TEXT NULL,

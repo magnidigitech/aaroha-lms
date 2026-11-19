@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, BookOpen, AlertCircle, Loader2, Award, FileText, 
   GraduationCap, Check, User, Image as ImageIcon, Sparkles, 
-  CheckCircle2, Upload, Trash2, Globe, Camera, Clock
+  CheckCircle2, Upload, Trash2, Globe, Camera, Clock,
+  Tag, Palette
 } from 'lucide-react';
 import MediaSourceInput from '../common/MediaSourceInput';
+import CourseCardBadge, { BADGE_COLOR_PRESETS } from '../CourseCardBadge';
 import { AVATAR_PRESETS } from '../../avatarPresets';
 
 const PRESET_DOMAINS = [
@@ -66,6 +68,7 @@ export default function CourseModal({
     access_duration_unit: 'months',
     partner_type: 'Specialization',
     badge_text: '',
+    badge_color: 'neutral',
     thumbnail_url: '',
     skills: [],
     what_you_will_learn: [],
@@ -182,6 +185,7 @@ export default function CourseModal({
           access_duration_unit: dUnit,
           partner_type: initialData.partner_type || 'Specialization',
           badge_text: initialData.badge_text || '',
+          badge_color: initialData.badge_color || '',
           thumbnail_url: initialData.thumbnail_url || '',
           skills: skillsArr,
           what_you_will_learn: learnArr,
@@ -210,6 +214,7 @@ export default function CourseModal({
           duration: '',
           partner_type: 'Specialization',
           badge_text: '',
+          badge_color: 'neutral',
           thumbnail_url: '',
           skills: [],
           what_you_will_learn: [],
@@ -510,26 +515,100 @@ export default function CourseModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Duration</label>
-                  <input
-                    type="text"
-                    value={formData.duration}
-                    onChange={(e) => handleChange('duration', e.target.value)}
-                    placeholder="e.g. 8 Weeks"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                  />
+              <div>
+                <label className="font-semibold text-slate-800 block mb-1">Duration</label>
+                <input
+                  type="text"
+                  value={formData.duration}
+                  onChange={(e) => handleChange('duration', e.target.value)}
+                  placeholder="e.g. 8 Weeks"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                />
+              </div>
+
+              {/* Course Card Badge Section */}
+              <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-[#0A7CB3]" />
+                    <label className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                      Course Card Badge
+                    </label>
+                  </div>
+                  <span className="text-[11px] text-slate-400">Public catalogue card indicator</span>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Badge Text Field */}
+                  <div>
+                    <label className="font-semibold text-slate-800 text-xs block mb-1">
+                      Badge Text
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.badge_text}
+                      onChange={(e) => handleChange('badge_text', e.target.value)}
+                      placeholder="e.g. New, Specialization, Top Rated"
+                      className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#0A7CB3]/20 focus:border-[#0A7CB3] outline-none transition-all"
+                    />
+                    <p className="text-[10.5px] text-slate-500 mt-1">
+                      Leave blank to hide the badge on course cards.
+                    </p>
+                  </div>
+
+                  {/* Live Preview */}
+                  <div>
+                    <label className="font-semibold text-slate-800 text-xs block mb-1">
+                      Live Preview
+                    </label>
+                    <div className="h-[42px] px-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 shadow-2xs">
+                      {formData.badge_text && formData.badge_text.trim() ? (
+                        <CourseCardBadge
+                          text={formData.badge_text}
+                          color={formData.badge_color || (initialData?.badge_color ? initialData.badge_color : (initialData ? '' : 'neutral'))}
+                          course={initialData || {}}
+                        />
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">
+                          Badge hidden (leave text blank to hide)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Badge Colour Swatches */}
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Badge Text</label>
-                  <input
-                    type="text"
-                    value={formData.badge_text}
-                    onChange={(e) => handleChange('badge_text', e.target.value)}
-                    placeholder="e.g. Specialization, New, Accredited"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                  />
+                  <label className="font-semibold text-slate-800 text-xs block mb-1.5 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Badge Colour</span>
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {BADGE_COLOR_PRESETS.map((preset) => {
+                      const activeColorKey = (formData.badge_color || initialData?.badge_color || (initialData ? '' : 'neutral')).toLowerCase();
+                      const isSelected = Boolean(activeColorKey && (activeColorKey === preset.key || (preset.aliases && preset.aliases.includes(activeColorKey))));
+                      return (
+                        <button
+                          key={preset.key}
+                          type="button"
+                          onClick={() => {
+                            setIsDirty(true);
+                            setFormData(prev => ({ ...prev, badge_color: preset.key }));
+                          }}
+                          className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-left ${
+                            isSelected
+                              ? `${preset.badgeClass} ring-2 ring-[#0A7CB3] shadow-xs`
+                              : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-100/60'
+                          }`}
+                          title={`Select ${preset.label} badge colour preset`}
+                        >
+                          <span className={`w-3.5 h-3.5 rounded-full ${preset.swatchDot} shrink-0 shadow-2xs`} />
+                          <span className="truncate flex-1">{preset.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-current shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

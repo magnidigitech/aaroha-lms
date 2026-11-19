@@ -50,6 +50,7 @@ def init_db():
         rating REAL NOT NULL DEFAULT 4.90,
         reviews_count TEXT NOT NULL DEFAULT '2.8K',
         badge_text TEXT,
+        badge_color TEXT DEFAULT NULL,
         description TEXT,
         thumbnail_url TEXT,
         skills TEXT,

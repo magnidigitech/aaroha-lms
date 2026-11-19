@@ -5,6 +5,7 @@ import {
   Eye, EyeOff, Archive, X, Lock, Unlock, RotateCcw
 } from 'lucide-react';
 import api from '../../apiService';
+import CourseCardBadge from '../CourseCardBadge';
 import CourseModal from './CourseModal';
 import ModuleModal from './ModuleModal';
 import LectureModal from './LectureModal';
@@ -281,6 +282,13 @@ export default function AdminCoursesTab({
                       <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-md shrink-0">
                         {course.category}
                       </span>
+                      {course.badge_text && course.badge_text.trim() && (
+                        <CourseCardBadge
+                          text={course.badge_text}
+                          color={course.badge_color}
+                          course={course}
+                        />
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{course.description}</p>
                   </div>
