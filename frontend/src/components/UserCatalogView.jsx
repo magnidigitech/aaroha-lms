@@ -161,9 +161,9 @@ export default function UserCatalogView({
         </div>
       </section>
 
-      {/* Filter and Search Bar (Coursera Catalog Controls) in Centered Container */}
+      {/* Filter and Search Bar (Coursera Catalog Controls) & Course Grid in Centered Container */}
       <div id="browse-courses-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 space-y-6 scroll-mt-20">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
               Browse Specializations & Courses
@@ -220,11 +220,10 @@ export default function UserCatalogView({
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Coursera-Style 2:3 Portrait Course Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-        {filteredCourses.map(course => {
+        {/* Coursera-Style Course Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          {filteredCourses.map(course => {
           // Format reviews count (e.g., "2,840 reviews" -> "2.8K")
           let formattedReviews = '2.8K';
           if (course.reviews_count) {
@@ -268,7 +267,7 @@ export default function UserCatalogView({
             <div
               key={course.id}
               onClick={() => onOpenCourseDetails(course)}
-              className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-lg hover:border-slate-300 transition-all duration-200 flex flex-col overflow-hidden group cursor-pointer aspect-square w-full max-w-[320px] mx-auto sm:max-w-none"
+              className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-lg hover:border-slate-300 transition-all duration-200 flex flex-col overflow-hidden group cursor-pointer aspect-square w-full"
             >
               {/* Top Header Image (16:9 Landscape Banner, ~55% of Square) */}
               <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 flex-shrink-0">
@@ -346,6 +345,7 @@ export default function UserCatalogView({
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
