@@ -46,7 +46,7 @@ class Database {
             }
             $sqlitePath = $resolvedSqlite ?: (__DIR__ . '/lms.sqlite');
 
-            if ($driver === 'sqlite' || (!empty($resolvedSqlite) && $driver !== 'mysql')) {
+            if ($driver === 'sqlite' || (!empty($resolvedSqlite) && empty($envConfig['DB_HOST']) && empty(getenv('DB_HOST')))) {
                 try {
                     self::$pdo = new PDO("sqlite:{$resolvedSqlite}", null, null, [
                         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -696,6 +696,7 @@ class Database {
                             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                         ]);
                         self::$pdo->exec("PRAGMA foreign_keys = ON;");
+                        self::ensureSqliteSchema(self::$pdo);
                         self::$pdo->exec("CREATE TABLE IF NOT EXISTS certificates (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             certificate_code TEXT NOT NULL UNIQUE,

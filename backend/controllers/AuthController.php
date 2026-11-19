@@ -158,7 +158,17 @@ class AuthController {
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
             // Self-healing upgrade for standard seed accounts
-            if ($user && ($email === 'admin@aaroha-inc.com' || $email === 'elena.rostova@enterprise.io') && $password === 'password123') {
+            $seedEmails = [
+                'admin@aaroha-inc.com',
+                'elena.rostova@enterprise.io',
+                'marcus.vance@aaroha-inc.com',
+                'priya.sharma@aaroha-inc.com',
+                'accounts@aaroha-inc.com',
+                'placement@aaroha-inc.com',
+                'aarav.patel@student.aaroha-inc.com',
+                'student@aaroha-inc.com'
+            ];
+            if ($user && in_array($email, $seedEmails, true) && $password === 'password123') {
                 $newHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
                 $upStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
                 $upStmt->execute([$newHash, (int)$user['id']]);
