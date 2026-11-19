@@ -84,12 +84,12 @@ export default function RoleBasedDashboardView({
     setActiveRole(newRole);
     try {
       sessionStorage.setItem('aaroha_active_dashboard_role', newRole);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   return (
     <div className="space-y-6">
-      
+
       {/* Universal Dashboard Header (Identity, Role Switcher, Timezone, Refresh, Settings) */}
       <DashboardHeader
         currentUser={currentUser}
