@@ -32,6 +32,7 @@ export default function RoleBasedDashboardView({
   });
 
   const [dashboardData, setDashboardData] = useState({});
+  const [studentTab, setStudentTab] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -100,6 +101,9 @@ export default function RoleBasedDashboardView({
         onOpenProfile={onOpenProfile}
         onViewWebsite={onViewWebsite || onExploreCatalog}
         isRefreshing={isRefreshing}
+        onNavigateTab={setStudentTab}
+        enrolledCoursesCount={dashboardData.my_courses?.length || 0}
+        nextClass={dashboardData.today_and_upcoming?.next_live_class || null}
       />
 
       {/* Loading State */}
@@ -136,6 +140,8 @@ export default function RoleBasedDashboardView({
               onOpenProfile={onOpenProfile}
               onOpenTicketModal={onOpenTicketModal}
               onExploreCatalog={onExploreCatalog}
+              activeTab={studentTab}
+              onTabChange={setStudentTab}
             />
           )}
 

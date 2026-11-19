@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   Search, ChevronDown, User, LogOut, GraduationCap, Shield, Compass,
-  Menu, X, Award, ShieldCheck, ArrowRight, ArrowLeft, LayoutDashboard, Globe
+  Menu, X, Award, ShieldCheck, ArrowRight, ArrowLeft, LayoutDashboard, Globe,
+  BookOpen, Video, Settings
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import TechSearchBar from './TechSearchBar';
@@ -22,6 +23,7 @@ export default function Navbar({
 }) {
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   const categories = [
     'All Courses',
@@ -137,19 +139,50 @@ export default function Navbar({
               <span>Certificates & Verification</span>
             </button>
 
-            {/* If currently viewing student dashboard, show clearly visible Back to Website */}
+            {/* If currently viewing student dashboard: direct My Courses, Next Class, and single Back to Website */}
             {activeView === 'student' && (
-              <button
-                onClick={() => {
-                  setActiveView(HOMEPAGE_ROUTE);
-                  if (onSelectCategory) onSelectCategory('All');
-                }}
-                className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
-                title="Return to public homepage"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3]" />
-                <span>Back to Website</span>
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('my-courses-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-700 hover:text-[#0A7CB3] hover:bg-slate-50 text-xs font-bold transition-colors cursor-pointer"
+                  title="Jump to My Courses & Cohorts"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-[#0A7CB3]" />
+                  <span>My Courses</span>
+                  {stats?.enrolledCount > 0 && (
+                    <span className="bg-[#0A7CB3] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                      {stats.enrolledCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('schedule-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-700 hover:text-purple-700 hover:bg-purple-50/50 text-xs font-bold transition-colors cursor-pointer"
+                  title="Jump to Live Classes & Academic Schedule"
+                >
+                  <Video className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Next Class</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveView(HOMEPAGE_ROUTE);
+                    if (onSelectCategory) onSelectCategory('All');
+                  }}
+                  className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  title="Return to public homepage (login session preserved)"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3]" />
+                  <span>Back to Website</span>
+                </button>
+              </>
             )}
 
             {/* Authenticated Primary CTA on Public Website: Show "My Dashboard" instead of "Log In" */}
@@ -189,14 +222,15 @@ export default function Navbar({
               </div>
             )}
 
-            {/* User Avatar & Logout (Desktop) */}
+            {/* User Avatar with Profile Dropdown Menu (Desktop) */}
             {currentUser && (
-              <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-slate-200">
+              <div className="relative flex items-center pl-2 sm:pl-3 border-l border-slate-200">
                 <button
                   type="button"
-                  onClick={onOpenProfile}
-                  title="Click to view & edit your profile and avatar"
-                  className="flex items-center gap-2.5 p-1 -m-1 rounded-xl hover:bg-slate-100 transition-all cursor-pointer group text-left border border-transparent hover:border-slate-200/80"
+                  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                  title="Account menu"
+                  className="flex items-center gap-2 p-1 -m-1 rounded-xl hover:bg-slate-100 transition-all cursor-pointer group text-left border border-transparent hover:border-slate-200/80"
+                  aria-expanded={isProfileDropdownOpen}
                 >
                   <div className="relative">
                     <img
@@ -215,16 +249,62 @@ export default function Navbar({
                       {currentUser.title || (isFacultyRole(currentUser.role) ? 'Faculty' : 'Learner')}
                     </div>
                   </div>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                <button
-                  onClick={onLogout}
-                  title="Sign Out"
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer hidden md:block"
-                  aria-label="Sign out"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
+                {/* Profile Menu Dropdown */}
+                {isProfileDropdownOpen && (
+                  <div 
+                    className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    onMouseLeave={() => setIsProfileDropdownOpen(false)}
+                  >
+                    <div className="px-4 py-2 border-b border-slate-100">
+                      <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
+                      <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
+                    </div>
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileDropdownOpen(false);
+                          if (onOpenProfile) onOpenProfile();
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/60 transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <Settings className="w-4 h-4 text-[#0A7CB3]" />
+                        <span>Profile & Settings</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileDropdownOpen(false);
+                          setActiveView('student');
+                          setTimeout(() => {
+                            const el = document.getElementById('my-courses-section');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/60 transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <BookOpen className="w-4 h-4 text-[#0A7CB3]" />
+                        <span>My Courses & Learning</span>
+                      </button>
+                    </div>
+                    <div className="border-t border-slate-100 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileDropdownOpen(false);
+                          if (onLogout) onLogout();
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -272,19 +352,45 @@ export default function Navbar({
                 <span>Certificates & Verification</span>
               </button>
 
-              {/* If on student dashboard: Show clearly visible Back to Website */}
+              {/* If on student dashboard: Show My Courses, Next Class, and exactly one Back to Website */}
               {activeView === 'student' && (
-                <button
-                  onClick={() => {
-                    setActiveView(HOMEPAGE_ROUTE);
-                    if (onSelectCategory) onSelectCategory('All');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors bg-blue-50 text-[#0A7CB3] border border-blue-200"
-                >
-                  <ArrowLeft className="w-4 h-4 text-[#0A7CB3]" />
-                  <span>Back to Website</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      const el = document.getElementById('my-courses-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors text-slate-700 hover:bg-slate-100"
+                  >
+                    <BookOpen className="w-4 h-4 text-[#0A7CB3]" />
+                    <span>My Courses & Cohorts</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      const el = document.getElementById('schedule-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors text-slate-700 hover:bg-slate-100"
+                  >
+                    <Video className="w-4 h-4 text-purple-600" />
+                    <span>Next Class & Schedule</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveView(HOMEPAGE_ROUTE);
+                      if (onSelectCategory) onSelectCategory('All');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors bg-blue-50 text-[#0A7CB3] border border-blue-200"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-[#0A7CB3]" />
+                    <span>Back to Website</span>
+                  </button>
+                </>
               )}
 
               {/* If authenticated and on website: Show My Dashboard in list */}
@@ -334,38 +440,44 @@ export default function Navbar({
                     </button>
                   )}
 
-                  <div className="flex items-center justify-between px-2 py-1.5 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onOpenProfile) onOpenProfile();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2.5 min-w-0 p-1.5 -m-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left flex-1 cursor-pointer"
-                    >
+                  <div className="flex flex-col space-y-2 p-2.5 bg-slate-50 rounded-2xl border border-slate-200/80">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <img
                         src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                         alt={currentUser.full_name}
                         onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
-                        className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
+                        className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
                       />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
                         <div className="text-[10px] text-slate-500 truncate">
                           {currentUser.title || (isFacultyRole(currentUser.role) ? 'Faculty' : 'Learner')}
                         </div>
                       </div>
-                    </button>
-                    <button
-                      onClick={() => {
-                        onLogout();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
-                    </button>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onOpenProfile) onOpenProfile();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="flex-1 py-1.5 px-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-[#0A7CB3]" />
+                        <span>Profile & Settings</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onLogout();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="py-1.5 px-3 bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-xl border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (

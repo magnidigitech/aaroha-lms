@@ -13,14 +13,26 @@ export default function StudentDashboardView({
   onOpenClassroom,
   onOpenProfile,
   onOpenTicketModal,
-  onExploreCatalog
+  onExploreCatalog,
+  activeTab: externalActiveTab,
+  onTabChange
 }) {
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'courses' | 'schedule' | 'performance' | 'certificates' | 'placement'
+  const [internalTab, setInternalTab] = useState('all'); // 'all' | 'courses' | 'schedule' | 'performance' | 'certificates' | 'placement' | 'expired'
+  const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalTab;
+  const setActiveTab = (tab) => {
+    if (onTabChange) onTabChange(tab);
+    setInternalTab(tab);
+  };
   const [courseFilter, setCourseFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const summary = dashboardData.summary_cards || {};
   const myCourses = dashboardData.my_courses || [];
+  const accessibleCourses = useMemo(() => {
+    return myCourses.filter(c => c.is_accessible !== false && !c.is_expired);
+  }, [myCourses]);
+  const hasAccessibleCourse = accessibleCourses.length > 0;
+  const firstAccessibleCourse = accessibleCourses[0] || myCourses[0];
   const expiredCourses = dashboardData.expired_courses || [];
   const todayUpcoming = dashboardData.today_and_upcoming || {};
   const nextClass = todayUpcoming.next_live_class;
@@ -110,21 +122,21 @@ export default function StudentDashboardView({
           <div className="text-2xl font-black text-slate-900">
             {summary.attendance_pct !== 'Not available yet' && summary.attendance_pct !== null && summary.attendance_pct !== undefined
               ? (summary.attendance_pct + '%')
-              : 'Not available yet'}
+              : '—'}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-            <span>Live sessions record</span>
+            <span>{summary.attendance_pct !== null && summary.attendance_pct !== undefined && summary.attendance_pct !== 'Not available yet' ? 'Live sessions record' : 'No attendance recorded yet'}</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>
 
-        {/* Card 4: Assignments Awaiting Submission */}
+        {/* Card 4: Assignments Due */}
         <div 
           onClick={() => setActiveTab('performance')}
           className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-amber-500 hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Due Tasks</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Assignments Due</span>
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition-transform">
               <Clock size={16} />
             </div>
@@ -136,20 +148,20 @@ export default function StudentDashboardView({
           </div>
         </div>
 
-        {/* Card 5: Upcoming Assessments */}
+        {/* Card 5: Upcoming Quizzes */}
         <div 
           onClick={() => setActiveTab('schedule')}
           className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Assessments</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Upcoming Quizzes</span>
             <div className="p-2 rounded-xl bg-purple-50 text-purple-600 group-hover:scale-110 transition-transform">
               <Award size={16} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{summary.upcoming_assessments ?? 0}</div>
+          <div className="text-2xl font-black text-slate-900">{summary.upcoming_quizzes ?? summary.upcoming_assessments ?? 0}</div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-            <span>Scheduled milestones</span>
+            <span>Pending quiz attempts</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>
@@ -182,9 +194,9 @@ export default function StudentDashboardView({
           <span>Quick Launch:</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {myCourses.length > 0 && (
+          {hasAccessibleCourse && (
             <button
-              onClick={() => onOpenCourse && onOpenCourse(myCourses[0].course_id)}
+              onClick={() => onOpenCourse && onOpenCourse(firstAccessibleCourse.course_id)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
               <Play size={13} />
@@ -290,7 +302,7 @@ export default function StudentDashboardView({
 
       {/* SECTION 1: MY COURSES */}
       {(activeTab === 'all' || activeTab === 'courses') && (
-        <div className="space-y-4">
+        <div id="my-courses-section" className="space-y-4 scroll-mt-24">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black text-slate-900 tracking-tight">My Courses & Cohorts</h2>
@@ -364,7 +376,12 @@ export default function StudentDashboardView({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {filteredCourses.map(course => (
+              {filteredCourses.map(course => {
+                const isBatchInFuture = course.batch_start_date && (new Date(course.batch_start_date).getTime() > new Date().setHours(0, 0, 0, 0));
+                const isAccessible = course.is_accessible !== false && !course.is_expired;
+                const hasSavedActivity = Boolean(course.has_activity || (course.completed_lessons && course.completed_lessons > 0));
+
+                return (
                 <div 
                   key={course.course_id}
                   className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-all space-y-4 flex flex-col justify-between"
@@ -391,24 +408,30 @@ export default function StudentDashboardView({
                     <div className="text-xs text-slate-500 flex flex-wrap items-center gap-3">
                       <span>Faculty: <strong className="text-slate-700">{course.faculty_name}</strong></span>
                       <span>•</span>
-                      <span>Dates: {course.start_date} to {course.expected_end_date}</span>
+                      {isBatchInFuture ? (
+                        <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                          Batch starts {formatDate(course.batch_start_date)}
+                        </span>
+                      ) : (
+                        <span>Dates: {formatDate(course.batch_start_date || course.start_date)} to {formatDate(course.batch_end_date || course.expected_end_date)}</span>
+                      )}
                     </div>
 
-                    {/* Progress Bar & Next Lesson */}
+                    {/* Progress Bar */}
                     <div className="space-y-1.5 pt-1">
                       <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-                        <span>Progress: {course.completed_lessons} of {course.total_lessons} lessons</span>
-                        <span className="font-bold text-[#0A7CB3]">{course.progress_percentage}%</span>
+                        <span>Progress: {course.completed_lessons || 0} of {course.total_lessons || 0} lessons</span>
+                        <span className="font-bold text-[#0A7CB3]">{course.progress_percentage || 0}%</span>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                         <div 
                           className="bg-[#0A7CB3] h-2 rounded-full transition-all duration-500" 
-                          style={{ width: (course.progress_percentage + '%') }}
+                          style={{ width: `${course.progress_percentage || 0}%` }}
                         />
                       </div>
                     </div>
 
-                    {/* Course Access Window Indicator */}
+                    {/* Separate Course Access Window Indicator */}
                     {course.expires_at && (
                       <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 flex-wrap ${
                         course.is_expiring_soon
@@ -422,47 +445,54 @@ export default function StudentDashboardView({
                             <Clock size={14} className="text-slate-400 shrink-0" />
                           )}
                           <span className="text-[11px]">
-                            Access Duration: <strong>{course.access_duration_applied || 'Standard'}</strong>
+                            Access until <strong>{course.expires_at_formatted || formatDate(course.expires_at)}</strong>
+                            {course.remaining_days !== undefined && course.remaining_days <= 30 && (
+                              <span className="text-amber-700 font-semibold ml-1">({course.remaining_days}d left)</span>
+                            )}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5 ml-auto">
-                          {course.is_expiring_soon ? (
-                            <span className="font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md text-[10.5px] uppercase tracking-wide flex items-center gap-1">
-                              Expiring Soon • {course.remaining_days}d left
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-500">
-                              Expires: <strong>{course.expires_at_formatted || formatDate(course.expires_at)}</strong> ({course.remaining_days}d left)
-                            </span>
-                          )}
-                        </div>
+                        {isBatchInFuture && isAccessible && (
+                          <span className="text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                            Early Access Active
+                          </span>
+                        )}
                       </div>
                     )}
 
-                    <div className="text-xs bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center justify-between">
-                      <div className="truncate mr-2">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Up Next</span>
-                        <span className="font-semibold text-slate-700 text-xs truncate block">{course.next_lesson_title}</span>
-                      </div>
-                      <span className="shrink-0 text-[11px] text-[#0A7CB3] font-bold">Resume</span>
+                    {/* Up Next Preview (Purely Text Preview) */}
+                    <div className="text-xs bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Up Next</span>
+                      <span className="font-semibold text-slate-700 text-xs truncate block">{course.next_lesson_title}</span>
                     </div>
                   </div>
 
+                  {/* Single Learning Action Button */}
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <span className="text-xs text-slate-500">
                       Status: <strong className="capitalize text-slate-700">{course.status}</strong>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenCourse && onOpenCourse(course.course_id)}
-                      className="px-4 py-2 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                    >
-                      <span>Continue Learning</span>
-                      <ArrowRight size={13} />
-                    </button>
+                    {!isAccessible ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="px-4 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold flex items-center gap-1.5 cursor-not-allowed border border-slate-200"
+                      >
+                        <Lock size={13} />
+                        <span>Starts {formatDate(course.access_opens_at || course.batch_start_date || course.start_date)}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onOpenCourse && onOpenCourse(course.course_id)}
+                        className="px-4 py-2 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <span>{hasSavedActivity ? 'Resume Learning' : 'Start Learning'}</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>
@@ -565,7 +595,7 @@ export default function StudentDashboardView({
 
       {/* SECTION 2: SCHEDULE & UPCOMING */}
       {(activeTab === 'all' || activeTab === 'schedule') && (
-        <div className="space-y-4">
+        <div id="schedule-section" className="space-y-4 scroll-mt-24">
           <div className="border-t border-slate-200 pt-6">
             <h2 className="text-lg font-black text-slate-900 tracking-tight">Today and Upcoming Schedule</h2>
             <p className="text-xs text-slate-500">Live lecture meetings, assignment submissions, and newly published learning materials.</p>

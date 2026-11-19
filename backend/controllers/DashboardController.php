@@ -38,7 +38,7 @@ class DashboardController {
             SELECT 
                 e.id as enrollment_id, e.status as enrollment_status, e.enrolled_at, e.expires_at,
                 c.id as course_id, c.title as course_title, c.slug as course_slug, c.description, c.thumbnail_url,
-                b.id as batch_id, b.batch_code, b.title as batch_title, b.start_date, b.end_date,
+                b.id as batch_id, b.batch_code, b.title as batch_title, b.start_date as batch_start_date, b.end_date as batch_end_date,
                 fac.full_name as faculty_name, fac.title as faculty_title, fac.avatar as faculty_avatar
             FROM enrollments e
             JOIN courses c ON e.course_id = c.id
@@ -80,6 +80,22 @@ class DashboardController {
             $completedIds = $compStmt->fetchAll(PDO::FETCH_COLUMN);
             $completedCount = count($completedIds);
 
+            // Check for any saved lesson activity (any lesson progress recorded, regardless of completion percentage)
+            $actStmt = $pdo->prepare("
+                SELECT COUNT(*) FROM lesson_progress
+                WHERE enrollment_id = ?
+            ");
+            $actStmt->execute([$enrId]);
+            $activityCount = (int)$actStmt->fetchColumn();
+            $hasActivity = ($activityCount > 0);
+
+            // Access window calculations
+            $nowTime = time();
+            $enrolledTime = !empty($rc['enrolled_at']) ? strtotime($rc['enrolled_at']) : $nowTime;
+            $expiresTime = !empty($rc['expires_at']) ? strtotime($rc['expires_at']) : strtotime('+6 months', $enrolledTime);
+            $isAccessible = ($enrolledTime <= $nowTime) && ($expiresTime === false || $expiresTime >= $nowTime);
+            $remainingDays = ($expiresTime !== false && $expiresTime > $nowTime) ? (int)ceil(($expiresTime - $nowTime) / 86400) : 0;
+
             $progressPct = $totalLessons > 0 ? (int)round(($completedCount / $totalLessons) * 100) : 0;
             $totalCompletedLessonsCount += $completedCount;
             $totalRequiredLessonsCount += $totalLessons;
@@ -104,8 +120,15 @@ class DashboardController {
                 'batch_title' => $rc['batch_title'] ?: $rc['course_title'],
                 'faculty_name' => $rc['faculty_name'] ?: 'Faculty Academic Chair',
                 'faculty_avatar' => $rc['faculty_avatar'],
-                'start_date' => $rc['start_date'] ?: substr($rc['enrolled_at'], 0, 10),
-                'expected_end_date' => $rc['end_date'] ?: substr($rc['expires_at'], 0, 10),
+                'start_date' => $rc['batch_start_date'] ?: substr($rc['enrolled_at'], 0, 10),
+                'expected_end_date' => $rc['batch_end_date'] ?: substr($rc['expires_at'], 0, 10),
+                'batch_start_date' => $rc['batch_start_date'],
+                'batch_end_date' => $rc['batch_end_date'],
+                'enrolled_at' => $rc['enrolled_at'],
+                'expires_at' => $rc['expires_at'],
+                'remaining_days' => $remainingDays,
+                'is_accessible' => $isAccessible,
+                'has_activity' => $hasActivity,
                 'total_lessons' => $totalLessons,
                 'completed_lessons' => $completedCount,
                 'progress_percentage' => $progressPct,
@@ -152,7 +175,7 @@ class DashboardController {
 
         // 1.3 Upcoming Assessment & Project Deadlines
         $tasksStmt = $pdo->prepare("
-            SELECT t.id as task_id, t.title as task_title, t.max_score, t.passing_score,
+            SELECT t.id as task_id, t.title as task_title, t.task_type, t.max_score, t.passing_score,
                    c.title as course_title, c.id as course_id,
                    ts.id as submission_id, ts.status as submission_status, ts.score, ts.graded_at
             FROM tasks t
@@ -167,15 +190,24 @@ class DashboardController {
         $allTasks = $tasksStmt->fetchAll();
 
         $awaitingSubmissionCount = 0;
+        $assignmentsDueCount = 0;
+        $upcomingQuizzesCount = 0;
         $upcomingAssessments = [];
         $publishedScores = [];
 
         foreach ($allTasks as $task) {
+            $isQuiz = (isset($task['task_type']) && $task['task_type'] === 'quiz');
             if (empty($task['submission_id'])) {
                 $awaitingSubmissionCount++;
+                if ($isQuiz) {
+                    $upcomingQuizzesCount++;
+                } else {
+                    $assignmentsDueCount++;
+                }
                 $upcomingAssessments[] = [
                     'task_id' => (int)$task['task_id'],
                     'task_title' => $task['task_title'],
+                    'task_type' => $task['task_type'] ?? 'text_response',
                     'course_title' => $task['course_title'],
                     'max_score' => (int)$task['max_score'],
                     'passing_score' => (int)$task['passing_score'],
@@ -186,6 +218,7 @@ class DashboardController {
                     $publishedScores[] = [
                         'task_id' => (int)$task['task_id'],
                         'task_title' => $task['task_title'],
+                        'task_type' => $task['task_type'] ?? 'text_response',
                         'course_title' => $task['course_title'],
                         'score' => $task['score'],
                         'max_score' => (int)$task['max_score'],
@@ -365,9 +398,11 @@ class DashboardController {
             'summary_cards' => [
                 'active_courses' => count($enrolledCourses),
                 'course_completion_pct' => $overallProgressPct !== null ? $overallProgressPct : 'Not available yet',
-                'attendance_pct' => $attendancePercentage !== null ? $attendancePercentage : 'Not available yet',
-                'assignments_awaiting_submission' => $awaitingSubmissionCount,
-                'upcoming_assessments' => count($upcomingAssessments),
+                'attendance_pct' => $attendancePercentage !== null ? $attendancePercentage : null,
+                'assignments_awaiting_submission' => $assignmentsDueCount,
+                'upcoming_quizzes' => $upcomingQuizzesCount,
+                'upcoming_assessments' => $upcomingQuizzesCount,
+                'due_tasks_total' => $awaitingSubmissionCount,
                 'outstanding_fees' => $outstandingFees
             ],
             'my_courses' => $enrolledCourses,

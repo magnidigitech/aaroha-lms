@@ -759,12 +759,16 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     # Progress calculation & next lesson
                     tot_lessons = cur.execute("SELECT COUNT(*) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = ? AND l.is_deleted = 0", (cid,)).fetchone()[0]
                     comp_lessons = cur.execute("SELECT COUNT(*) FROM lesson_progress WHERE enrollment_id = ? AND is_completed = 1", (eid,)).fetchone()[0]
+                    act_count = cur.execute("SELECT COUNT(*) FROM lesson_progress WHERE enrollment_id = ?", (eid,)).fetchone()[0]
                     prog_pct = int(round((comp_lessons / tot_lessons * 100))) if tot_lessons > 0 else 0
                     c['progress_percentage'] = prog_pct
                     c['total_lessons'] = tot_lessons
                     c['total_lessons_count'] = tot_lessons
                     c['completed_lessons'] = comp_lessons
                     c['completed_lessons_count'] = comp_lessons
+                    c['has_activity'] = (act_count > 0)
+                    c['batch_start_date'] = c.get('start_date')
+                    c['batch_end_date'] = c.get('end_date')
                     total_completed_lessons += comp_lessons
                     total_required_lessons += tot_lessons
 
@@ -805,6 +809,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                         is_soon = False
 
                     c['is_expired'] = is_exp
+                    c['is_accessible'] = not is_exp
                     c['remaining_days'] = rem_days
                     c['remaining_hours'] = rem_hours
                     c['is_expiring_soon'] = is_soon
@@ -848,11 +853,11 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 present_count = sum(1 for r in att_rows if r[0] == 'present')
                 late_count = sum(1 for r in att_rows if r[0] == 'late')
                 absent_count = sum(1 for r in att_rows if r[0] == 'absent')
-                att_pct = int(round(((present_count + (late_count * 0.75)) / total_marked) * 100)) if total_marked > 0 else "Not available yet"
+                att_pct = int(round(((present_count + (late_count * 0.75)) / total_marked) * 100)) if total_marked > 0 else None
 
                 # Real Tasks, Submissions & Assessments
                 task_rows = cur.execute("""
-                    SELECT t.id, t.title, t.max_score, t.passing_score, c.title as course_title,
+                    SELECT t.id, t.title, t.task_type, t.max_score, t.passing_score, c.title as course_title,
                            ts.id as submission_id, ts.status as sub_status, ts.score, ts.graded_at
                     FROM tasks t
                     JOIN modules m ON t.module_id = m.id
@@ -864,15 +869,23 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 """, (student_id,)).fetchall()
 
                 awaiting_submission_count = 0
+                assignments_due_count = 0
+                upcoming_quizzes_count = 0
                 upcoming_deadlines = []
                 published_scores = []
                 for tr in task_rows:
                     t_dict = dict(tr)
+                    is_quiz = (t_dict.get('task_type') == 'quiz')
                     if not t_dict.get('submission_id'):
                         awaiting_submission_count += 1
+                        if is_quiz:
+                            upcoming_quizzes_count += 1
+                        else:
+                            assignments_due_count += 1
                         upcoming_deadlines.append({
                             "task_id": t_dict['id'],
                             "task_title": t_dict['title'],
+                            "task_type": t_dict.get('task_type') or 'text_response',
                             "course_title": t_dict['course_title'],
                             "max_score": t_dict['max_score'] or 100,
                             "passing_score": t_dict['passing_score'] or 70,
@@ -882,6 +895,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                         published_scores.append({
                             "task_id": t_dict['id'],
                             "task_title": t_dict['title'],
+                            "task_type": t_dict.get('task_type') or 'text_response',
                             "course_title": t_dict['course_title'],
                             "score": t_dict['score'],
                             "max_score": t_dict['max_score'] or 100,
@@ -922,8 +936,10 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                         "expired_courses_count": len(expired_courses),
                         "course_completion_pct": overall_comp_pct if overall_comp_pct is not None else "Not available yet",
                         "attendance_pct": att_pct,
-                        "assignments_awaiting_submission": awaiting_submission_count,
-                        "upcoming_assessments": len(upcoming_deadlines),
+                        "assignments_awaiting_submission": assignments_due_count,
+                        "upcoming_quizzes": upcoming_quizzes_count,
+                        "upcoming_assessments": upcoming_quizzes_count,
+                        "due_tasks_total": awaiting_submission_count,
                         "outstanding_fees": outstanding_fees,
                         "certificates_count": len(certs_list),
                         "total_learning_hours": f"{len(my_courses) * 40} hrs"
@@ -4241,11 +4257,13 @@ def run_server(port=8000):
         while True:
             try:
                 server.serve_forever()
-            except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError, OSError):
-                time.sleep(0.05)
-                continue
             except KeyboardInterrupt:
                 break
+            except Exception as e:
+                sys.stderr.write(f"[server loop exception] {type(e).__name__}: {e}\n")
+                sys.stderr.flush()
+                time.sleep(0.05)
+                continue
     except KeyboardInterrupt:
         print("\nStopping dev server...", flush=True)
     finally:

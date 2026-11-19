@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { 
   User, Shield, GraduationCap, Briefcase, Layers, 
   RefreshCw, Settings, ChevronDown, Check, Clock, Globe, Bell,
-  ArrowLeft
+  BookOpen, Video
 } from 'lucide-react';
-import aarohaLogo from '../../assets/aaroha_logo.webp';
 
 export const ROLE_LABELS = {
   super_admin: 'Super Admin',
@@ -36,7 +35,10 @@ export default function DashboardHeader({
   onOpenProfile,
   onViewWebsite,
   isRefreshing = false,
-  notificationCount = 0
+  notificationCount = 0,
+  onNavigateTab,
+  enrolledCoursesCount = 0,
+  nextClass = null
 }) {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
@@ -62,21 +64,6 @@ export default function DashboardHeader({
         
         {/* User Identity & Active Role Badge */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {onViewWebsite && (
-            <button
-              type="button"
-              onClick={onViewWebsite}
-              title="Aaroha Technologies - Return to Public Homepage"
-              className="flex items-center p-2 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs group cursor-pointer transition-all shrink-0 hover:border-slate-300"
-            >
-              <img
-                src={aarohaLogo}
-                alt="Aaroha Technologies"
-                className="h-8 sm:h-9 w-auto object-contain group-hover:scale-105 transition-transform"
-              />
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onOpenProfile}
@@ -120,19 +107,35 @@ export default function DashboardHeader({
 
         {/* Action Controls & Role Switcher */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-          {/* Back to Website Button */}
-          {onViewWebsite && (
-            <button
-              type="button"
-              onClick={onViewWebsite}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-all shadow-2xs cursor-pointer group"
-              title="Return to Public Website Homepage"
-              aria-label="Back to Website"
-            >
-              <ArrowLeft size={14} className="text-[#0A7CB3] group-hover:-translate-x-0.5 transition-transform" />
-              <span>Back to Website</span>
-            </button>
-          )}
+          {/* Freed Space: Direct My Courses Shortcut */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab && onNavigateTab('courses')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-all shadow-2xs cursor-pointer group"
+            title="View enrolled courses and cohort syllabus"
+          >
+            <BookOpen size={14} className="text-[#0A7CB3]" />
+            <span>My Courses</span>
+            {enrolledCoursesCount > 0 && (
+              <span className="bg-[#0A7CB3] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                {enrolledCoursesCount}
+              </span>
+            )}
+          </button>
+
+          {/* Freed Space: Next Class Shortcut */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab && onNavigateTab('schedule')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all shadow-2xs cursor-pointer group"
+            title={nextClass ? `Next Session: ${nextClass.topic}` : 'View Academic Schedule'}
+          >
+            <Video size={14} className="text-purple-600" />
+            <span className="hidden sm:inline">Next Class:</span>
+            <span className="truncate max-w-[150px] font-semibold text-purple-800">
+              {nextClass ? (nextClass.topic || 'Upcoming Session') : 'Schedule'}
+            </span>
+          </button>
           
           {/* Multi-Role Switcher (Visible when user has multiple authorised roles) */}
           {effectiveRoles.length > 1 && (
