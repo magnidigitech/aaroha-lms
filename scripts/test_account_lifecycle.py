@@ -175,8 +175,8 @@ def run_tests():
     status, res = request("GET", "/lessons/1001/playback", token=alice_token)
     assert_test(status == 200 and res.get("success"), "8c. Access granted to lesson playback for enrolled course", str(res))
 
-    # Playback for un-enrolled course (Course 2 has lesson 2001)
-    status, res = request("GET", "/lessons/2001/playback", token=alice_token)
+    # Playback for un-enrolled course (Course 2 has non-preview lesson 2002)
+    status, res = request("GET", "/lessons/2002/playback", token=alice_token)
     assert_test(status == 403, "8d. Access denied (HTTP 403) to lesson playback for un-enrolled course", str(res))
 
     # -------------------------------------------------------------
@@ -202,8 +202,8 @@ def run_tests():
     assert_test(user_count == 1, "9c. Users table has exactly 1 record for Alice (0 duplication)")
     assert_test(enr_count == 2, "9d. Alice now has 2 distinct active course enrollments")
 
-    # Alice now has access to lesson 2001 in Course 2
-    status, res = request("GET", "/lessons/2001/playback", token=alice_token)
+    # Alice now has access to non-preview lesson 2002 in Course 2
+    status, res = request("GET", "/lessons/2002/playback", token=alice_token)
     assert_test(status == 200 and res.get("success"), "9e. Playback now unlocked for newly enrolled Course 2")
 
     # Attempting duplicate active enrollment in same course 2

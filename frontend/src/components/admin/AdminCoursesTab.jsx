@@ -25,6 +25,7 @@ export default function AdminCoursesTab({
   onAddTask,
   onUpdateTask,
   onDeleteTask,
+  onViewCourse,
   currentUser
 }) {
   // Modal dialog states
@@ -325,6 +326,20 @@ export default function AdminCoursesTab({
                     </button>
                   )}
 
+                  {/* View Course (Open Course Interface without Enrollment) */}
+                  {onViewCourse && (
+                    <button
+                      type="button"
+                      onClick={() => onViewCourse(course)}
+                      className="px-3 py-1.5 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="View Course & Video Lectures in Course Interface"
+                      aria-label={`View Course: ${course.title}`}
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>View Course</span>
+                    </button>
+                  )}
+
                   {/* Edit Course */}
                   <button
                     type="button"
@@ -562,6 +577,17 @@ export default function AdminCoursesTab({
                                     </div>
 
                                     <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                                      {onViewCourse && (
+                                        <button
+                                          type="button"
+                                          onClick={() => onViewCourse(course, l.id)}
+                                          className="p-1 hover:bg-blue-50 text-[#0A7CB3] rounded transition-colors cursor-pointer"
+                                          title="Play Lecture in Course Interface"
+                                          aria-label={`Play Lecture: ${l.title}`}
+                                        >
+                                          <Play className="w-3 h-3 fill-current" />
+                                        </button>
+                                      )}
                                       <button
                                         onClick={() => setLectureModal({ isOpen: true, courseId: course.id, moduleId: mod.id, initialData: l })}
                                         className="p-1 hover:bg-slate-200/70 rounded text-slate-600 transition-colors cursor-pointer"

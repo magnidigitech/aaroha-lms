@@ -10,6 +10,7 @@ import BunnyStreamPlayer from './BunnyStreamPlayer';
 import { api } from '../apiService';
 import MediaSourceInput from './common/MediaSourceInput';
 import { formatDate } from '../adminUtils';
+import { isFacultyRole } from '../routes';
 
 /**
  * Resilient Lesson Thumbnail Component
@@ -58,6 +59,9 @@ export default function CourseClassroomView({
   onOpenProfile,
   initialLessonId = null
 }) {
+  const isFacultyOrAdmin = Boolean(currentUser && isFacultyRole(currentUser.role));
+  const hasAccess = Boolean(isEnrolled || isFacultyOrAdmin);
+
   // Flatten all lessons with their parent module info
   const allLessons = (course?.modules || []).flatMap((mod, modIdx) => 
     (mod.lessons || []).map((lesson) => {
@@ -80,7 +84,7 @@ export default function CourseClassroomView({
       const match = allLessons.find(l => l.id === initialLessonId);
       if (match) return match;
     }
-    if (isEnrolled && lessonProgress.length > 0) {
+    if (hasAccess && lessonProgress.length > 0) {
       const firstIncomplete = allLessons.find(l => 
         !lessonProgress.some(p => p.lesson_id === l.id && p.is_completed)
       );
@@ -115,7 +119,7 @@ export default function CourseClassroomView({
           return;
         }
       }
-      if (isEnrolled && lessonProgress.length > 0) {
+      if (hasAccess && lessonProgress.length > 0) {
         const firstIncomplete = allLessons.find(l => 
           !lessonProgress.some(p => p.lesson_id === l.id && p.is_completed)
         );
@@ -127,7 +131,7 @@ export default function CourseClassroomView({
       const firstPreview = allLessons.find(l => l.is_free_preview);
       setActiveLesson(firstPreview || allLessons[0]);
     }
-  }, [course?.id, allLessons.length, initialLessonId, isEnrolled]);
+  }, [course?.id, allLessons.length, initialLessonId, isEnrolled, hasAccess]);
 
   // Expand all modules by default whenever a course loads
   useEffect(() => {
@@ -179,13 +183,16 @@ export default function CourseClassroomView({
     const currentMedia = activeLesson.video_url || activeLesson.media_url || activeLesson.bunny_video_id || '';
     const isBunny = isBunnyStreamVideo(currentMedia);
 
-    if (isBunny || isEnrolled || activeLesson.is_free_preview) {
+    if (isBunny || hasAccess || activeLesson.is_free_preview) {
       setPlaybackLoading(true);
       setPlaybackError(null);
       api.getLessonPlayback(activeLesson.id)
         .then(res => {
           if (res?.playback) {
             setPlaybackSession(res.playback);
+            setPlaybackError(null);
+          } else if (res?.success) {
+            setPlaybackSession(res);
             setPlaybackError(null);
           } else {
             setPlaybackSession(null);
@@ -203,11 +210,11 @@ export default function CourseClassroomView({
       setPlaybackSession(null);
       setPlaybackError(null);
     }
-  }, [activeLesson?.id, activeLesson?.video_url, activeLesson?.media_url, activeLesson?.bunny_video_id, activeLesson?.is_free_preview, isEnrolled]);
+  }, [activeLesson?.id, activeLesson?.video_url, activeLesson?.media_url, activeLesson?.bunny_video_id, activeLesson?.is_free_preview, isEnrolled, hasAccess, isFacultyOrAdmin]);
 
   if (!course) return null;
 
-  const isAccessExpired = Boolean(
+  const isAccessExpired = !isFacultyOrAdmin && Boolean(
     course?.is_expired ||
     course?.access_status === 'expired' ||
     (course?.expires_at && new Date(course.expires_at).getTime() < Date.now())
@@ -234,6 +241,7 @@ export default function CourseClassroomView({
 
   const canPlayLesson = (lesson) => {
     if (!lesson) return false;
+    if (isFacultyOrAdmin) return true;
     if (isAccessExpired && !lesson.is_free_preview) return false;
     if (isEnrolled) return true;
     return !!lesson.is_free_preview;
@@ -344,7 +352,12 @@ export default function CourseClassroomView({
 
         {/* Right: Enrollment CTA or Learner Account Badge */}
         <div className="flex items-center gap-3">
-          {isEnrolled ? (
+          {isFacultyOrAdmin ? (
+            <div className="flex items-center gap-2 bg-blue-950/80 border border-blue-600 px-3 py-1.5 rounded-xl text-xs text-blue-300 font-semibold shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+              <span className="hidden sm:inline">Faculty / Admin Full Access</span>
+            </div>
+          ) : isEnrolled ? (
             <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-700 px-3 py-1.5 rounded-xl text-xs text-emerald-300 font-semibold shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="hidden sm:inline">
@@ -788,7 +801,7 @@ export default function CourseClassroomView({
                               New assignment submissions are locked because your enrolment access duration has ended. Your previously evaluated solutions and grades remain visible.
                             </p>
                           </div>
-                        ) : isEnrolled ? (
+                        ) : hasAccess ? (
                           <form onSubmit={(e) => handleTaskSubmit(e, task.id)} className="space-y-3 pt-2 border-t border-[#1b3d63]">
                             <div>
                               <label className="font-semibold text-slate-300 block mb-1">Defense Solution Notes / Implementation Rationale:</label>

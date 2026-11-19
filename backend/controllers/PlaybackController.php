@@ -83,8 +83,17 @@ class PlaybackController {
         $coursePublished = (bool)($lesson['course_published'] ?? 1);
         $lessonPublished = isset($lesson['lesson_published']) ? (bool)$lesson['lesson_published'] : true;
 
-        // Faculty preview authorization: restricted to authorized faculty of this specific course, or any admin
-        $isAuthorizedFaculty = ($userRole === 'admin' || (($userRole === 'faculty' || $userRole === 'instructor') && $courseCreatedBy === $userId));
+        // Faculty and Admin clearance: Faculty and Admins can view and play courses anytime without enrollment
+        $isFacultyOrAdmin = in_array(strtolower($userRole), [
+            'super_admin',
+            'admin',
+            'coordinator',
+            'placement_officer',
+            'accounts',
+            'faculty',
+            'instructor'
+        ]);
+        $isAuthorizedFaculty = $isFacultyOrAdmin;
 
         // 2. Publication Gate:
         // Unpublished courses and unpublished lessons are strictly restricted to the authorized faculty member who created the course

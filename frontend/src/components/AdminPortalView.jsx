@@ -73,6 +73,7 @@ export default function AdminPortalView({
   onGradeSubmission,
   onIssueCertificate,
   onOpenProfile,
+  onViewCourse,
   currentUser,
   enrolledStudents = [],
   onViewWebsite,
@@ -1139,6 +1140,7 @@ export default function AdminPortalView({
               onUpdateTask={onUpdateTask}
               onDeleteTask={onDeleteTask}
               onIssueCertificate={onIssueCertificate}
+              onViewCourse={onViewCourse}
               currentUser={currentUser}
             />
           )}

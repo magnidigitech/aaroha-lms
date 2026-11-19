@@ -296,20 +296,33 @@ class CourseController {
         $isEnrolled = false;
         $enrollmentId = null;
         if ($currentUserId) {
-            $enrollStmt = $pdo->prepare("
-                SELECT id, status, enrolled_at, expires_at FROM enrollments 
-                WHERE user_id = ? AND course_id = ? AND status IN ('active', 'completed')
-                ORDER BY id DESC
-                LIMIT 1
-            ");
-            $enrollStmt->execute([$currentUserId, $courseId]);
-            $enrollment = $enrollStmt->fetch();
-            if ($enrollment) {
-                $enrolledTime = !empty($enrollment['enrolled_at']) ? strtotime($enrollment['enrolled_at']) : time();
-                $expiresTime = !empty($enrollment['expires_at']) ? strtotime($enrollment['expires_at']) : strtotime('+6 months', $enrolledTime);
-                if ($expiresTime === false || $expiresTime >= time()) {
-                    $isEnrolled = true;
-                    $enrollmentId = (int)$enrollment['id'];
+            // Faculty and Admins can view courses and full curriculum content anytime without enrollment
+            $uStmt = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+            $uStmt->execute([$currentUserId]);
+            $uRow = $uStmt->fetch();
+            $uRole = strtolower($uRow['role'] ?? '');
+            $isFacultyOrAdmin = in_array($uRole, [
+                'super_admin', 'admin', 'coordinator', 'placement_officer', 'accounts', 'faculty', 'instructor'
+            ]);
+
+            if ($isFacultyOrAdmin) {
+                $isEnrolled = true;
+            } else {
+                $enrollStmt = $pdo->prepare("
+                    SELECT id, status, enrolled_at, expires_at FROM enrollments 
+                    WHERE user_id = ? AND course_id = ? AND status IN ('active', 'completed')
+                    ORDER BY id DESC
+                    LIMIT 1
+                ");
+                $enrollStmt->execute([$currentUserId, $courseId]);
+                $enrollment = $enrollStmt->fetch();
+                if ($enrollment) {
+                    $enrolledTime = !empty($enrollment['enrolled_at']) ? strtotime($enrollment['enrolled_at']) : time();
+                    $expiresTime = !empty($enrollment['expires_at']) ? strtotime($enrollment['expires_at']) : strtotime('+6 months', $enrolledTime);
+                    if ($expiresTime === false || $expiresTime >= time()) {
+                        $isEnrolled = true;
+                        $enrollmentId = (int)$enrollment['id'];
+                    }
                 }
             }
         }

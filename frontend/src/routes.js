@@ -24,6 +24,7 @@ export const FACULTY_ROLES = [
   'admin',
   'coordinator',
   'placement_officer',
+  'accounts',
   'faculty',
   'instructor'
 ];

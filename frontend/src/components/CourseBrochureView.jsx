@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Play, Lock, ArrowRight, BookOpen, 
-  ListTodo, Star, Award, Globe, Calendar, ChevronDown, ChevronUp, CheckCircle2
+  ListTodo, Star, Award, Globe, Calendar, ChevronDown, ChevronUp, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
+import { isFacultyRole } from '../routes';
 
 export default function CourseBrochureView({ 
   course, 
@@ -31,6 +32,9 @@ export default function CourseBrochureView({
   }, [course?.id, course?.modules?.length]);
 
   if (!course) return null;
+
+  const isFacultyOrAdmin = Boolean(currentUser && isFacultyRole(currentUser.role));
+  const hasCourseAccess = isEnrolled || isFacultyOrAdmin;
 
   const totalLessons = course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
   const totalTasks = course.modules?.reduce((acc, m) => acc + (m.tasks?.length || 0), 0) || 0;
@@ -127,20 +131,22 @@ export default function CourseBrochureView({
           {/* Right Action Card (Floating Enrollment Box) */}
           <div className="lg:col-span-4 bg-white text-slate-900 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5 border border-slate-100">
             <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {isEnrolled ? 'Enrolled Candidate' : 'Enrollment Open'}
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                {isFacultyOrAdmin ? 'Faculty & Admin Clearance' : isEnrolled ? 'Enrolled Candidate' : 'Enrollment Open'}
               </span>
               <div className="text-xl font-bold text-slate-900">
-                {isEnrolled ? 'Course Interface Unlocked' : 'Enroll in Program'}
+                {hasCourseAccess ? 'Course Interface Unlocked' : 'Enroll in Program'}
               </div>
               <p className="text-xs text-slate-500">
-                {isEnrolled 
+                {isFacultyOrAdmin
+                  ? 'Faculty and administrative full-access clearance is active across all modules and lectures.'
+                  : hasCourseAccess 
                   ? 'Your learning workspace and video lectures are ready.' 
                   : 'Enroll to unlock the interactive course interface, video lectures, and accredited certification.'}
               </p>
             </div>
 
-            {isEnrolled ? (
+            {hasCourseAccess ? (
               <button
                 type="button"
                 onClick={() => onOpenClassroom(course)}
@@ -177,7 +183,7 @@ export default function CourseBrochureView({
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-slate-400" />
-                <span>Course Interface Unlocked Upon Enrollment</span>
+                <span>{hasCourseAccess ? 'Full Course Interface Unlocked' : 'Course Interface Unlocked Upon Enrollment'}</span>
               </div>
             </div>
           </div>
@@ -231,7 +237,7 @@ export default function CourseBrochureView({
             </div>
 
             <div className="flex items-center gap-3">
-              {isEnrolled ? (
+              {hasCourseAccess ? (
                 <button
                   type="button"
                   onClick={() => onOpenClassroom(course)}
@@ -308,7 +314,7 @@ export default function CourseBrochureView({
                         <div
                           key={lesson.id || lIdx}
                           onClick={() => {
-                            if (isEnrolled || lesson.is_free_preview) {
+                            if (hasCourseAccess || lesson.is_free_preview) {
                               onOpenClassroom(course, lesson);
                             } else {
                               onEnroll(course);
@@ -333,7 +339,7 @@ export default function CourseBrochureView({
                           </div>
 
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            {isEnrolled ? (
+                            {hasCourseAccess ? (
                               <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
                                 <Play className="w-3 h-3 fill-current" />
                                 <span>Unlocked</span>
@@ -358,7 +364,7 @@ export default function CourseBrochureView({
                         <div
                           key={task.id}
                           onClick={() => {
-                            if (isEnrolled) {
+                            if (hasCourseAccess) {
                               onOpenClassroom(course);
                             } else {
                               onEnroll(course);
@@ -386,7 +392,7 @@ export default function CourseBrochureView({
                           </div>
 
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            {isEnrolled ? (
+                            {hasCourseAccess ? (
                               <span className="text-xs font-bold text-emerald-600">Unlocked</span>
                             ) : (
                               <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">

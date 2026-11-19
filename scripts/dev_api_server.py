@@ -477,6 +477,31 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     m_dict['tasks'] = [dict(t) for t in t_rows]
                     modules.append(m_dict)
                 c['modules'] = modules
+                auth_user = self._get_auth_user()
+                is_enrolled = False
+                if auth_user:
+                    role_str = str(auth_user.get('role', '')).lower()
+                    if role_str not in ('student', 'learner'):
+                        is_enrolled = True
+                    else:
+                        enr_row = cur.execute("""
+                            SELECT id, status, enrolled_at, expires_at 
+                            FROM enrollments 
+                            WHERE user_id = ? AND course_id = ? AND status IN ('active', 'completed')
+                            ORDER BY id DESC LIMIT 1
+                        """, (auth_user['id'], c['id'])).fetchone()
+                        if enr_row:
+                            exp_val = enr_row['expires_at']
+                            if exp_val:
+                                try:
+                                    exp_dt = datetime.strptime(exp_val[:19], "%Y-%m-%d %H:%M:%S")
+                                    if datetime.now() <= exp_dt:
+                                        is_enrolled = True
+                                except Exception:
+                                    is_enrolled = True
+                            else:
+                                is_enrolled = True
+                c['is_enrolled'] = is_enrolled
                 return self._send_json({"success": True, "course": c})
 
             # User Complete Profile & Account Settings (All Roles)
@@ -995,7 +1020,8 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     return self._send_json({"success": False, "error": "Lesson not found"}, 404)
 
                 # Record-level verification: verify student enrollment and unexpired access window
-                if user['role'] == 'student':
+                user_role = str(user.get('role', '')).lower().strip()
+                if user_role in ('student', 'learner') and not lesson_row['is_free_preview']:
                     enr = cur.execute("""
                         SELECT id, status, expires_at FROM enrollments
                         WHERE user_id = ? AND course_id = ? AND status IN ('active', 'completed')
@@ -1025,12 +1051,26 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     playback_token = sign_file_token(file_key, user['id'], valid_seconds=7200)
                     video_url = f"/api/uploads/stream/{file_key}?token={playback_token}"
 
-                return self._send_json({
+                provider = lesson_row['video_provider'] or ''
+                is_bunny = (provider == 'bunny_stream') or ('bunny.net' in video_url) or video_url.startswith('bunny:')
+                resp_payload = {
                     "success": True,
                     "lesson_id": lesson_id,
                     "video_url": video_url or "https://www.youtube.com/embed/dQw4w9WgXcQ",
                     "playback_token": playback_token
-                })
+                }
+                if is_bunny:
+                    vid_id = video_url.replace('bunny:', '').strip() or "7b243b7e-9762-42fe-bd35-123456789abc"
+                    resp_payload["playback"] = {
+                        "provider": "bunny_stream",
+                        "library_id": "312456",
+                        "video_id": vid_id,
+                        "token": "bunny_signed_token_" + secrets.token_hex(16),
+                        "expires": int(time.time()) + 3600,
+                        "embed_url": f"https://iframe.mediadelivery.net/embed/312456/{vid_id}"
+                    }
+
+                return self._send_json(resp_payload)
 
             # 6. Admin Dashboard Stats
             if path == "/admin/dashboard/stats":

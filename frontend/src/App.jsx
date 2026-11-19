@@ -567,8 +567,8 @@ export default function App() {
     });
   };
 
-  const handleOpenCourseDetails = async (course) => {
-    if (activeView === 'student' || activeView === 'catalog' || activeView === 'degrees') {
+  const handleOpenCourseDetails = async (course, targetLessonId = null) => {
+    if (activeView === 'student' || activeView === 'catalog' || activeView === 'degrees' || activeView === 'admin') {
       setReturnView(activeView);
     }
     const fallback = initialCourses.find(c => c.id === course?.id);
@@ -577,19 +577,23 @@ export default function App() {
       modules: (course?.modules && course.modules.length > 0) ? course.modules : (fallback?.modules || [])
     };
     setSelectedCourse(enriched);
+    if (targetLessonId) {
+      setTargetClassroomLessonId(targetLessonId);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Strictly check if current user is enrolled in this course (active or completed within 6-month validity period):
-    const isEnrolledInCourse = currentUser 
+    // Faculty and Admins can view courses anytime without getting enrolled!
+    const isFacultyOrAdmin = Boolean(currentUser && isFacultyRole(currentUser.role));
+    const isEnrolledInCourse = isFacultyOrAdmin || (currentUser 
       ? enrollments.some(e => 
           e.course_id === course.id && 
           e.user_id === currentUser.id && 
           (e.status === 'active' || e.status === 'completed') &&
           isEnrollmentWithinSixMonths(e)
         )
-      : false;
+      : false);
 
-    // Only Enrolled Courses unlock Course Interface, otherwise only course brochure!
+    // Faculty, Admins, and Enrolled Students unlock Course Classroom directly!
     if (isEnrolledInCourse) {
       setActiveView('course-classroom');
     } else {
@@ -1696,14 +1700,17 @@ export default function App() {
             onBack={() => setActiveView(returnView || 'catalog')}
             onEnroll={handleEnroll}
             isEnrolled={
-              currentUser 
-                ? enrollments.some(e => 
-                    e.course_id === selectedCourse.id && 
-                    e.user_id === currentUser.id && 
-                    (e.status === 'active' || e.status === 'completed') &&
-                    isEnrollmentWithinSixMonths(e)
-                  )
-                : false
+              Boolean(
+                (currentUser && isFacultyRole(currentUser.role)) ||
+                (currentUser 
+                  ? enrollments.some(e => 
+                      e.course_id === selectedCourse.id && 
+                      e.user_id === currentUser.id && 
+                      (e.status === 'active' || e.status === 'completed') &&
+                      isEnrollmentWithinSixMonths(e)
+                    )
+                  : false)
+              )
             }
             onOpenClassroom={(course, lesson) => {
               const fallback = initialCourses.find(c => c.id === course?.id);
@@ -1721,31 +1728,34 @@ export default function App() {
           />
         )}
 
-        {/* 4. Course Interface / Classroom (ONLY unlocked for enrolled courses) */}
+        {/* 4. Course Interface / Classroom (Unlocked for Enrolled Students, Faculty, and Admins) */}
         {activeView === 'course-classroom' && selectedCourse && (
           <CourseClassroomView
             course={selectedCourse}
             initialLessonId={targetClassroomLessonId}
-            onBack={() => setActiveView(returnView || 'student')}
+            onBack={() => setActiveView(returnView || (currentUser && isFacultyRole(currentUser.role) ? 'admin' : 'student'))}
             onCourseComplete={(completedCourse) => {
               setEnrollments(prev => prev.map(e => 
                 e.course_id === completedCourse.id && (!currentUser || e.user_id === currentUser.id)
                   ? { ...e, status: 'completed', completed_at: new Date().toISOString() }
                   : e
               ));
-              setActiveView('student');
+              setActiveView(currentUser && isFacultyRole(currentUser.role) ? 'admin' : 'student');
               showToast(`Congratulations! You completed all modules in ${completedCourse?.title || 'the program'}.`);
             }}
             onEnroll={handleEnroll}
             isEnrolled={
-              currentUser 
-                ? enrollments.some(e => 
-                    e.course_id === selectedCourse.id && 
-                    e.user_id === currentUser.id && 
-                    (e.status === 'active' || e.status === 'completed') &&
-                    isEnrollmentWithinSixMonths(e)
-                  )
-                : false
+              Boolean(
+                (currentUser && isFacultyRole(currentUser.role)) ||
+                (currentUser 
+                  ? enrollments.some(e => 
+                      e.course_id === selectedCourse.id && 
+                      e.user_id === currentUser.id && 
+                      (e.status === 'active' || e.status === 'completed') &&
+                      isEnrollmentWithinSixMonths(e)
+                    )
+                  : false)
+              )
             }
             currentUser={currentUser}
             lessonProgress={lessonProgress}
@@ -1778,6 +1788,7 @@ export default function App() {
             onGradeSubmission={handleGradeSubmission}
             onIssueCertificate={handleIssueCertificate}
             onOpenProfile={() => setIsProfileModalOpen(true)}
+            onViewCourse={(c, lessonId) => handleOpenCourseDetails(c, lessonId)}
             currentUser={currentUser}
             enrolledStudents={users.filter(u => u.role === 'student')}
             users={users}
