@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Menu, X, Shield, Plus, Edit3, Award, Users, CheckCircle2,
-  Calendar, Layers, Clock, AlertTriangle, RefreshCw, Mail, ShieldAlert,
+  Calendar, Layers, Clock, AlertTriangle, RefreshCw, Mail,
   Bell, Search, ChevronDown, LogOut, ExternalLink, User, ArrowRight,
   ArrowLeft, Globe
 } from 'lucide-react';
@@ -1330,16 +1330,6 @@ export default function AdminPortalView({
               </div>
             )}
 
-            {/* Email Provider Unconfigured Manual WhatsApp Notice */}
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-950">
-                <ShieldAlert size={14} className="text-amber-700 shrink-0" />
-                <span>Notice: Email Delivery Provider Unconfigured</span>
-              </div>
-              <p className="text-[10px] leading-relaxed text-amber-800">
-                {invitationModalData.email_notice || 'Email server is unconfigured. Copy this link and share it directly with the recipient in a private WhatsApp chat. Regenerating or revoking invalidates previous links.'}
-              </p>
-            </div>
 
             {/* Link Box */}
             <div className="space-y-1">
