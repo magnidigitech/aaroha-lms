@@ -225,30 +225,20 @@ export default function App() {
     try {
       const savedCourseId = sessionStorage.getItem('aaroha_selected_course_id');
       const cachedCourses = localStorage.getItem('aaroha_courses');
-      const pool = cachedCourses ? JSON.parse(cachedCourses) : initialCourses.filter(c => !c.is_deleted);
+      const pool = cachedCourses ? JSON.parse(cachedCourses) : [];
       if (savedCourseId) {
         const found = pool.find(c => c.id === parseInt(savedCourseId));
         if (found) {
-          const fallback = initialCourses.find(c => c.id === found.id);
-          return {
-            ...found,
-            modules: (found.modules && found.modules.length > 0) ? found.modules : (fallback?.modules || [])
-          };
+          return found;
         }
       }
-      const defaultCourse = pool.find(c => !c.is_deleted) || pool[0] || initialCourses[0];
-      const fallback = initialCourses.find(c => c.id === defaultCourse?.id);
-      return {
-        ...defaultCourse,
-        modules: (defaultCourse?.modules && defaultCourse.modules.length > 0) ? defaultCourse.modules : (fallback?.modules || [])
-      };
+      return pool.find(c => !c.is_deleted) || pool[0] || null;
     } catch (e) {
-      return initialCourses.find(c => !c.is_deleted) || initialCourses[0] || null;
+      return null;
     }
   });
   const [targetClassroomLessonId, setTargetClassroomLessonId] = useState(null);
   const [returnView, setReturnView] = useState('catalog');
-  const [activeStudentCourseId, setActiveStudentCourseId] = useState(2);
   const [toastMessage, setToastMessage] = useState(null);
   const [isBackendLive, setIsBackendLive] = useState(false);
 
@@ -513,12 +503,7 @@ export default function App() {
             const activeServerCourses = res.courses.filter(c => !isDeleted(c.id));
             const serverIdSet = new Set(activeServerCourses.map(c => String(c.id)));
 
-            // Non-destructive merge: NEVER remove any course from prev unless it was explicitly deleted by faculty!
-            // Retains newly created courses, local additions, and server updates seamlessly.
-            const localCoursesToKeep = (prev || []).filter(c => 
-              !serverIdSet.has(String(c.id)) && !isDeleted(c.id) && !c.is_deleted
-            );
-            const merged = [...activeServerCourses, ...localCoursesToKeep];
+            const merged = activeServerCourses;
             try {
               localStorage.setItem('aaroha_courses', JSON.stringify(merged));
             } catch (e) {}

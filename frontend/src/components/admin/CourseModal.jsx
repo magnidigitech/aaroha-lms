@@ -419,7 +419,7 @@ export default function CourseModal({
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleChange('title', e.target.value)}
-                  placeholder="e.g. Distributed Cloud Architecture & High-Throughput Systems"
+                  placeholder="e.g. Advanced Machine Learning & Deep Learning"
                   className={
                     'w-full p-2.5 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all ' +
                     (errors.title ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200')

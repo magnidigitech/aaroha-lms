@@ -184,7 +184,7 @@ export default function AssignmentModal({
               type="text"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="e.g. Assignment 1: Ingress Gateway Resiliency & Failover Specification"
+              placeholder="e.g. Assignment 1: Model Training & Evaluation Report"
               className={`w-full p-2.5 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all ${
                 errors.title ? 'border-red-400 bg-red-50/20' : 'border-slate-200'
               }`}

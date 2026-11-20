@@ -672,7 +672,7 @@ export default function StudentDashboardView({
 
                 {upcomingDeadlines.length === 0 ? (
                   <div className="text-xs text-slate-500 py-4 text-center italic bg-slate-50 rounded-2xl">
-                    All currently assigned deliverables are submitted.
+                    No upcoming assessment or project deadlines.
                   </div>
                 ) : (
                   <div className="space-y-2">

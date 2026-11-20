@@ -56,12 +56,6 @@ class LeaderboardController {
                 ");
             }
 
-            // Check if student_rankings has records
-            $cnt = (int)$pdo->query("SELECT COUNT(*) FROM student_rankings")->fetchColumn();
-            if ($cnt === 0) {
-                self::seedInitialRankings($pdo);
-            }
-
             $initialized = true;
         } catch (Exception $e) {
             // Log or ignore non-critical migration exceptions
