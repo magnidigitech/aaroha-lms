@@ -543,7 +543,9 @@ export default function AdminPortalView({
         showToast(res.message || 'Class session scheduled');
         await fetchSchedule();
         await fetchDashboardStats();
+        return res;
       }
+      return res;
     } catch (err) {
       showToast(err.message || 'Error scheduling session', 'error');
       throw err;
@@ -1175,10 +1177,14 @@ export default function AdminPortalView({
             <AdminAttendanceTab
               sessions={sessions}
               batches={batches}
+              faculty={faculty}
               selectedSessionId={selectedSessionId}
               onFetchSessionAttendance={handleFetchSessionAttendance}
               onSaveAttendance={handleSaveAttendance}
               onCorrectAttendance={handleCorrectAttendance}
+              onScheduleSession={handleScheduleSession}
+              onNavigateToSchedule={() => setActiveModule('schedule')}
+              onNavigateToBatches={() => setActiveModule('batches')}
             />
           )}
 
