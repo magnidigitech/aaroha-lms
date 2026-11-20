@@ -1686,6 +1686,7 @@ export default function App() {
             lessonProgress={lessonProgress}
             taskSubmissions={taskSubmissions}
             certificates={certificates}
+            showToast={showToast}
             onOpenCourse={(course) => {
               const fallback = initialCourses.find(c => c.id === course?.id);
               const enriched = {

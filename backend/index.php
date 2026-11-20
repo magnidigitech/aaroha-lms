@@ -749,6 +749,15 @@ try {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
         $response = AdminPortalController::assignSupportTicket((int)$matches[1], $inputData, $actor);
     }
+    // Student Support Tickets & Inquiries
+    elseif ($requestMethod === 'POST' && in_array($path, ['/student/support/tickets', '/support/tickets'])) {
+        $actor = AuthMiddleware::requireAuth();
+        $response = AdminPortalController::createStudentSupportTicket($inputData, $actor);
+    }
+    elseif ($requestMethod === 'GET' && in_array($path, ['/student/support/tickets', '/support/my-tickets'])) {
+        $actor = AuthMiddleware::requireAuth();
+        $response = AdminPortalController::getStudentMyTickets($actor);
+    }
     // Settings & Audit Logs
     elseif ($requestMethod === 'GET' && $path === '/admin/settings') {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);

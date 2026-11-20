@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import RoleBasedDashboardView from './dashboards/RoleBasedDashboardView';
 import CertificateModal from './CertificateModal';
+import StudentTicketModal from './StudentTicketModal';
 
 export default function StudentPortalView({
   courses = [],
@@ -12,9 +13,11 @@ export default function StudentPortalView({
   onExploreCatalog,
   onOpenProfile,
   currentUser,
-  onViewWebsite
+  onViewWebsite,
+  showToast
 }) {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
 
   return (
     <div className="pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,8 +28,19 @@ export default function StudentPortalView({
         onContinueLearning={onOpenCourse}
         onOpenClassroom={onOpenCourse}
         onOpenProfile={onOpenProfile}
+        onOpenTicketModal={() => setIsTicketModalOpen(true)}
         onExploreCatalog={onExploreCatalog}
         onViewWebsite={onViewWebsite || onExploreCatalog}
+      />
+
+      {/* Support & Academic Ticket Modal */}
+      <StudentTicketModal
+        isOpen={isTicketModalOpen}
+        onClose={() => setIsTicketModalOpen(false)}
+        currentUser={currentUser}
+        onSuccess={(msg) => {
+          if (showToast) showToast(msg);
+        }}
       />
 
       {/* Digital Certificate Viewer Modal */}

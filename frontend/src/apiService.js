@@ -703,6 +703,13 @@ export const api = {
     body: JSON.stringify(data)
   }),
 
+  // Student Support Tickets & Inquiries
+  studentCreateSupportTicket: (data) => request('/student/support/tickets', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  studentGetMySupportTickets: () => request('/student/support/tickets'),
+
   // Course Archive & Restore
   adminArchiveCourse: (courseId) => request(`/admin/courses/${courseId}/archive`, {
     method: 'POST'

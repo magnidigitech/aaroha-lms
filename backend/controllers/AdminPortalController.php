@@ -3029,6 +3029,94 @@ class AdminPortalController {
         ];
     }
 
+    public static function createStudentSupportTicket($data, $actor) {
+        $pdo = Database::getConnection();
+        $userId = (int)$actor['id'];
+        $subject = trim($data['subject'] ?? '');
+        $description = trim($data['description'] ?? ($data['message'] ?? ''));
+        $category = trim($data['category'] ?? 'academic');
+        $priority = trim($data['priority'] ?? 'medium');
+
+        if (!$subject || strlen($subject) < 3) {
+            http_response_code(400);
+            return [
+                'success' => false,
+                'error' => 'Please provide a descriptive subject for your support request (at least 3 characters).'
+            ];
+        }
+
+        if (!$description || strlen($description) < 5) {
+            http_response_code(400);
+            return [
+                'success' => false,
+                'error' => 'Please provide detailed information describing your inquiry or issue (at least 5 characters).'
+            ];
+        }
+
+        $validCategories = ['academic', 'technical', 'fees', 'scheduling', 'placement', 'other'];
+        if (!in_array($category, $validCategories, true)) {
+            $category = 'academic';
+        }
+
+        $validPriorities = ['low', 'medium', 'high', 'urgent'];
+        if (!in_array($priority, $validPriorities, true)) {
+            $priority = 'medium';
+        }
+
+        $ticketNumber = 'TCK-' . date('Y') . '-' . str_pad(mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
+
+        $stmt = $pdo->prepare("
+            INSERT INTO support_tickets (ticket_number, user_id, category, subject, description, priority, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ");
+        $stmt->execute([$ticketNumber, $userId, $category, $subject, $description, $priority]);
+        $ticketId = (int)$pdo->lastInsertId();
+
+        // Also record initial message in the ticket message thread
+        try {
+            $msgStmt = $pdo->prepare("
+                INSERT INTO ticket_messages (ticket_id, sender_id, message, is_internal_note, created_at)
+                VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
+            ");
+            $msgStmt->execute([$ticketId, $userId, $description]);
+        } catch (\Throwable $e) {}
+
+        AuditLogger::log('CREATE_SUPPORT_TICKET', 'support_ticket', $ticketId, [
+            'ticket_number' => $ticketNumber,
+            'category' => $category,
+            'priority' => $priority,
+            'subject' => $subject
+        ], $actor);
+
+        return [
+            'success' => true,
+            'message' => "Support ticket {$ticketNumber} submitted successfully. An academic coordinator will review your inquiry shortly.",
+            'ticket_id' => $ticketId,
+            'ticket_number' => $ticketNumber,
+            'status' => 'open'
+        ];
+    }
+
+    public static function getStudentMyTickets($actor) {
+        $pdo = Database::getConnection();
+        $userId = (int)$actor['id'];
+
+        $stmt = $pdo->prepare("
+            SELECT st.*, 
+                   (SELECT COUNT(*) FROM ticket_messages tm WHERE tm.ticket_id = st.id) as message_count
+            FROM support_tickets st
+            WHERE st.user_id = ?
+            ORDER BY st.id DESC
+        ");
+        $stmt->execute([$userId]);
+        $tickets = $stmt->fetchAll() ?: [];
+
+        return [
+            'success' => true,
+            'tickets' => $tickets
+        ];
+    }
+
     public static function updateTicketStatus($ticketId, $data, $actor) {
         $pdo = Database::getConnection();
         $ticketId = (int)$ticketId;
