@@ -1722,9 +1722,14 @@ class AdminPortalController {
             $assignedBatches = (int)$pdo->query("SELECT COUNT(*) FROM faculty_batch_assignments WHERE faculty_id = {$facultyId}")->fetchColumn();
         } catch (Exception $e) {}
 
-        $sessCount = 0;
+        $completedSessCount = 0;
         try {
-            $sessCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE faculty_id = {$facultyId}")->fetchColumn();
+            $completedSessCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE faculty_id = {$facultyId} AND status = 'completed'")->fetchColumn();
+        } catch (Exception $e) {}
+
+        $upcomingSessCount = 0;
+        try {
+            $upcomingSessCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE faculty_id = {$facultyId} AND (status != 'completed' OR status IS NULL)")->fetchColumn();
         } catch (Exception $e) {}
 
         $attCount = 0;
@@ -1742,14 +1747,22 @@ class AdminPortalController {
             $certCount = (int)$pdo->query("SELECT COUNT(*) FROM certificates WHERE issuer_id = {$facultyId}")->fetchColumn();
         } catch (Exception $e) {}
 
+        // Critical historical dependencies: immutable student audit records
         $dependencies = [];
-        if ($assignedBatches > 0) $dependencies[] = "{$assignedBatches} assigned cohort batch(es)";
-        if ($sessCount > 0) $dependencies[] = "{$sessCount} scheduled/completed class session(s)";
         if ($attCount > 0) $dependencies[] = "{$attCount} attendance audit record(s) marked";
         if ($gradeCount > 0) $dependencies[] = "{$gradeCount} student assignment grading evaluation(s)";
         if ($certCount > 0) $dependencies[] = "{$certCount} accredited digital certificate(s) signed";
+        if ($completedSessCount > 0) $dependencies[] = "{$completedSessCount} completed historical class session(s)";
 
         $isEligible = count($dependencies) === 0;
+
+        $warnings = [];
+        if ($assignedBatches > 0) {
+            $warnings[] = "Assigned to {$assignedBatches} cohort batch(es) (will be automatically unassigned upon deletion)";
+        }
+        if ($upcomingSessCount > 0) {
+            $warnings[] = "{$upcomingSessCount} upcoming scheduled session(s) (will be unassigned or cancelled upon deletion)";
+        }
 
         return [
             'success' => true,
@@ -1758,31 +1771,36 @@ class AdminPortalController {
             'can_delete_permanently' => $isEligible,
             'is_multi_role' => $isMultiRole,
             'roles' => $roles,
+            'assigned_batches' => $assignedBatches,
             'stats' => [
                 'assigned_batches' => $assignedBatches,
-                'past_classes' => $sessCount,
+                'past_classes' => $completedSessCount,
+                'upcoming_sessions' => $upcomingSessCount,
                 'attendance_sessions' => $attCount,
                 'graded_submissions' => $gradeCount,
                 'certificates_count' => $certCount,
             ],
-            'sessions_count' => $sessCount,
+            'sessions_count' => $completedSessCount + $upcomingSessCount,
             'attendance_count' => $attCount,
             'grading_count' => $gradeCount,
             'certificates_count' => $certCount,
             'dependencies' => $dependencies,
+            'warnings' => $warnings,
             'reason' => $isEligible
-                ? 'Faculty has zero instructional history and may be safely deleted.'
-                : 'Permanent deletion is prohibited to preserve instructional audit trails and student grading attribution. Retained records: ' . implode(', ', $dependencies) . '.',
-            'recommendation' => $isEligible ? null : 'Use Archive Faculty or Deactivate Account instead, with cohort reassignment to preserve past teaching records.'
+                ? ($assignedBatches > 0
+                    ? "Faculty is assigned to {$assignedBatches} batch(es). Permanent deletion will automatically unassign them and remove the faculty record."
+                    : 'Faculty has zero instructional history and may be safely deleted.')
+                : 'Permanent deletion is protected to preserve instructional audit trails and student grading attribution. Retained records: ' . implode(', ', $dependencies) . '.',
+            'recommendation' => $isEligible ? null : 'Use Archive Faculty or Deactivate Account instead, or use Administrator Force Delete to unassign past teaching records.'
         ];
     }
 
-    public static function deleteFaculty($facultyId, $actor) {
+    public static function deleteFaculty($facultyId, $actor, $force = false) {
         $pdo = Database::getConnection();
         $facultyId = (int)$facultyId;
 
         $eligibility = self::checkFacultyDeletionEligibility($facultyId);
-        if (!$eligibility['eligible']) {
+        if (!$eligibility['eligible'] && !$force) {
             http_response_code(400);
             return [
                 'success' => false,
@@ -1812,8 +1830,22 @@ class AdminPortalController {
                 $roles = [$u['role']];
             }
 
-            $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id = ?")->execute([$facultyId]);
+            // 1. Unassign from all batches & clear lead_faculty_id
             $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE faculty_id = ?")->execute([$facultyId]);
+            $pdo->prepare("UPDATE batches SET lead_faculty_id = NULL WHERE lead_faculty_id = ?")->execute([$facultyId]);
+
+            // 2. Clean up class sessions
+            $pdo->prepare("DELETE FROM class_sessions WHERE faculty_id = ? AND (status != 'completed' OR status IS NULL)")->execute([$facultyId]);
+            $pdo->prepare("UPDATE class_sessions SET faculty_id = NULL WHERE faculty_id = ?")->execute([$facultyId]);
+
+            // 3. Clear audit attribution for historical records if force deleted
+            try { $pdo->prepare("UPDATE attendance_records SET marked_by = NULL WHERE marked_by = ?")->execute([$facultyId]); } catch (Exception $e) {}
+            try { $pdo->prepare("UPDATE task_submissions SET graded_by = NULL WHERE graded_by = ?")->execute([$facultyId]); } catch (Exception $e) {}
+            try { $pdo->prepare("UPDATE certificates SET issuer_id = NULL WHERE issuer_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
+            try { $pdo->prepare("UPDATE course_evaluations SET faculty_id = NULL WHERE faculty_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
+
+            // 4. Delete faculty profile & password resets
+            $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id = ?")->execute([$facultyId]);
             try { $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
 
             $remainingRoles = array_values(array_filter($roles, function($r) {
@@ -1843,7 +1875,8 @@ class AdminPortalController {
             $pdo->commit();
             AuditLogger::log('DELETE_FACULTY', 'faculty', $facultyId, [
                 'multi_role_retained' => $multiRoleRetained,
-                'remaining_roles' => $remainingRoles
+                'remaining_roles' => $remainingRoles,
+                'forced' => (bool)$force
             ], $actor);
 
             return [

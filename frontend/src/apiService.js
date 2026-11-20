@@ -564,9 +564,12 @@ export const api = {
 
   adminCheckFacultyDeletion: (facultyId) => request(`/admin/faculty/${facultyId}/deletion-eligibility`),
 
-  adminDeleteFaculty: (facultyId) => request(`/admin/faculty/${facultyId}`, {
-    method: 'DELETE'
-  }),
+  adminDeleteFaculty: (facultyId, options = {}) => {
+    const q = options?.force ? '?force=1' : '';
+    return request(`/admin/faculty/${facultyId}${q}`, {
+      method: 'DELETE'
+    });
+  },
 
   // --- Batches Management ---
   adminGetBatches: (params = {}) => {

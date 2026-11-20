@@ -134,6 +134,7 @@ export default function AdminFacultyTab({
     isChecking: true,
     eligibility: null,
     confirmText: '',
+    forceOverride: false,
     isSubmitting: false,
     error: ''
   });
@@ -294,11 +295,13 @@ export default function AdminFacultyTab({
       isChecking: true,
       eligibility: null,
       confirmText: '',
+      forceOverride: false,
       isSubmitting: false,
       error: ''
     });
     try {
-      const res = await api.adminCheckFacultyDeletion(f.user_id);
+      const facultyId = f.user_id || f.id;
+      const res = await api.adminCheckFacultyDeletion(facultyId);
       setDeleteModal(prev => ({
         ...prev,
         isChecking: false,
@@ -317,13 +320,14 @@ export default function AdminFacultyTab({
     if (!deleteModal.faculty || deleteModal.confirmText !== 'DELETE') return;
     try {
       setDeleteModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
-      await api.adminDeleteFaculty(deleteModal.faculty.user_id);
-      const facultyId = deleteModal.faculty.user_id;
-      setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
-      if (selectedFaculty && selectedFaculty.user_id === facultyId) {
+      const facultyId = deleteModal.faculty.user_id || deleteModal.faculty.id;
+      await api.adminDeleteFaculty(facultyId, { force: deleteModal.forceOverride });
+      setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', forceOverride: false, isSubmitting: false, error: '' });
+      if (selectedFaculty && (selectedFaculty.user_id === facultyId || selectedFaculty.id === facultyId)) {
         setSelectedFaculty(null);
       }
       if (onUpdateFaculty) await onUpdateFaculty();
+      if (onDeleteFaculty) await onDeleteFaculty();
       if (rosterView === 'archived') await loadArchivedFaculty();
     } catch (err) {
       setDeleteModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to delete faculty member.' }));
@@ -1778,12 +1782,14 @@ export default function AdminFacultyTab({
       {/* MODAL: DELETE FACULTY WITH DEPENDENCY VERIFICATION            */}
       {/* ------------------------------------------------------------- */}
       {deleteModal.isOpen && (() => {
-        const canDelete = Boolean(
+        const isEligible = Boolean(
           deleteModal.eligibility?.can_delete ??
           deleteModal.eligibility?.eligible ??
           deleteModal.eligibility?.can_delete_permanently
         );
+        const canDelete = isEligible || deleteModal.forceOverride;
         const stats = deleteModal.eligibility?.stats || deleteModal.eligibility || {};
+        const dependencies = deleteModal.eligibility?.dependencies || [];
 
         return (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
@@ -1798,7 +1804,7 @@ export default function AdminFacultyTab({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  {deleteModal.isChecking ? 'Verifying Teaching Dependencies...' : canDelete ? 'Permanently Delete Faculty Member' : 'Permanent Deletion Blocked'}
+                  {deleteModal.isChecking ? 'Verifying Teaching Dependencies...' : 'Permanently Delete Faculty Member'}
                 </h3>
                 <p className="text-slate-600 mt-0.5">
                   Faculty: <strong className="text-slate-900">{deleteModal.faculty?.full_name}</strong> ({deleteModal.faculty?.faculty_id_code || deleteModal.faculty?.email})
@@ -1808,50 +1814,58 @@ export default function AdminFacultyTab({
 
             {deleteModal.isChecking ? (
               <div className="p-4 text-center text-slate-500 font-medium">Checking teaching history, attendance logs, and grading records...</div>
-            ) : !canDelete ? (
-              <div className="space-y-3">
-                <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 space-y-2">
-                  <div className="font-semibold flex items-center gap-1.5 text-xs text-rose-800">
-                    <AlertCircle size={15} /> Academic Teaching Retention Notice
-                  </div>
-                  <p className="text-[11px] leading-relaxed">
-                    Institutional policy prohibits deleting faculty with historical teaching records. This faculty member has active academic dependencies that must be preserved for transcript accreditation and compliance.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-rose-200/60 font-medium text-[11px]">
-                    <div>• Assigned Batches: <strong className="font-mono">{stats.assigned_batches || 0}</strong></div>
-                    <div>• Past Classes Taught: <strong className="font-mono">{stats.past_classes || stats.sessions_count || 0}</strong></div>
-                    <div>• Attendance Sessions Marked: <strong className="font-mono">{stats.attendance_sessions || stats.attendance_count || 0}</strong></div>
-                    <div>• Submissions Graded: <strong className="font-mono">{stats.graded_submissions || stats.grading_count || 0}</strong></div>
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-[11px] space-y-1">
-                  <span className="font-semibold block text-slate-900">Recommended Alternative Actions:</span>
-                  <p>• <strong>Deactivate:</strong> Blocks faculty portal login immediately while preserving teaching attribution.</p>
-                  <p>• <strong>Archive:</strong> Removes faculty from active operational listings, reassigning future workload safely.</p>
-                  <p>• <strong>Manage Assignments:</strong> Unassign specific cohorts without modifying user account access.</p>
-                </div>
-              </div>
             ) : (
               <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] space-y-1">
-                  <span className="font-semibold block">Dependency Verification Passed: Eligible for Deletion</span>
-                  <p>This faculty member has zero assigned batches, zero classes taught, zero attendance records taken, and zero submissions graded.</p>
-                  {deleteModal.eligibility?.is_multi_role && (
-                    <p className="text-amber-800 font-medium pt-1">
-                      Notice: This user also has another authorized role ({deleteModal.eligibility?.roles?.filter(r => r !== 'faculty').join(', ')}). Only the faculty profile and role will be deleted; their account remains intact.
+                {isEligible ? (
+                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] space-y-1">
+                    <span className="font-semibold block">Dependency Verification Passed: Eligible for Deletion</span>
+                    <p>This faculty member has zero attendance audit records, zero graded submissions, and zero signed certificates.</p>
+                    {stats.assigned_batches > 0 && (
+                      <p className="text-amber-800 font-medium pt-1">
+                        Notice: This faculty member is assigned to {stats.assigned_batches} batch(es). Proceeding will automatically unassign them from all cohorts.
+                      </p>
+                    )}
+                    {deleteModal.eligibility?.is_multi_role && (
+                      <p className="text-amber-800 font-medium pt-1">
+                        Notice: This user also has another authorized role ({deleteModal.eligibility?.roles?.filter(r => r !== 'faculty').join(', ')}). Only the faculty profile and role will be deleted; their account remains intact.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] space-y-2">
+                    <div className="font-semibold flex items-center gap-1.5 text-xs text-amber-900">
+                      <AlertCircle size={14} className="text-amber-700 shrink-0" />
+                      <span>Academic Records Retention Notice</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-amber-800">
+                      This faculty member has historical student academic records: {Array.isArray(dependencies) ? dependencies.join(', ') : ''}.
                     </p>
-                  )}
-                </div>
-                <p className="text-slate-600 text-[11px]">
-                  To confirm permanent deletion, please type <strong className="text-slate-900">DELETE</strong> below:
-                </p>
-                <input
-                  type="text"
-                  placeholder="Type DELETE to confirm"
-                  value={deleteModal.confirmText}
-                  onChange={e => setDeleteModal(prev => ({ ...prev, confirmText: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-hidden focus:border-rose-500 font-mono text-xs"
-                />
+                    <label className="flex items-center gap-2 pt-1 font-semibold text-rose-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={deleteModal.forceOverride}
+                        onChange={e => setDeleteModal(prev => ({ ...prev, forceOverride: e.target.checked }))}
+                        className="rounded border-rose-300 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span>Administrator Override: Force delete and unassign historical records</span>
+                    </label>
+                  </div>
+                )}
+
+                {canDelete && (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-slate-600 text-[11px]">
+                      To confirm permanent deletion, please type <strong className="text-slate-900 font-mono">DELETE</strong> below:
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="Type DELETE to confirm"
+                      value={deleteModal.confirmText}
+                      onChange={e => setDeleteModal(prev => ({ ...prev, confirmText: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-hidden focus:border-rose-500 font-mono text-xs"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1865,7 +1879,7 @@ export default function AdminFacultyTab({
               <button
                 type="button"
                 disabled={deleteModal.isSubmitting}
-                onClick={() => setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' })}
+                onClick={() => setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', forceOverride: false, isSubmitting: false, error: '' })}
                 className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
               >
                 Cancel
@@ -1877,14 +1891,14 @@ export default function AdminFacultyTab({
                   onClick={handleExecuteDeleteFaculty}
                   className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white font-semibold cursor-pointer"
                 >
-                  {deleteModal.isSubmitting ? 'Deleting...' : 'Permanently Delete'}
+                  {deleteModal.isSubmitting ? 'Deleting...' : (deleteModal.forceOverride ? 'Permanently Delete (Force)' : 'Permanently Delete')}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => {
                     const f = deleteModal.faculty;
-                    setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
+                    setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', forceOverride: false, isSubmitting: false, error: '' });
                     if (f) handleOpenWorkloadAction(f, 'archive');
                   }}
                   className="px-4 py-2 rounded-lg bg-[#0a7cb3] hover:bg-[#086491] text-white font-semibold cursor-pointer"

@@ -592,7 +592,11 @@ try {
     }
     elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/faculty/(\d+)$#', $path, $matches)) {
         $actor = AuthMiddleware::requireAdmin();
-        $response = AdminPortalController::deleteFaculty((int)$matches[1], $actor);
+        $force = isset($_GET['force']) && ($_GET['force'] === '1' || $_GET['force'] === 'true' || $_GET['force'] === 'yes');
+        if (!$force && !empty($inputData['force'])) {
+            $force = true;
+        }
+        $response = AdminPortalController::deleteFaculty((int)$matches[1], $actor, $force);
     }
     // Batches
     elseif ($requestMethod === 'GET' && $path === '/admin/batches') {
