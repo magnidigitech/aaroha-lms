@@ -110,3 +110,4 @@ print("\n=== FINAL AUDIT OF ATTENDANCE ROSTER (SESSION 1) ===")
 att_res = api_call("/admin/attendance/session/1")
 for r in att_res.get('roster', []):
     print(f"Roster Student {r.get('user_id')}: {r.get('full_name')} ({r.get('email')}) - Code: {r.get('student_id_code')}")
+

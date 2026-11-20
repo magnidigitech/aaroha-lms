@@ -15,3 +15,4 @@ with urllib.request.urlopen(r) as resp:
     data = json.loads(resp.read().decode())
     for item in data.get('roster', []):
         print("Student:", item.get('user_id'), item.get('full_name'), "record_id:", item.get('record_id'))
+

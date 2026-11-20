@@ -41,3 +41,4 @@ for u in users:
         print(f"Faculty {uid} ({email}): eligible={is_elig}, deps={deps}")
     else:
         print(f"Admin/Other {uid} ({email}): role={role}")
+

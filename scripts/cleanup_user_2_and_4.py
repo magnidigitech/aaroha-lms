@@ -26,3 +26,4 @@ try:
         print("DELETE Faculty 4:", resp.status, resp.read().decode())
 except Exception as e:
     print("DELETE Faculty 4 error:", e)
+
