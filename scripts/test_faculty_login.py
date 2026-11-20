@@ -25,3 +25,4 @@ for em in emails:
         print(f"FAILED: {em} -> HTTP {e.code}: {err_msg}")
     except Exception as e:
         print(f"ERROR: {em} -> {e}")
+

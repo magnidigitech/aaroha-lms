@@ -22,8 +22,9 @@ def run_checks(base_url="https://lms.aaroha-inc.com"):
         with urllib.request.urlopen(req1) as resp1:
             acao = resp1.headers.get('Access-Control-Allow-Origin')
             acac = resp1.headers.get('Access-Control-Allow-Credentials')
-            vary = resp1.headers.get('Vary', '')
-            ok = (acao == 'https://lms.aaroha-inc.com' and acac == 'true' and 'Origin' in vary)
+            vary_list = resp1.headers.get_all('Vary') or [resp1.headers.get('Vary', '')]
+            vary = ', '.join(vary_list)
+            ok = (acao == 'https://lms.aaroha-inc.com' and acac == 'true' and any('Origin' in v for v in vary_list))
             print(f"  Status: {resp1.status}, Allow-Origin: {acao}, Credentials: {acac}, Vary: {vary}")
             results['Check 1 (CORS Whitelisted Origin)'] = "PASS" if ok else "FAIL"
     except Exception as e:
@@ -79,7 +80,7 @@ def run_checks(base_url="https://lms.aaroha-inc.com"):
     print("\n[TEST 5] Testing student dashboard data isolation...")
     # Try logging in as a student
     student_token = None
-    for stu_email in ['aarav.patel@student.aaroha-inc.com', 'student@aaroha-inc.com', 'test_b_live@aaroha.in', 'ryu@aaroha.in']:
+    for stu_email in ['marcus.vance@aaroha-inc.com', 'aarav.patel@student.aaroha-inc.com', 'student@aaroha-inc.com', 'test_b_live@aaroha.in', 'ryu@aaroha.in']:
         try:
             req_slogin = urllib.request.Request(f"{base_url}/api/auth/login", data=json.dumps({
                 'email': stu_email,
