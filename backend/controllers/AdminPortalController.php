@@ -1160,7 +1160,7 @@ class AdminPortalController {
                    ) as upcoming_sessions_count
             FROM users u
             LEFT JOIN faculty_profiles fp ON u.id = fp.user_id
-            WHERE (u.role IN ('faculty', 'instructor') OR u.authorized_roles_json LIKE '%"faculty"%' OR (fp.id IS NOT NULL AND u.role NOT IN ('super_admin', 'admin', 'coordinator', 'placement_officer', 'student')))
+            WHERE (u.role IN ('faculty', 'instructor') OR u.authorized_roles_json LIKE '%\"faculty\"%' OR (fp.id IS NOT NULL AND u.role NOT IN ('super_admin', 'admin', 'coordinator', 'placement_officer', 'student')))
         ";
 
         $params = [];

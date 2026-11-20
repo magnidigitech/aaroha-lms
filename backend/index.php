@@ -32,7 +32,9 @@ set_exception_handler(function(Throwable $e) {
     
     // Check if error is a client-facing domain/validation error
     $isClientSafe = ($e instanceof InvalidArgumentException) || ($code >= 400 && $code < 500);
-    $errorMessage = $e->getMessage() . ' in ' . basename($e->getFile()) . ':' . $e->getLine();
+    $errorMessage = $isClientSafe 
+        ? $e->getMessage() 
+        : 'An unexpected internal server error occurred. Please quote Request ID: ' . $reqId;
 
     echo json_encode([
         'success' => false,

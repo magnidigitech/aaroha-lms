@@ -761,6 +761,44 @@ class Database {
             if (!isset($courseColSet['badge_color'])) {
                 $pdo->exec("ALTER TABLE courses ADD COLUMN badge_color VARCHAR(30) NULL DEFAULT NULL");
             }
+
+            // Comprehensive purge of dummy records for SQLite fallback
+            try {
+                $pdo->exec("PRAGMA foreign_keys = OFF;");
+                $pdo->exec("DELETE FROM task_submissions WHERE task_id IN (2001, 2002, 2003, 3001, 4001) OR task_id IN (SELECT id FROM tasks WHERE module_id IN (101, 102, 103, 201, 202, 301))");
+                $pdo->exec("DELETE FROM tasks WHERE id IN (2001, 2002, 2003, 3001, 4001) OR title LIKE '%Ingress Gateway%' OR title LIKE '%Distributed State Machine%' OR title LIKE '%Database Partitioning%' OR title LIKE '%Capstone Distributed Architecture%'");
+                $pdo->exec("DELETE FROM lesson_progress WHERE lesson_id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001) OR lesson_id IN (SELECT id FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301))");
+                $pdo->exec("DELETE FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301) OR id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001)");
+                $pdo->exec("DELETE FROM modules WHERE course_id IN (1, 2, 3) OR id IN (101, 102, 103, 201, 202, 301)");
+                $pdo->exec("DELETE FROM courses WHERE id IN (1, 2, 3) OR title LIKE '%Distributed Cloud%' OR title LIKE '%Applied Machine Learning%' OR title LIKE '%Enterprise Cyber Defense%'");
+                $pdo->exec("DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM class_sessions WHERE batch_id IN (1, 2, 3, 4, 10))");
+                $pdo->exec("DELETE FROM faculty_batch_assignments WHERE batch_id IN (1, 2, 3, 4, 10)");
+                $pdo->exec("DELETE FROM batch_enrollments WHERE batch_id IN (1, 2, 3, 4, 10)");
+                $pdo->exec("DELETE FROM class_sessions WHERE batch_id IN (1, 2, 3, 4, 10) OR meeting_link LIKE '%xyz-aaroha-lms%' OR meeting_link LIKE '%example.com%' OR meeting_link LIKE '%placeholder%' OR meeting_link LIKE '%dummy%' OR topic LIKE '%Anycast BGP%' OR topic LIKE '%Raft Consensus%' OR topic LIKE '%Triton Server%' OR topic LIKE '%STRIDE Threat%'");
+                $pdo->exec("DELETE FROM batches WHERE id IN (1, 2, 3, 4, 10) OR batch_code IN ('DCA-2026-B1', 'DCA-2026-B2', 'AML-2026-B1', 'ECD-2026-B1', 'AWS-2026-B5334') OR is_deleted = 1");
+                $dummyEmails = ['faculty@aaroha-inc.com', 'coordinator@aaroha-inc.com', 'student@aaroha-inc.com', 'placement@aaroha-inc.com', 'priya.sharma@aaroha-inc.com', 'elena.rostova@enterprise.io', 'marcus.vance@aaroha-inc.com', 'aarav.patel@student.aaroha-inc.com', 'sneha.reddy@student.aaroha-inc.com', 'karthik.raman@student.aaroha-inc.com', 'meera.joshi@student.aaroha-inc.com', 'faculty_test@aaroha-inc.com', 'accounts@aaroha-inc.com', 'learner@enterprise.io'];
+                $inDummy = "'" . implode("','", $dummyEmails) . "'";
+                $pdo->exec("DELETE FROM faculty_profiles WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                $pdo->exec("DELETE FROM student_profiles WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                $pdo->exec("DELETE FROM placement_profiles WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                $pdo->exec("DELETE FROM faculty_batch_assignments WHERE faculty_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                $pdo->exec("DELETE FROM batch_enrollments WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                $pdo->exec("DELETE FROM enrollments WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                $pdo->exec("DELETE FROM attendance_records WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                $pdo->exec("DELETE FROM users WHERE email IN ($inDummy)");
+                $pdo->exec("UPDATE users SET full_name = 'Aaroha Admin', title = 'System Administrator', role = 'super_admin' WHERE id = 1 OR email = 'admin@aaroha-inc.com'");
+                $pdo->exec("DELETE FROM faculty_profiles WHERE user_id = 1 OR user_id IN (SELECT id FROM users WHERE email = 'admin@aaroha-inc.com')");
+                $pdo->exec("DELETE FROM faculty_batch_assignments WHERE faculty_id = 1 OR faculty_id IN (SELECT id FROM users WHERE email = 'admin@aaroha-inc.com')");
+                $pdo->exec("DELETE FROM degrees WHERE id IN (1, 2, 3) OR title LIKE '%Distributed Cloud%' OR title LIKE '%Applied AI%'");
+                $pdo->exec("DELETE FROM materials WHERE title LIKE '%Cheat Sheet%' OR title LIKE '%Quantization%' OR title LIKE '%Microservices%'");
+                $pdo->exec("DELETE FROM announcements WHERE title LIKE '%Campus%' OR title LIKE '%Masterclass%' OR title LIKE '%Maintenance%'");
+                $pdo->exec("DELETE FROM support_tickets WHERE subject LIKE '%OAuth%' OR subject LIKE '%GPU%' OR subject LIKE '%VPN%'");
+                $pdo->exec("DELETE FROM placement_jobs WHERE company_name LIKE '%Acme%' OR company_name LIKE '%Demo%' OR job_title LIKE '%Dummy%'");
+                $pdo->exec("DELETE FROM student_rankings WHERE user_id NOT IN (SELECT id FROM users WHERE role = 'student' AND (is_archived IS NULL OR is_archived = 0))");
+                $pdo->exec("PRAGMA foreign_keys = ON;");
+            } catch (\Throwable $e) {
+                try { $pdo->exec("PRAGMA foreign_keys = ON;"); } catch (\Throwable $ign) {}
+            }
         } catch (\Throwable $e) {}
     }
 
