@@ -232,51 +232,6 @@ export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, 
                   </div>
                 </div>
 
-                {/* Sample Credentials Quick Autofill */}
-                <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-[11px] text-slate-400">
-                  <span className="font-medium shrink-0">Demo Access:</span>
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleAutofill('admin@aaroha-inc.com', 'password123')}
-                      className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
-                    >
-                      Admin
-                    </button>
-                    <span>•</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAutofill('faculty@aaroha-inc.com', 'password123')}
-                      className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
-                    >
-                      Faculty
-                    </button>
-                    <span>•</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAutofill('student@aaroha-inc.com', 'password123')}
-                      className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
-                    >
-                      Student
-                    </button>
-                    <span>•</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAutofill('coordinator@aaroha-inc.com', 'password123')}
-                      className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
-                    >
-                      Coordinator
-                    </button>
-                    <span>•</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAutofill('placement@aaroha-inc.com', 'password123')}
-                      className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
-                    >
-                      Placement
-                    </button>
-                  </div>
-                </div>
               </div>
 
               {/* Pinned Action Button */}

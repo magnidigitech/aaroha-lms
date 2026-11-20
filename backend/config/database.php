@@ -113,27 +113,13 @@ class Database {
                         }
                     }
 
-                    // Ensure baseline seed accounts (Admin, Faculty, Student) exist if users table is empty
+                    // Ensure baseline administrator exists if users table is empty
                     try {
                         $userCount = (int)self::$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
                         if ($userCount === 0) {
-                            $seedFiles = [
-                                __DIR__ . '/seeds_dev.sql',
-                                __DIR__ . '/../../database/seeds_dev.sql',
-                                dirname(__DIR__, 2) . '/database/seeds_dev.sql'
-                            ];
-                            foreach ($seedFiles as $sf) {
-                                if (file_exists($sf)) {
-                                    $sql = file_get_contents($sf);
-                                    $stmts = array_filter(array_map('trim', explode(';', $sql)));
-                                    foreach ($stmts as $stmt) {
-                                        if ($stmt) {
-                                            try { self::$pdo->exec($stmt); } catch (Exception $e) {}
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
+                            $pw = password_hash('password123', PASSWORD_BCRYPT, ['cost' => 12]);
+                            $adminStmt = self::$pdo->prepare("INSERT INTO users (id, full_name, email, password_hash, role, title, avatar, status, is_archived, authorized_roles_json) VALUES (1, 'Aaroha Admin', 'admin@aaroha-inc.com', ?, 'super_admin', 'System Administrator', '/avatars/3d/memo_1.png', 'active', 0, '[\"super_admin\",\"admin\"]')");
+                            $adminStmt->execute([$pw]);
                         }
                     } catch (Exception $seedErr) {}
                 } catch (Exception $initErr) {}
@@ -583,16 +569,67 @@ class Database {
                                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                             )");
 
-                            // One-time cleanup and retirement of legacy demo courses, dummy batches, dummy degrees, and fake rankings
+                            // Comprehensive purge of dummy data across ALL sections
                             try {
-                                self::$pdo->exec("UPDATE courses SET is_deleted = 1, is_published = 0 WHERE id IN (1, 2, 3)");
-                                self::$pdo->exec("UPDATE modules SET is_deleted = 1 WHERE course_id IN (1, 2, 3)");
-                                self::$pdo->exec("UPDATE lessons SET is_deleted = 1, is_published = 0 WHERE module_id IN (101, 102, 103, 201, 202, 301)");
-                                self::$pdo->exec("UPDATE tasks SET is_deleted = 1 WHERE id IN (2001, 2002, 2003, 3001, 4001)");
-                                self::$pdo->exec("UPDATE batches SET is_deleted = 1 WHERE id = 10 OR course_id IN (1, 2, 3)");
-                                self::$pdo->exec("UPDATE enrollments SET status = 'withdrawn' WHERE course_id IN (1, 2, 3)");
-                                self::$pdo->exec("UPDATE degrees SET is_deleted = 1, is_published = 0 WHERE id IN (1, 2, 3)");
+                                // 1. Purge dummy courses, modules, lessons, tasks
+                                self::$pdo->exec("DELETE FROM task_submissions WHERE task_id IN (2001, 2002, 2003, 3001, 4001) OR task_id IN (SELECT id FROM tasks WHERE module_id IN (101, 102, 103, 201, 202, 301))");
+                                self::$pdo->exec("DELETE FROM tasks WHERE id IN (2001, 2002, 2003, 3001, 4001) OR title LIKE '%Ingress Gateway%' OR title LIKE '%Distributed State Machine%' OR title LIKE '%Database Partitioning%' OR title LIKE '%Capstone Distributed Architecture%'");
+                                self::$pdo->exec("DELETE FROM lesson_progress WHERE lesson_id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001) OR lesson_id IN (SELECT id FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301))");
+                                self::$pdo->exec("DELETE FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301) OR id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001)");
+                                self::$pdo->exec("DELETE FROM modules WHERE course_id IN (1, 2, 3) OR id IN (101, 102, 103, 201, 202, 301)");
+                                self::$pdo->exec("DELETE FROM courses WHERE id IN (1, 2, 3) OR title LIKE '%Distributed Cloud%' OR title LIKE '%Applied Machine Learning%' OR title LIKE '%Enterprise Cyber Defense%'");
+
+                                // 2. Purge dummy batches and related records
+                                self::$pdo->exec("DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM class_sessions WHERE batch_id IN (1, 2, 3, 4, 10))");
+                                self::$pdo->exec("DELETE FROM faculty_batch_assignments WHERE batch_id IN (1, 2, 3, 4, 10) OR batch_id NOT IN (SELECT id FROM batches)");
+                                self::$pdo->exec("DELETE FROM batch_enrollments WHERE batch_id IN (1, 2, 3, 4, 10) OR batch_id NOT IN (SELECT id FROM batches)");
+                                self::$pdo->exec("DELETE FROM class_sessions WHERE batch_id IN (1, 2, 3, 4, 10) OR batch_id NOT IN (SELECT id FROM batches) OR meeting_link LIKE '%xyz-aaroha-lms%' OR meeting_link LIKE '%example.com%' OR meeting_link LIKE '%placeholder%' OR meeting_link LIKE '%dummy%' OR topic LIKE '%Anycast BGP%' OR topic LIKE '%Raft Consensus%' OR topic LIKE '%Triton Server%' OR topic LIKE '%STRIDE Threat%'");
+                                self::$pdo->exec("DELETE FROM batches WHERE id IN (1, 2, 3, 4, 10) OR batch_code IN ('DCA-2026-B1', 'DCA-2026-B2', 'AML-2026-B1', 'ECD-2026-B1', 'AWS-2026-B5334') OR is_deleted = 1");
+
+                                // 3. Purge dummy users and profiles (Preserve admin, genuine student ryu@aaroha.in, and test faculty aa@aaroha.in)
+                                $dummyEmails = [
+                                    'faculty@aaroha-inc.com',
+                                    'coordinator@aaroha-inc.com',
+                                    'student@aaroha-inc.com',
+                                    'placement@aaroha-inc.com',
+                                    'priya.sharma@aaroha-inc.com',
+                                    'elena.rostova@enterprise.io',
+                                    'marcus.vance@aaroha-inc.com',
+                                    'aarav.patel@student.aaroha-inc.com',
+                                    'sneha.reddy@student.aaroha-inc.com',
+                                    'karthik.raman@student.aaroha-inc.com',
+                                    'meera.joshi@student.aaroha-inc.com',
+                                    'faculty_test@aaroha-inc.com',
+                                    'accounts@aaroha-inc.com',
+                                    'learner@enterprise.io'
+                                ];
+                                $inDummy = "'" . implode("','", $dummyEmails) . "'";
+                                self::$pdo->exec("DELETE FROM faculty_profiles WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                                self::$pdo->exec("DELETE FROM student_profiles WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                                self::$pdo->exec("DELETE FROM placement_profiles WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                                self::$pdo->exec("DELETE FROM faculty_batch_assignments WHERE faculty_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                                self::$pdo->exec("DELETE FROM batch_enrollments WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                                self::$pdo->exec("DELETE FROM enrollments WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                                self::$pdo->exec("DELETE FROM attendance_records WHERE user_id IN (SELECT id FROM users WHERE email IN ($inDummy))");
+                                self::$pdo->exec("DELETE FROM task_submissions WHERE enrollment_id NOT IN (SELECT id FROM enrollments)");
+                                self::$pdo->exec("DELETE FROM users WHERE email IN ($inDummy)");
+
+                                // 4. Clean and fix Administrator account (user 1)
+                                self::$pdo->exec("UPDATE users SET full_name = 'Aaroha Admin', title = 'System Administrator', role = 'super_admin' WHERE id = 1 OR email = 'admin@aaroha-inc.com'");
+                                self::$pdo->exec("DELETE FROM faculty_profiles WHERE user_id = 1 OR user_id IN (SELECT id FROM users WHERE email = 'admin@aaroha-inc.com')");
+                                self::$pdo->exec("DELETE FROM faculty_batch_assignments WHERE faculty_id = 1 OR faculty_id IN (SELECT id FROM users WHERE email = 'admin@aaroha-inc.com')");
+
+                                // 5. Clean dummy degrees, materials, announcements, tickets, placement jobs
+                                self::$pdo->exec("DELETE FROM degrees WHERE id IN (1, 2, 3) OR title LIKE '%Distributed Cloud%' OR title LIKE '%Applied AI%'");
+                                self::$pdo->exec("DELETE FROM materials WHERE title LIKE '%Cheat Sheet%' OR title LIKE '%Quantization%' OR title LIKE '%Microservices%'");
+                                self::$pdo->exec("DELETE FROM announcements WHERE title LIKE '%Campus%' OR title LIKE '%Masterclass%' OR title LIKE '%Maintenance%'");
+                                self::$pdo->exec("DELETE FROM support_tickets WHERE subject LIKE '%OAuth%' OR subject LIKE '%GPU%' OR subject LIKE '%VPN%'");
+                                self::$pdo->exec("DELETE FROM placement_jobs WHERE company_name LIKE '%Acme%' OR company_name LIKE '%Demo%' OR job_title LIKE '%Dummy%'");
                                 self::$pdo->exec("DELETE FROM student_rankings WHERE user_id NOT IN (SELECT id FROM users WHERE role = 'student' AND (is_archived IS NULL OR is_archived = 0))");
+
+                                // 6. Clean orphaned enrollments
+                                self::$pdo->exec("DELETE FROM enrollments WHERE course_id NOT IN (SELECT id FROM courses) OR user_id NOT IN (SELECT id FROM users)");
+                                self::$pdo->exec("DELETE FROM batch_enrollments WHERE batch_id NOT IN (SELECT id FROM batches) OR user_id NOT IN (SELECT id FROM users)");
                             } catch (Exception $cleanErr) {}
                         } catch (Exception $colErr) {}
             } catch (PDOException $e) {

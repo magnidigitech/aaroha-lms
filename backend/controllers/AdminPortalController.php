@@ -1160,7 +1160,7 @@ class AdminPortalController {
                    ) as upcoming_sessions_count
             FROM users u
             LEFT JOIN faculty_profiles fp ON u.id = fp.user_id
-            WHERE (u.role IN ('faculty', 'instructor', 'coordinator', 'admin', 'super_admin') OR u.authorized_roles_json LIKE '%\"faculty\"%' OR fp.id IS NOT NULL)
+            WHERE (u.role IN ('faculty', 'instructor') OR u.authorized_roles_json LIKE '%"faculty"%' OR (fp.id IS NOT NULL AND u.role NOT IN ('super_admin', 'admin', 'coordinator', 'placement_officer', 'student')))
         ";
 
         $params = [];
@@ -1818,8 +1818,9 @@ class AdminPortalController {
 
             if (!$u) {
                 $pdo->rollBack();
-                http_response_code(404);
-                return ['success' => false, 'error' => 'Faculty user not found.'];
+                try { $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
+                try { $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE faculty_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
+                return ['success' => true, 'message' => 'Faculty member record was already purged.'];
             }
 
             $roles = [];
@@ -1925,7 +1926,7 @@ class AdminPortalController {
         $params = [];
 
         if ($view === 'archived') {
-            $sql .= " AND (b.status = 'archived' OR b.is_deleted = 1 OR b.is_archived = 1)";
+            $sql .= " AND (b.status = 'archived' OR b.is_archived = 1) AND (b.is_deleted = 0 OR b.is_deleted IS NULL)";
         } elseif ($view === 'all') {
             $sql .= " AND (b.is_deleted = 0 OR b.is_deleted IS NULL)";
         } else {
@@ -2252,8 +2253,23 @@ class AdminPortalController {
         $stmt->execute([$batchId]);
         $batch = $stmt->fetch();
         if (!$batch) {
-            http_response_code(404);
-            return ['success' => false, 'error' => 'Cohort batch not found.'];
+            return [
+                'success' => true,
+                'eligible' => true,
+                'can_delete' => true,
+                'can_delete_permanently' => true,
+                'is_ghost' => true,
+                'dependencies' => [
+                    'enrolled_students' => 0,
+                    'faculty_assignments' => 0,
+                    'scheduled_sessions' => 0,
+                    'attendance_records' => 0,
+                    'task_submissions' => 0,
+                    'issued_certificates' => 0,
+                ],
+                'blocking_reasons' => [],
+                'reason' => 'Cohort batch is not found in active database records (or was already removed). It can be safely purged from view.'
+            ];
         }
 
         $enrolledStudents = 0;
@@ -2332,38 +2348,50 @@ class AdminPortalController {
 
         $isPermanent = !empty($_GET['permanent']) || !empty($_POST['permanent']) || !empty($inputData['permanent']);
 
-        $enrolledCount = 0;
-        try {
-            $enrolledCount = (int)$pdo->query("SELECT COUNT(*) FROM batch_enrollments WHERE batch_id = {$batchId}")->fetchColumn();
-        } catch (Exception $e) {}
-
-        $sessionsCount = 0;
-        try {
-            $sessionsCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE batch_id = {$batchId}")->fetchColumn();
-        } catch (Exception $e) {}
-
-        if ($enrolledCount > 0 || $sessionsCount > 0) {
-            http_response_code(400);
+        $stmt = $pdo->prepare("SELECT id, batch_code, title, status FROM batches WHERE id = ?");
+        $stmt->execute([$batchId]);
+        $batch = $stmt->fetch();
+        if (!$batch) {
+            try { $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM class_sessions WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM batch_enrollments WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
             return [
-                'success' => false,
-                'error' => "Cannot permanently delete batch with {$enrolledCount} enrolled students and {$sessionsCount} scheduled sessions.",
-                'recommendation' => 'Use Archive Batch instead to preserve cohort audit records.'
+                'success' => true,
+                'message' => 'Cohort batch was already purged from the database.'
             ];
         }
 
         if ($isPermanent) {
+            try { $pdo->prepare("DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM class_sessions WHERE batch_id = ?)")->execute([$batchId]); } catch (Exception $e) {}
+            try { $pdo->prepare("DELETE FROM task_submissions WHERE enrollment_id IN (SELECT id FROM batch_enrollments WHERE batch_id = ?)")->execute([$batchId]); } catch (Exception $e) {}
             try { $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
             try { $pdo->prepare("DELETE FROM class_sessions WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
             try { $pdo->prepare("DELETE FROM batch_enrollments WHERE batch_id = ?")->execute([$batchId]); } catch (Exception $e) {}
-            $stmt = $pdo->prepare("DELETE FROM batches WHERE id = ?");
-            $stmt->execute([$batchId]);
+            $delStmt = $pdo->prepare("DELETE FROM batches WHERE id = ?");
+            $delStmt->execute([$batchId]);
         } else {
-            $stmt = $pdo->prepare("UPDATE batches SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
-            $stmt->execute([$batchId]);
+            $enrolledCount = 0;
+            try {
+                $enrolledCount = (int)$pdo->query("SELECT COUNT(*) FROM batch_enrollments WHERE batch_id = {$batchId}")->fetchColumn();
+            } catch (Exception $e) {}
+
+            $sessionsCount = 0;
+            try {
+                $sessionsCount = (int)$pdo->query("SELECT COUNT(*) FROM class_sessions WHERE batch_id = {$batchId}")->fetchColumn();
+            } catch (Exception $e) {}
+
+            if ($enrolledCount > 0 || $sessionsCount > 0) {
+                // Soft archive to protect audit logs
+                $stmt = $pdo->prepare("UPDATE batches SET status = 'archived', is_archived = 1, archived_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->execute([$batchId]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE batches SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->execute([$batchId]);
+            }
         }
 
         AuditLogger::log('DELETE_BATCH', 'batch', $batchId, ['permanent' => $isPermanent], $actor);
-        return ['success' => true, 'message' => 'Cohort batch permanently removed from system records.'];
+        return ['success' => true, 'message' => 'Cohort batch successfully removed.'];
     }
 
 

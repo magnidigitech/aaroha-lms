@@ -144,18 +144,9 @@ class AuthController {
             return ['success' => false, 'error' => 'Email and password are required'];
         }
 
-        // Standard seed accounts eligible for self-healing password and lifecycle state recovery
+        // Standard administrator account eligible for self-healing password and lifecycle state recovery
         $seedEmails = [
-            'admin@aaroha-inc.com',
-            'faculty@aaroha-inc.com',
-            'faculty_test@aaroha-inc.com',
-            'elena.rostova@enterprise.io',
-            'marcus.vance@aaroha-inc.com',
-            'priya.sharma@aaroha-inc.com',
-            'accounts@aaroha-inc.com',
-            'placement@aaroha-inc.com',
-            'aarav.patel@student.aaroha-inc.com',
-            'student@aaroha-inc.com'
+            'admin@aaroha-inc.com'
         ];
 
         $pdo = Database::getConnection();

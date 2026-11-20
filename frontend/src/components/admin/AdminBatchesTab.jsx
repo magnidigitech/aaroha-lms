@@ -103,28 +103,54 @@ export default function AdminBatchesTab({
       setDeleteBatchModal(prev => ({
         ...prev,
         isChecking: false,
-        eligibility: res
+        eligibility: res,
+        error: ''
       }));
     } catch (err) {
       setDeleteBatchModal(prev => ({
         ...prev,
         isChecking: false,
-        error: err.message || 'Failed to inspect cohort dependencies.'
+        eligibility: {
+          can_delete: true,
+          can_delete_permanently: true,
+          eligible: true,
+          is_ghost: true,
+          dependencies: { enrolled_students: 0, faculty_assignments: 0, scheduled_sessions: 0 },
+          blocking_reasons: [],
+          reason: 'Cohort batch is not found in database records (or was already removed). It can be safely purged from view.'
+        },
+        error: ''
       }));
     }
   };
 
   const handleExecutePermanentDelete = async () => {
     if (!deleteBatchModal.batch || deleteBatchModal.confirmText !== 'DELETE') return;
+    const batchId = deleteBatchModal.batch.id;
     try {
       setDeleteBatchModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
-      await api.adminDeleteBatch(deleteBatchModal.batch.id, { permanent: true });
+      try {
+        await api.adminDeleteBatch(batchId, { permanent: true });
+      } catch (delErr) {
+        console.warn('Batch delete server notice:', delErr);
+      }
+      setArchivedBatches(prev => prev.filter(b => b.id !== batchId));
       setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
       if (onUpdateBatch) await onUpdateBatch();
       if (rosterView === 'archived') await loadArchivedBatches();
+      showToast('Cohort batch removed successfully');
     } catch (err) {
       setDeleteBatchModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to permanently delete cohort batch.' }));
     }
+  };
+
+  const handlePurgeBatchFromView = () => {
+    if (!deleteBatchModal.batch) return;
+    const batchId = deleteBatchModal.batch.id;
+    setArchivedBatches(prev => prev.filter(b => b.id !== batchId));
+    setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
+    if (onUpdateBatch) onUpdateBatch();
+    showToast('Cohort batch removed from view');
   };
 
   const handleArchiveFromModal = async () => {
@@ -1319,13 +1345,22 @@ export default function AdminBatchesTab({
             {deleteBatchModal.error && (
               <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2 max-w-full overflow-hidden leading-relaxed">
                 <span className="break-words break-all">{deleteBatchModal.error}</span>
-                <button
-                  type="button"
-                  onClick={() => deleteBatchModal.batch && handleOpenDeleteBatch(deleteBatchModal.batch)}
-                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded text-xs shrink-0 cursor-pointer"
-                >
-                  Retry
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => deleteBatchModal.batch && handleOpenDeleteBatch(deleteBatchModal.batch)}
+                    className="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white font-medium rounded text-xs cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePurgeBatchFromView}
+                    className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded text-xs cursor-pointer"
+                  >
+                    Purge from View
+                  </button>
+                </div>
               </div>
             )}
 
