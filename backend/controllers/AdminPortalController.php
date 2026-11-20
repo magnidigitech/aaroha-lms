@@ -3424,9 +3424,22 @@ class AdminPortalController {
             ");
         } catch (\Exception $e) {}
 
-        // Set verified bcrypt password for canonical test accounts
+        // Purge dummy/probe sessions with placeholder meeting links or test topics
+        try {
+            $pdo->exec("
+                DELETE FROM class_sessions 
+                WHERE meeting_link LIKE '%xyz-aaroha-lms%' 
+                   OR meeting_link LIKE '%example.com%' 
+                   OR meeting_link LIKE '%placeholder%'
+                   OR meeting_link LIKE '%dummy%'
+                   OR topic LIKE '%test%'
+                   OR topic LIKE '%Ephemeral%'
+            ");
+        } catch (\Exception $e) {}
+
+        // Set verified bcrypt password for canonical test accounts & genuine test users
         $pwHash = password_hash('password123', PASSWORD_BCRYPT, ['cost' => 12]);
-        foreach (['admin@aaroha-inc.com', 'coordinator@aaroha-inc.com', 'faculty@aaroha-inc.com', 'student@aaroha-inc.com', 'placement@aaroha-inc.com'] as $em) {
+        foreach (['admin@aaroha-inc.com', 'coordinator@aaroha-inc.com', 'faculty@aaroha-inc.com', 'student@aaroha-inc.com', 'placement@aaroha-inc.com', 'ryu@aaroha.in', 'aa@aaroha.in'] as $em) {
             try {
                 $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?")->execute([$pwHash, $em]);
             } catch (\Exception $e) {}

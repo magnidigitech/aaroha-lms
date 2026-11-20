@@ -42,6 +42,16 @@ export default function DashboardHeader({
 }) {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
+  const hasRealLink = Boolean(
+    nextClass?.meeting_link &&
+    typeof nextClass.meeting_link === 'string' &&
+    nextClass.meeting_link.trim().startsWith('http') &&
+    !nextClass.meeting_link.includes('xyz-aaroha-lms') &&
+    !nextClass.meeting_link.includes('example.com') &&
+    !nextClass.meeting_link.includes('dummy') &&
+    !nextClass.meeting_link.includes('placeholder')
+  );
+
   // Normalize authorized roles list (excluding out-of-scope accounts role)
   const availableRoles = Array.from(new Set([
     currentUser?.role || 'student',
@@ -128,12 +138,12 @@ export default function DashboardHeader({
             type="button"
             onClick={() => onNavigateTab && onNavigateTab('schedule')}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all shadow-2xs cursor-pointer group"
-            title={nextClass ? `Next Session: ${nextClass.topic}` : 'View Academic Schedule'}
+            title={hasRealLink ? `Next Session: ${nextClass.topic}` : 'View Academic Schedule'}
           >
             <Video size={14} className="text-purple-600" />
             <span className="hidden sm:inline">Next Class:</span>
             <span className="truncate max-w-[150px] font-semibold text-purple-800">
-              {nextClass ? (nextClass.topic || 'Upcoming Session') : 'Schedule'}
+              {hasRealLink ? (nextClass.topic || 'Upcoming Session') : 'Schedule'}
             </span>
           </button>
           

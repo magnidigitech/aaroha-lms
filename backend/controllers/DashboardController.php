@@ -162,15 +162,25 @@ class DashboardController {
         $classStmt->execute([$studentId, $fourHoursAgo]);
         $upcomingClasses = $classStmt->fetchAll();
 
-        // Check if a class is live right now
+        // Check if there is an upcoming class with a REAL meeting link created and uploaded by faculty or admin
         $nextLiveClass = null;
-        if (!empty($upcomingClasses)) {
-            $first = $upcomingClasses[0];
-            $startTime = strtotime($first['start_time']);
-            $endTime = strtotime($first['end_time']);
-            $curTime = time();
-            $isLiveNow = ($curTime >= ($startTime - 900) && $curTime <= $endTime);
-            $nextLiveClass = array_merge($first, ['is_live_now' => $isLiveNow]);
+        foreach ($upcomingClasses as $c) {
+            $mLink = trim($c['meeting_link'] ?? '');
+            $isRealLink = !empty($mLink) &&
+                          preg_match('#^https?://#i', $mLink) &&
+                          stripos($mLink, 'xyz-aaroha-lms') === false &&
+                          stripos($mLink, 'example.com') === false &&
+                          stripos($mLink, 'placeholder') === false &&
+                          stripos($mLink, 'dummy') === false;
+
+            if ($isRealLink) {
+                $startTime = strtotime($c['start_time']);
+                $endTime = strtotime($c['end_time']);
+                $curTime = time();
+                $isLiveNow = ($curTime >= ($startTime - 900) && $curTime <= $endTime);
+                $nextLiveClass = array_merge($c, ['is_live_now' => $isLiveNow]);
+                break;
+            }
         }
 
         // 1.3 Upcoming Assessment & Project Deadlines

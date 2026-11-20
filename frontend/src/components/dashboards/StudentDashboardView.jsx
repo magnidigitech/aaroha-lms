@@ -37,6 +37,24 @@ export default function StudentDashboardView({
   const todayUpcoming = dashboardData.today_and_upcoming || {};
   const nextClass = todayUpcoming.next_live_class;
   const upcomingClasses = todayUpcoming.upcoming_classes || [];
+
+  const isValidMeetingLink = (link) => {
+    if (!link || typeof link !== 'string') return false;
+    const trimmed = link.trim().toLowerCase();
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return false;
+    if (
+      trimmed.includes('xyz-aaroha-lms') ||
+      trimmed.includes('example.com') ||
+      trimmed.includes('dummy') ||
+      trimmed.includes('placeholder') ||
+      trimmed.includes('test')
+    ) {
+      return false;
+    }
+    return true;
+  };
+
+  const hasRealLiveMeeting = Boolean(nextClass && isValidMeetingLink(nextClass.meeting_link));
   const upcomingDeadlines = todayUpcoming.upcoming_deadlines || [];
   const recentMaterials = todayUpcoming.recent_materials || [];
   const performance = dashboardData.performance || {};
@@ -246,8 +264,8 @@ export default function StudentDashboardView({
         </div>
       </div>
 
-      {/* Live Class Alert Banner (When Meeting Available) */}
-      {nextClass && myCourses.length > 0 && (
+      {/* Live Class Alert Banner (Shown ONLY when a real meeting is created and link is uploaded by faculty or admin) */}
+      {hasRealLiveMeeting && myCourses.length > 0 && (
         <div className="bg-gradient-to-r from-blue-900 to-[#0A7CB3] rounded-3xl p-5 sm:p-7 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
@@ -641,7 +659,7 @@ export default function StudentDashboardView({
                           <span>{formatDateTime(s.start_time)}</span>
                         </div>
                       </div>
-                      {s.meeting_link ? (
+                      {isValidMeetingLink(s.meeting_link) ? (
                         <a 
                           href={s.meeting_link}
                           target="_blank"

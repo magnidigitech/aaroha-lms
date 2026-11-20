@@ -28,3 +28,4 @@ for js in js_files:
                     print(f"Chunk {dc} has adminDeleteScheduleSession: {has_del}")
             except Exception as e:
                 print(f"Chunk {dc} error: {e}")
+
