@@ -3361,18 +3361,27 @@ class AdminPortalController {
 
         if (!empty($toPurge)) {
             $inClause = implode(',', array_fill(0, count($toPurge), '?'));
+            $doublePurge = array_merge($toPurge, $toPurge);
+            try { $pdo->prepare("DELETE FROM audit_logs WHERE user_id IN ($inClause) OR actor_id IN ($inClause)")->execute($doublePurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM notifications WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM uploaded_files WHERE uploaded_by IN ($inClause) OR uploader_user_id IN ($inClause)")->execute($doublePurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM certificates WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
-            try { $pdo->prepare("DELETE FROM task_submissions WHERE enrollment_id IN (SELECT id FROM enrollments WHERE user_id IN ($inClause))")->execute($toPurge); } catch (\Exception $e) {}
-            try { $pdo->prepare("DELETE FROM attendance_records WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM task_submissions WHERE enrollment_id IN (SELECT id FROM enrollments WHERE user_id IN ($inClause)) OR enrollment_id IN (SELECT id FROM batch_enrollments WHERE user_id IN ($inClause))")->execute($doublePurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM attendance_records WHERE user_id IN ($inClause) OR marked_by IN ($inClause)")->execute($doublePurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE faculty_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM batch_enrollments WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM enrollments WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM student_profiles WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM placement_profiles WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM fee_plans WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
-            try { $pdo->prepare("DELETE FROM student_followups WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM student_followups WHERE user_id IN ($inClause) OR assigned_coordinator_id IN ($inClause)")->execute($doublePurge); } catch (\Exception $e) {}
             try { $pdo->prepare("DELETE FROM password_resets WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
-            try { $pdo->prepare("DELETE FROM users WHERE id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { 
+                $pdo->prepare("DELETE FROM users WHERE id IN ($inClause)")->execute($toPurge); 
+            } catch (\Exception $e) {
+                $pdo->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id IN ($inClause)")->execute($toPurge);
+            }
         }
 
         // Clean duplicates in batch_enrollments: keep exactly one enrollment per user per batch

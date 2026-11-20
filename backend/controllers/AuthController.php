@@ -28,7 +28,12 @@ class AuthController {
     public static function adminGetUsers() {
         $pdo = Database::getConnection();
         try {
-            $stmt = $pdo->query("SELECT id, full_name, email, role, title, avatar, created_at FROM users ORDER BY id DESC");
+            $stmt = $pdo->query("
+                SELECT id, full_name, email, role, title, avatar, created_at 
+                FROM users 
+                WHERE (deleted_at IS NULL) AND (status != 'deleted' OR status IS NULL)
+                ORDER BY id DESC
+            ");
             $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
             return [
                 'success' => true,
