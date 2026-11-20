@@ -83,6 +83,10 @@ class Database {
                 self::$pdo = new PDO($dsn, $username, $password, $options);
                 self::$pdo->exec("SET NAMES {$charset} COLLATE utf8mb4_unicode_ci");
 
+                // Self-healing schema migrations for lifecycle columns
+                try { @self::$pdo->exec("ALTER TABLE users ADD COLUMN deactivated_at DATETIME NULL"); } catch (Exception $e) {}
+                try { @self::$pdo->exec("ALTER TABLE users ADD COLUMN deactivation_reason TEXT NULL"); } catch (Exception $e) {}
+
                 // Auto-provision MySQL schema & seeds for missing tables
                 try {
                     $existingTables = self::$pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN) ?: [];

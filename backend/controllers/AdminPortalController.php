@@ -857,11 +857,15 @@ class AdminPortalController {
         $pdo->beginTransaction();
         try {
             $pdo->prepare("UPDATE student_profiles SET account_status = 'deactivated' WHERE user_id = ?")->execute([$studentId]);
-            $pdo->prepare("
-                UPDATE users
-                SET status = 'deactivated', deactivated_at = CURRENT_TIMESTAMP, deactivation_reason = ?
-                WHERE id = ?
-            ")->execute([$reason, $studentId]);
+            try {
+                $pdo->prepare("
+                    UPDATE users
+                    SET status = 'deactivated', deactivated_at = CURRENT_TIMESTAMP, deactivation_reason = ?
+                    WHERE id = ?
+                ")->execute([$reason, $studentId]);
+            } catch (Exception $eUserCol) {
+                $pdo->prepare("UPDATE users SET status = 'deactivated' WHERE id = ?")->execute([$studentId]);
+            }
 
             $pdo->commit();
             AuditLogger::log('DEACTIVATE_STUDENT', 'student', $studentId, ['reason' => $reason], $actor);
@@ -883,7 +887,11 @@ class AdminPortalController {
         $pdo->beginTransaction();
         try {
             $pdo->prepare("UPDATE student_profiles SET account_status = 'active' WHERE user_id = ?")->execute([$studentId]);
-            $pdo->prepare("UPDATE users SET status = 'active', deactivated_at = NULL, deactivation_reason = NULL WHERE id = ?")->execute([$studentId]);
+            try {
+                $pdo->prepare("UPDATE users SET status = 'active', deactivated_at = NULL, deactivation_reason = NULL, is_archived = 0 WHERE id = ?")->execute([$studentId]);
+            } catch (Exception $eUserCol) {
+                $pdo->prepare("UPDATE users SET status = 'active', is_archived = 0 WHERE id = ?")->execute([$studentId]);
+            }
 
             $pdo->commit();
             AuditLogger::log('REACTIVATE_STUDENT', 'student', $studentId, [], $actor);
@@ -1561,11 +1569,15 @@ class AdminPortalController {
                 WHERE user_id = ?
             ")->execute(["Workload option: {$option}. Reason: {$reason}", $facultyId]);
 
-            $pdo->prepare("
-                UPDATE users
-                SET status = 'deactivated', deactivated_at = CURRENT_TIMESTAMP, deactivation_reason = ?
-                WHERE id = ?
-            ")->execute([$reason, $facultyId]);
+            try {
+                $pdo->prepare("
+                    UPDATE users
+                    SET status = 'deactivated', deactivated_at = CURRENT_TIMESTAMP, deactivation_reason = ?
+                    WHERE id = ?
+                ")->execute([$reason, $facultyId]);
+            } catch (Exception $eUserCol) {
+                $pdo->prepare("UPDATE users SET status = 'deactivated' WHERE id = ?")->execute([$facultyId]);
+            }
 
             $pdo->commit();
             AuditLogger::log('DEACTIVATE_FACULTY', 'faculty', $facultyId, [
@@ -1592,7 +1604,11 @@ class AdminPortalController {
         $pdo->beginTransaction();
         try {
             $pdo->prepare("UPDATE faculty_profiles SET account_status = 'active' WHERE user_id = ?")->execute([$facultyId]);
-            $pdo->prepare("UPDATE users SET status = 'active', deactivated_at = NULL, deactivation_reason = NULL WHERE id = ?")->execute([$facultyId]);
+            try {
+                $pdo->prepare("UPDATE users SET status = 'active', deactivated_at = NULL, deactivation_reason = NULL, is_archived = 0 WHERE id = ?")->execute([$facultyId]);
+            } catch (Exception $eUserCol) {
+                $pdo->prepare("UPDATE users SET status = 'active', is_archived = 0 WHERE id = ?")->execute([$facultyId]);
+            }
 
             $pdo->commit();
             AuditLogger::log('REACTIVATE_FACULTY', 'faculty', $facultyId, [], $actor);

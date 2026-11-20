@@ -246,7 +246,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, onOpenActivation, 
                     <span>•</span>
                     <button
                       type="button"
-                      onClick={() => handleAutofill('elena.rostova@enterprise.io', 'password123')}
+                      onClick={() => handleAutofill('faculty@aaroha-inc.com', 'password123')}
                       className="text-[#0A7CB3] hover:text-[#086491] font-semibold underline cursor-pointer"
                     >
                       Faculty
