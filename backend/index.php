@@ -639,6 +639,10 @@ try {
         $actor = AuthMiddleware::requireAdmin();
         $response = AdminPortalController::cleanupTestBatches($actor);
     }
+    elseif ($requestMethod === 'POST' && $path === '/admin/cleanup-dummy-data') {
+        $actor = AuthMiddleware::requireAdmin();
+        $response = AdminPortalController::cleanupDummyData($actor);
+    }
     // Schedule
     elseif ($requestMethod === 'GET' && $path === '/admin/schedule') {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty', 'student']);

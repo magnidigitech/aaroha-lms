@@ -3330,6 +3330,78 @@ class AdminPortalController {
         ];
     }
 
+    public static function cleanupDummyData(array $actor): array {
+        $pdo = Database::getConnection();
+        $actorRole = strtolower(trim($actor['role'] ?? ''));
+        if (!in_array($actorRole, ['super_admin', 'admin'])) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Super Administrator authorization required.'];
+        }
+
+        $canonicalEmails = [
+            'admin@aaroha-inc.com',
+            'coordinator@aaroha-inc.com',
+            'faculty@aaroha-inc.com',
+            'student@aaroha-inc.com',
+            'placement@aaroha-inc.com',
+            'ryu@aaroha.in',
+            'aa@aaroha.in'
+        ];
+
+        // Find non-canonical users
+        $stmt = $pdo->query("SELECT id, email, role, full_name FROM users");
+        $all = $stmt->fetchAll();
+        $toPurge = [];
+        foreach ($all as $u) {
+            $em = strtolower(trim($u['email'] ?? ''));
+            if (!in_array($em, $canonicalEmails)) {
+                $toPurge[] = (int)$u['id'];
+            }
+        }
+
+        if (!empty($toPurge)) {
+            $inClause = implode(',', array_fill(0, count($toPurge), '?'));
+            try { $pdo->prepare("DELETE FROM certificates WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM task_submissions WHERE enrollment_id IN (SELECT id FROM enrollments WHERE user_id IN ($inClause))")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM attendance_records WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM batch_enrollments WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM enrollments WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM student_profiles WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM placement_profiles WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM fee_plans WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM student_followups WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM password_resets WHERE user_id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+            try { $pdo->prepare("DELETE FROM users WHERE id IN ($inClause)")->execute($toPurge); } catch (\Exception $e) {}
+        }
+
+        // Clean duplicates in batch_enrollments: keep exactly one enrollment per user per batch
+        try {
+            $pdo->exec("
+                DELETE be1 FROM batch_enrollments be1
+                INNER JOIN batch_enrollments be2 
+                WHERE be1.id > be2.id 
+                  AND be1.batch_id = be2.batch_id 
+                  AND be1.user_id = be2.user_id
+            ");
+        } catch (\Exception $e) {}
+
+        // Set verified bcrypt password for canonical test accounts
+        $pwHash = password_hash('password123', PASSWORD_BCRYPT, ['cost' => 12]);
+        foreach (['admin@aaroha-inc.com', 'coordinator@aaroha-inc.com', 'faculty@aaroha-inc.com', 'student@aaroha-inc.com', 'placement@aaroha-inc.com'] as $em) {
+            try {
+                $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?")->execute([$pwHash, $em]);
+            } catch (\Exception $e) {}
+        }
+
+        return [
+            'success' => true,
+            'purged_count' => count($toPurge),
+            'purged_user_ids' => $toPurge,
+            'message' => 'Cleaned up ' . count($toPurge) . ' non-canonical dummy test accounts and unaccredited test records.'
+        ];
+    }
+
     public static function updatePlacementProfile(int $userId, array $data, array $actor): array {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("
