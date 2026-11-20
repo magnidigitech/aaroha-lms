@@ -3,7 +3,6 @@
 // Zero external dependencies required - 100% portable on Hostinger Shared Hosting
 
 class JWT {
-    private static $secret = 'aaroha_lms_super_secret_jwt_key_2026_change_in_production';
     private static $expiry_seconds = 604800; // 7 days
 
     private static function base64UrlEncode($data) {
@@ -17,20 +16,36 @@ class JWT {
     private static function getSecret() {
         $candidates = [
             __DIR__ . '/env.php',
+            __DIR__ . '/../config/env.php',
             dirname(__DIR__, 2) . '/env.php',
             dirname(__DIR__, 3) . '/env.php',
+            dirname(__DIR__, 4) . '/env.php',
         ];
         foreach ($candidates as $candidate) {
             if (file_exists($candidate)) {
                 $cfg = require $candidate;
-                if (!empty($cfg['JWT_SECRET'])) return $cfg['JWT_SECRET'];
+                if (!empty($cfg['JWT_SECRET'])) {
+                    return (string)$cfg['JWT_SECRET'];
+                }
             }
         }
-        return getenv('JWT_SECRET') ?: self::$secret;
+
+        $envSecret = getenv('JWT_SECRET');
+        if (!empty($envSecret)) {
+            return (string)$envSecret;
+        }
+
+        // Fail-safe: No hardcoded fallback is permitted.
+        error_log("CRITICAL SECURITY: JWT signing secret is unconfigured in environment or env.php.");
+        return null;
     }
 
     public static function generate($payload) {
         $secret = self::getSecret();
+        if (!$secret) {
+            error_log("CRITICAL SECURITY: Attempted to generate JWT without a configured JWT_SECRET.");
+            throw new RuntimeException("JWT signing secret is unconfigured.");
+        }
         
         $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
         $payload['iat'] = time();
@@ -49,6 +64,12 @@ class JWT {
         if (!$jwt) return null;
         
         $secret = self::getSecret();
+        if (!$secret) {
+            // Fail closed: Token cannot be verified safely without configured secret
+            error_log("CRITICAL SECURITY: JWT token verification rejected because JWT_SECRET is unconfigured.");
+            return null;
+        }
+
         $tokenParts = explode('.', $jwt);
         
         if (count($tokenParts) !== 3) return null;
@@ -75,4 +96,3 @@ class JWT {
         return $decodedPayload;
     }
 }
-

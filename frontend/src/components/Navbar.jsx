@@ -49,7 +49,7 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-2xs">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div className="max-w-7xl 2xl:max-w-[1536px] mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-18 gap-2 sm:gap-4">
           
           {/* Left: Brand Logo & Explore Dropdown */}
@@ -73,7 +73,7 @@ export default function Navbar({
             </div>
 
             {/* Coursera-style Explore Dropdown Button (Tablet/Desktop) */}
-            <div className="relative hidden md:block">
+            <div className="relative hidden sm:block">
               <button
                 onClick={() => setIsExploreOpen(!isExploreOpen)}
                 className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
@@ -114,13 +114,13 @@ export default function Navbar({
           </div>
 
           {/* Center: Open-Source Technology Search Bar (Desktop) */}
-          <div className="hidden xl:flex flex-1 max-w-md mx-4">
+          <div className="hidden lg:flex flex-1 min-w-[200px] max-w-md mx-3 lg:mx-6">
             <TechSearchBar
               size="normal"
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               onSearch={handleNavbarSearch}
-              placeholder="What do you want to learn? (e.g. AI, NLP, Raft...)"
+              placeholder="What do you want to learn?"
             />
           </div>
 
@@ -129,60 +129,31 @@ export default function Navbar({
             {/* Direct Navigation: Certificates & Verification */}
             <button
               onClick={() => setActiveView('degrees')}
-              className={'text-xs font-bold transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer hidden md:flex ' + 
+              className={'text-xs font-bold transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer hidden sm:flex ' + 
                 (activeView === 'degrees' 
                   ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200' 
                   : 'text-slate-700 hover:text-[#0A7CB3] hover:bg-slate-50')}
               aria-label="Certificates and Verification Portal"
             >
               <Award className="w-4 h-4 text-[#0A7CB3]" />
-              <span>Certificates & Verification</span>
+              <span className="hidden xl:inline">Certificates & Verification</span>
+              <span className="inline xl:hidden">Certificates</span>
             </button>
 
-            {/* If currently viewing student dashboard: direct My Courses, Next Class, and single Back to Website */}
+            {/* If currently viewing student dashboard: clean Back to Website / Catalog button */}
             {activeView === 'student' && (
-              <>
-                <button
-                  onClick={() => {
-                    const el = document.getElementById('my-courses-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-700 hover:text-[#0A7CB3] hover:bg-slate-50 text-xs font-bold transition-colors cursor-pointer"
-                  title="Jump to My Courses & Cohorts"
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-[#0A7CB3]" />
-                  <span>My Courses</span>
-                  {stats?.enrolledCount > 0 && (
-                    <span className="bg-[#0A7CB3] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5">
-                      {stats.enrolledCount}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => {
-                    const el = document.getElementById('schedule-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-700 hover:text-purple-700 hover:bg-purple-50/50 text-xs font-bold transition-colors cursor-pointer"
-                  title="Jump to Live Classes & Academic Schedule"
-                >
-                  <Video className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Next Class</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveView(HOMEPAGE_ROUTE);
-                    if (onSelectCategory) onSelectCategory('All');
-                  }}
-                  className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
-                  title="Return to public homepage (login session preserved)"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3]" />
-                  <span>Back to Website</span>
-                </button>
-              </>
+              <button
+                onClick={() => {
+                  setActiveView(HOMEPAGE_ROUTE);
+                  if (onSelectCategory) onSelectCategory('All');
+                }}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                title="Return to public homepage (login session preserved)"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3]" />
+                <span className="hidden md:inline">Back to Website</span>
+                <span className="inline md:hidden">Website</span>
+              </button>
             )}
 
             {/* Authenticated Primary CTA on Public Website: Show "My Dashboard" instead of "Log In" */}
@@ -193,7 +164,7 @@ export default function Navbar({
                     const targetView = getAuthorizedDashboardView(currentUser);
                     setActiveView(targetView);
                   }}
-                  className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors hidden md:flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors hidden sm:flex items-center gap-1.5 cursor-pointer"
                   title="Return to your authorised role-based dashboard"
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" />
@@ -211,7 +182,7 @@ export default function Navbar({
                 </button>
               )
             ) : (
-              <div className="hidden md:flex items-center gap-2 sm:gap-3">
+              <div className="hidden sm:flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => onOpenAuth('login')}
                   className="px-4 py-2 bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold rounded-md shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
@@ -241,7 +212,7 @@ export default function Navbar({
                     />
                     <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
                   </div>
-                  <div className="hidden lg:block text-left">
+                  <div className="hidden xl:block text-left">
                     <div className="text-xs font-bold text-slate-900 group-hover:text-[#0A7CB3] transition-colors leading-tight flex items-center gap-1">
                       <span>{currentUser.full_name}</span>
                     </div>
@@ -311,7 +282,7 @@ export default function Navbar({
             {/* Mobile Hamburger Toggle Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 md:hidden transition-colors cursor-pointer"
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 lg:hidden transition-colors cursor-pointer"
               aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMobileMenuOpen}
             >
@@ -320,9 +291,9 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Mobile Navigation Drawer / Menu (Visible on < md screens) */}
+        {/* Mobile Navigation Drawer / Menu (Visible on < lg screens) */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-200 py-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="lg:hidden border-t border-slate-200 py-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
             {/* Mobile Search */}
             <div className="relative px-1">
               <TechSearchBar

@@ -69,9 +69,11 @@ export default function StudentDashboardView({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         
         {/* Card 1: Active Enrolled Courses */}
-        <div 
+        <button 
+          type="button"
           onClick={() => setActiveTab('courses')}
-          className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-[#0A7CB3] hover:shadow-xs transition-all cursor-pointer group"
+          aria-label={`Enrolled Courses: ${summary.active_courses ?? 0}. Click to filter active learning programs`}
+          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-[#0A7CB3] hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Enrolled Courses</span>
@@ -84,12 +86,14 @@ export default function StudentDashboardView({
             <span>Active learning programs</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
+        </button>
 
         {/* Card 2: Course Completion % */}
-        <div 
+        <button 
+          type="button"
           onClick={() => setActiveTab('performance')}
-          className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer group"
+          aria-label={`Curriculum Completion: ${summary.course_completion_pct ?? 0} percent. Click to view performance details`}
+          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Completion</span>
@@ -106,12 +110,14 @@ export default function StudentDashboardView({
             <span>Overall curriculum items</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
+        </button>
 
         {/* Card 3: Attendance % */}
-        <div 
+        <button 
+          type="button"
           onClick={() => setActiveTab('performance')}
-          className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-indigo-500 hover:shadow-xs transition-all cursor-pointer group"
+          aria-label={`Attendance: ${summary.attendance_pct ?? 0} percent. Click to view attendance details`}
+          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-indigo-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Attendance</span>
@@ -128,12 +134,14 @@ export default function StudentDashboardView({
             <span>{summary.attendance_pct !== null && summary.attendance_pct !== undefined && summary.attendance_pct !== 'Not available yet' ? 'Live sessions record' : 'No attendance recorded yet'}</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
+        </button>
 
         {/* Card 4: Assignments Due */}
-        <div 
+        <button 
+          type="button"
           onClick={() => setActiveTab('performance')}
-          className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-amber-500 hover:shadow-xs transition-all cursor-pointer group"
+          aria-label={`Assignments Due: ${summary.assignments_awaiting_submission ?? 0}. Click to view pending tasks`}
+          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-amber-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Assignments Due</span>
@@ -146,12 +154,14 @@ export default function StudentDashboardView({
             <span>Awaiting submission</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
+        </button>
 
         {/* Card 5: Upcoming Quizzes */}
-        <div 
+        <button 
+          type="button"
           onClick={() => setActiveTab('schedule')}
-          className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group"
+          aria-label={`Upcoming Quizzes: ${summary.upcoming_quizzes ?? summary.upcoming_assessments ?? 0}. Click to view schedule`}
+          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Upcoming Quizzes</span>
@@ -164,12 +174,14 @@ export default function StudentDashboardView({
             <span>Pending quiz attempts</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
+        </button>
 
         {/* Card 6: Certificates & Verified Credentials */}
-        <div 
+        <button 
+          type="button"
           onClick={() => setActiveTab('certificates')}
-          className="bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group"
+          aria-label={`Certificates: ${summary.earned_certificates ?? certificates.length ?? 0}. Click to view issued credentials`}
+          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Certificates</span>
@@ -184,7 +196,7 @@ export default function StudentDashboardView({
             <span>Issued credentials</span>
             <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
+        </button>
 
       </div>
 

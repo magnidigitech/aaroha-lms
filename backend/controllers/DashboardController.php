@@ -455,6 +455,7 @@ class DashboardController {
         $pdo = Database::getConnection();
         $facultyId = (int)$actor['id'];
         $today = date('Y-m-d');
+        $now = date('Y-m-d H:i:s');
 
         // Fetch faculty profile
         $facStmt = $pdo->prepare("
@@ -506,11 +507,11 @@ class DashboardController {
                    cs.meeting_link, cs.status, b.batch_code, b.title as batch_title
             FROM class_sessions cs
             JOIN batches b ON cs.batch_id = b.id
-            WHERE cs.faculty_id = ? AND cs.start_time >= datetime('now') AND cs.status != 'cancelled'
+            WHERE cs.faculty_id = ? AND cs.start_time >= ? AND cs.status != 'cancelled'
             ORDER BY cs.start_time ASC
             LIMIT 8
         ");
-        $schedStmt->execute([$facultyId]);
+        $schedStmt->execute([$facultyId, $now]);
         $upcomingSchedule = $schedStmt->fetchAll();
 
         // 2.4 Sessions Awaiting Attendance Marking
@@ -521,7 +522,7 @@ class DashboardController {
             FROM class_sessions cs
             JOIN batches b ON cs.batch_id = b.id
             WHERE cs.faculty_id = ?
-              AND cs.start_time <= datetime('now')
+              AND cs.start_time <= ?
               AND cs.status IN ('completed', 'scheduled', 'in_progress')
               AND NOT EXISTS (
                   SELECT 1 FROM attendance_records ar WHERE ar.session_id = cs.id
@@ -529,7 +530,7 @@ class DashboardController {
             ORDER BY cs.start_time DESC
             LIMIT 10
         ");
-        $unmarkedAttStmt->execute([$facultyId]);
+        $unmarkedAttStmt->execute([$facultyId, $now]);
         $unmarkedSessions = $unmarkedAttStmt->fetchAll();
 
         // 2.5 Submissions Awaiting Grading
@@ -563,11 +564,11 @@ class DashboardController {
             $sessCountStmt = $pdo->prepare("
                 SELECT 
                     COUNT(*) as total_sessions,
-                    SUM(CASE WHEN start_time <= datetime('now') AND status != 'cancelled' THEN 1 ELSE 0 END) as completed_sessions
+                    SUM(CASE WHEN start_time <= ? AND status != 'cancelled' THEN 1 ELSE 0 END) as completed_sessions
                 FROM class_sessions
                 WHERE batch_id = ?
             ");
-            $sessCountStmt->execute([$bId]);
+            $sessCountStmt->execute([$now, $bId]);
             $sessData = $sessCountStmt->fetch();
             $totSess = (int)($sessData['total_sessions'] ?? 0);
             $compSess = (int)($sessData['completed_sessions'] ?? 0);
@@ -785,11 +786,13 @@ class DashboardController {
         $totalOutstanding = max(0.0, $totalNetFee - $collectionsPeriod);
 
         // Overdue count and amount
-        $overdueStmt = $pdo->query("
+        $today = date('Y-m-d');
+        $overdueStmt = $pdo->prepare("
             SELECT COUNT(*) as overdue_count, SUM(amount - paid_amount) as overdue_amount
             FROM fee_installments
-            WHERE status = 'overdue' OR (status = 'pending' AND due_date < date('now'))
+            WHERE status = 'overdue' OR (status = 'pending' AND due_date < ?)
         ");
+        $overdueStmt->execute([$today]);
         $overdueData = $overdueStmt->fetch();
 
         // Recent payments
@@ -807,17 +810,18 @@ class DashboardController {
         $recentPayments = $recStmt->fetchAll();
 
         // Overdue installments list
-        $overdueListStmt = $pdo->query("
+        $overdueListStmt = $pdo->prepare("
             SELECT fi.id, fi.installment_number, fi.amount, fi.due_date, fi.status, fi.paid_amount,
                    u.full_name as student_name, u.email as student_email, c.title as course_title
             FROM fee_installments fi
             JOIN fee_plans fp ON fi.fee_plan_id = fp.id
             JOIN users u ON fp.user_id = u.id
             JOIN courses c ON fp.course_id = c.id
-            WHERE fi.status = 'overdue' OR (fi.status = 'pending' AND fi.due_date < date('now'))
+            WHERE fi.status = 'overdue' OR (fi.status = 'pending' AND fi.due_date < ?)
             ORDER BY fi.due_date ASC
             LIMIT 20
         ");
+        $overdueListStmt->execute([$today]);
         $overdueInstallments = $overdueListStmt->fetchAll();
 
         return [
@@ -869,10 +873,10 @@ class DashboardController {
             WHERE mock_interview_feedback_json LIKE '%scheduled%' OR readiness_score >= 75
         ")->fetchColumn();
 
-        $empInterviewsCount = (int)$pdo->prepare("
-            SELECT COUNT(*) FROM job_applications
-            WHERE interview_scheduled_at >= datetime('now')
-        ")->execute() ? (int)$pdo->query("SELECT COUNT(*) FROM job_applications WHERE interview_scheduled_at >= datetime('now')")->fetchColumn() : 0;
+        $now = date('Y-m-d H:i:s');
+        $empStmt = $pdo->prepare("SELECT COUNT(*) FROM job_applications WHERE interview_scheduled_at >= ?");
+        $empStmt->execute([$now]);
+        $empInterviewsCount = (int)$empStmt->fetchColumn();
 
         // Confirmed offers count
         $offersCount = (int)$pdo->query("
@@ -949,10 +953,10 @@ class DashboardController {
         $upcomingBatches = (int)$pdo->query("SELECT COUNT(*) FROM batches WHERE status = 'upcoming' AND is_deleted = 0")->fetchColumn();
 
         // New admissions in last 30 days
-        $newAdmissions = (int)$pdo->prepare("
-            SELECT COUNT(*) FROM student_profiles 
-            WHERE admission_date >= date(?, '-30 days')
-        ")->execute([$today]) ? (int)$pdo->query("SELECT COUNT(*) FROM student_profiles WHERE admission_date >= date('now', '-30 days')")->fetchColumn() : 0;
+        $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
+        $newAdmStmt = $pdo->prepare("SELECT COUNT(*) FROM student_profiles WHERE admission_date >= ?");
+        $newAdmStmt->execute([$thirtyDaysAgo]);
+        $newAdmissions = (int)$newAdmStmt->fetchColumn();
 
         $pendingInvitations = (int)$pdo->query("SELECT COUNT(*) FROM student_profiles WHERE account_status = 'invited'")->fetchColumn();
 
@@ -1010,11 +1014,14 @@ class DashboardController {
         $awaitingGradingCount = (int)$pdo->query("SELECT COUNT(*) FROM task_submissions WHERE status = 'under_review'")->fetchColumn();
 
         // Sessions with missing attendance
-        $missingAttCount = (int)$pdo->query("
+        $now = date('Y-m-d H:i:s');
+        $missingAttStmt = $pdo->prepare("
             SELECT COUNT(*) FROM class_sessions cs
-            WHERE cs.start_time <= datetime('now') AND cs.status != 'cancelled'
+            WHERE cs.start_time <= ? AND cs.status != 'cancelled'
               AND NOT EXISTS (SELECT 1 FROM attendance_records ar WHERE ar.session_id = cs.id)
-        ")->fetchColumn();
+        ");
+        $missingAttStmt->execute([$now]);
+        $missingAttCount = (int)$missingAttStmt->fetchColumn();
 
         // 5.6 Publishing & Content Governance Overview
         $pendingReviews = $pdo->query("

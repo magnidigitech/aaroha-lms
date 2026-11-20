@@ -212,7 +212,7 @@ class PublishingController {
             // Students can ONLY see published items where scheduled_release_at <= now
             $where[] = "lm.status = 'published'";
             $where[] = "lm.approval_status = 'approved'";
-            $where[] = "(lm.scheduled_release_at IS NULL OR lm.scheduled_release_at <= datetime('now'))";
+            $where[] = "(lm.scheduled_release_at IS NULL OR lm.scheduled_release_at <= CURRENT_TIMESTAMP)";
             
             // Student audience restriction: must belong to enrolled courses or batches or individual
             $where[] = "(
@@ -1167,13 +1167,14 @@ class PublishingController {
                 $syllabus = $modStmt->fetchAll();
 
                 // Upcoming public batch dates (no private meeting links or student counts)
+                $thirtyDaysAgo = date('Y-m-d', strtotime('-30 days'));
                 $batchStmt = $pdo->prepare("
                     SELECT b.batch_code, b.title as batch_title, b.start_date, b.end_date, b.delivery_mode
                     FROM batches b
-                    WHERE b.course_id = ? AND b.status = 'active' AND b.start_date >= date('now', '-30 days')
+                    WHERE b.course_id = ? AND b.status = 'active' AND b.start_date >= ?
                     ORDER BY b.start_date ASC
                 ");
-                $batchStmt->execute([$cid]);
+                $batchStmt->execute([$cid, $thirtyDaysAgo]);
                 $upcomingBatches = $batchStmt->fetchAll();
 
                 $publicCourses[] = [

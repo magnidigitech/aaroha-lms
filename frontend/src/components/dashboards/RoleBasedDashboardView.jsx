@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import DashboardHeader from './DashboardHeader';
 import StudentDashboardView from './StudentDashboardView';
-import FacultyDashboardView from './FacultyDashboardView';
-import PlacementDashboardView from './PlacementDashboardView';
-import CoordinatorDashboardView from './CoordinatorDashboardView';
-import SuperAdminDashboardView from './SuperAdminDashboardView';
 import { api } from '../../apiService';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import ErrorBoundary from '../ErrorBoundary';
+
+// Lazy-load heavier administrative dashboards to optimize initial bundle size
+const FacultyDashboardView = React.lazy(() => import('./FacultyDashboardView'));
+const PlacementDashboardView = React.lazy(() => import('./PlacementDashboardView'));
+const CoordinatorDashboardView = React.lazy(() => import('./CoordinatorDashboardView'));
+const SuperAdminDashboardView = React.lazy(() => import('./SuperAdminDashboardView'));
 
 export default function RoleBasedDashboardView({
   currentUser,
@@ -76,8 +79,11 @@ export default function RoleBasedDashboardView({
   }, [activeRole]);
 
   useEffect(() => {
+    // Flush stale student state on user account switch
+    setDashboardData({});
+    setError(null);
     fetchDashboardData();
-  }, [fetchDashboardData]);
+  }, [currentUser?.id, currentUser?.email, fetchDashboardData]);
 
   // Handle Role Switching
   const handleRoleSwitch = (newRole) => {
@@ -122,70 +128,77 @@ export default function RoleBasedDashboardView({
           <button
             type="button"
             onClick={() => fetchDashboardData(false)}
-            className="px-5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold inline-flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold inline-flex items-center gap-2 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2"
           >
             <RefreshCw size={14} />
             <span>Retry Connection</span>
           </button>
         </div>
       ) : (
-        /* Role-Specific Dashboard Content */
-        <div>
-          {activeRole === 'student' && (
-            <StudentDashboardView
-              dashboardData={dashboardData}
-              onOpenCourse={onOpenCourse}
-              onContinueLearning={onContinueLearning}
-              onOpenClassroom={onOpenClassroom}
-              onOpenProfile={onOpenProfile}
-              onOpenTicketModal={onOpenTicketModal}
-              onExploreCatalog={onExploreCatalog}
-              activeTab={studentTab}
-              onTabChange={setStudentTab}
-            />
-          )}
+        /* Role-Specific Dashboard Content protected by ErrorBoundary and Suspense */
+        <ErrorBoundary onReset={() => fetchDashboardData(false)}>
+          <Suspense fallback={
+            <div className="bg-white rounded-3xl border border-slate-200 p-16 text-center space-y-4 shadow-xs">
+              <Loader2 className="w-8 h-8 text-[#0A7CB3] animate-spin mx-auto" />
+              <div className="text-sm font-bold text-slate-800">Loading Role Interface...</div>
+            </div>
+          }>
+            <div>
+              {activeRole === 'student' && (
+                <StudentDashboardView
+                  dashboardData={dashboardData}
+                  onOpenCourse={onOpenCourse}
+                  onContinueLearning={onContinueLearning}
+                  onOpenClassroom={onOpenClassroom}
+                  onOpenProfile={onOpenProfile}
+                  onOpenTicketModal={onOpenTicketModal}
+                  onExploreCatalog={onExploreCatalog}
+                  activeTab={studentTab}
+                  onTabChange={setStudentTab}
+                />
+              )}
 
-          {(activeRole === 'faculty' || activeRole === 'instructor') && (
-            <FacultyDashboardView
-              dashboardData={dashboardData}
-              onNavigateTab={onNavigateAdminTab}
-              onOpenAttendance={(sessionId) => onQuickAction && onQuickAction('attendance', sessionId)}
-              onOpenGrading={(subId) => onQuickAction && onQuickAction('grading', subId)}
-              onOpenMaterialModal={() => onQuickAction && onQuickAction('upload_material')}
-              onOpenAssignmentModal={() => onQuickAction && onQuickAction('create_assignment')}
-              onOpenAnnouncementModal={() => onQuickAction && onQuickAction('send_announcement')}
-            />
-          )}
+              {(activeRole === 'faculty' || activeRole === 'instructor') && (
+                <FacultyDashboardView
+                  dashboardData={dashboardData}
+                  onNavigateTab={onNavigateAdminTab}
+                  onOpenAttendance={(sessionId) => onQuickAction && onQuickAction('attendance', sessionId)}
+                  onOpenGrading={(subId) => onQuickAction && onQuickAction('grading', subId)}
+                  onOpenMaterialModal={() => onQuickAction && onQuickAction('upload_material')}
+                  onOpenAssignmentModal={() => onQuickAction && onQuickAction('create_assignment')}
+                  onOpenAnnouncementModal={() => onQuickAction && onQuickAction('send_announcement')}
+                />
+              )}
 
+              {activeRole === 'placement_officer' && (
+                <PlacementDashboardView
+                  dashboardData={dashboardData}
+                  onOpenReviewResume={(st) => onQuickAction && onQuickAction('review_resume', st)}
+                  onOpenScheduleMock={(st) => onQuickAction && onQuickAction('schedule_mock', st)}
+                  onOpenAddJob={() => onQuickAction && onQuickAction('add_job')}
+                  onOpenUpdateApplication={(app) => onQuickAction && onQuickAction('update_application', app)}
+                  onOpenRecordOffer={() => onQuickAction && onQuickAction('record_offer')}
+                />
+              )}
 
+              {activeRole === 'coordinator' && (
+                <CoordinatorDashboardView
+                  dashboardData={dashboardData}
+                  onNavigateTab={onNavigateAdminTab}
+                  onQuickAction={onQuickAction}
+                />
+              )}
 
-          {activeRole === 'placement_officer' && (
-            <PlacementDashboardView
-              dashboardData={dashboardData}
-              onOpenReviewResume={(st) => onQuickAction && onQuickAction('review_resume', st)}
-              onOpenScheduleMock={(st) => onQuickAction && onQuickAction('schedule_mock', st)}
-              onOpenAddJob={() => onQuickAction && onQuickAction('add_job')}
-              onOpenUpdateApplication={(app) => onQuickAction && onQuickAction('update_application', app)}
-              onOpenRecordOffer={() => onQuickAction && onQuickAction('record_offer')}
-            />
-          )}
-
-          {activeRole === 'coordinator' && (
-            <CoordinatorDashboardView
-              dashboardData={dashboardData}
-              onNavigateTab={onNavigateAdminTab}
-              onQuickAction={onQuickAction}
-            />
-          )}
-
-          {(activeRole === 'super_admin' || activeRole === 'admin') && (
-            <SuperAdminDashboardView
-              dashboardData={dashboardData}
-              onNavigateTab={onNavigateAdminTab}
-              onQuickAction={onQuickAction}
-            />
-          )}
-        </div>
+              {(activeRole === 'super_admin' || activeRole === 'admin') && (
+                <SuperAdminDashboardView
+                  dashboardData={dashboardData}
+                  onNavigateTab={onNavigateAdminTab}
+                  onQuickAction={onQuickAction}
+                />
+              )}
+            </div>
+          </Suspense>
+        </ErrorBoundary>
       )}
 
     </div>

@@ -204,11 +204,48 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             pass
 
     def _send_cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+        allowed_origins = [
+            'https://lms.aaroha-inc.com',
+            'https://www.aaroha-inc.com',
+            'https://aaroha-inc.com',
+            'https://aaroha-academy.vercel.app',
+            'http://localhost:5173',
+            'http://127.0.0.1:5173',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000'
+        ]
+        origin = self.headers.get("Origin", "")
+        self.send_header("Vary", "Origin, Accept-Encoding")
+        if origin:
+            clean_origin = origin.rstrip("/")
+            if clean_origin in allowed_origins:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Access-Control-Allow-Credentials", "true")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept")
+                self.send_header("Access-Control-Max-Age", "86400")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
 
     def do_OPTIONS(self):
+        allowed_origins = [
+            'https://lms.aaroha-inc.com',
+            'https://www.aaroha-inc.com',
+            'https://aaroha-inc.com',
+            'https://aaroha-academy.vercel.app',
+            'http://localhost:5173',
+            'http://127.0.0.1:5173',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000'
+        ]
+        origin = self.headers.get("Origin", "")
+        if origin and origin.rstrip("/") not in allowed_origins:
+            self.send_response(403)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": False, "error": "CORS Origin not allowed."}).encode('utf-8'))
+            return
+
         self.send_response(204)
         self._send_cors()
         self.end_headers()

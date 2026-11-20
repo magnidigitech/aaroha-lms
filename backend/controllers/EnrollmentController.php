@@ -248,7 +248,7 @@ class EnrollmentController {
             INSERT INTO enrollment_access_extensions (
                 enrollment_id, extended_by, previous_expires_at,
                 new_expires_at, extension_days, reason, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ");
         $insExt->execute([
             $enrollmentId,

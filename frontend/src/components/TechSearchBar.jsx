@@ -77,7 +77,7 @@ export default function TechSearchBar({
   const isHero = size === 'hero';
 
   return (
-    <div ref={containerRef} className={`relative w-full ${className}`}>
+    <div ref={containerRef} className={`relative w-full min-w-0 ${className}`}>
       {/* Search Input Box */}
       <div className={`relative flex items-center w-full transition-all ${
         isHero
@@ -97,7 +97,7 @@ export default function TechSearchBar({
             setIsOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          className={`w-full bg-transparent outline-none text-slate-900 placeholder-slate-400 font-medium ${
+          className={`w-full min-w-0 bg-transparent outline-none text-slate-900 placeholder-slate-400 font-medium ${
             isHero ? 'py-3.5 px-3 text-sm' : 'py-2 px-2.5 text-xs'
           }`}
         />

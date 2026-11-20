@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Navbar from './components/Navbar';
 import UserCatalogView from './components/UserCatalogView';
-import CourseBrochureView from './components/CourseBrochureView';
-import CourseClassroomView from './components/CourseClassroomView';
-import StudentPortalView from './components/StudentPortalView';
-import AdminPortalView from './components/AdminPortalView';
-import DegreesCertificatesView from './components/DegreesCertificatesView';
-import CertificateModal from './components/CertificateModal';
 import AuthModal from './components/AuthModal';
-import AccountActivationModal from './components/AccountActivationModal';
 import ProfileModal from './components/ProfileModal';
 import LeaderboardToggle from './components/LeaderboardToggle';
 import LeaderboardDrawer from './components/LeaderboardDrawer';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Code-split heavy routes and role-based views for optimized initial load
+const CourseBrochureView = React.lazy(() => import('./components/CourseBrochureView'));
+const CourseClassroomView = React.lazy(() => import('./components/CourseClassroomView'));
+const StudentPortalView = React.lazy(() => import('./components/StudentPortalView'));
+const AdminPortalView = React.lazy(() => import('./components/AdminPortalView'));
+const DegreesCertificatesView = React.lazy(() => import('./components/DegreesCertificatesView'));
+const CertificateModal = React.lazy(() => import('./components/CertificateModal'));
+const AccountActivationModal = React.lazy(() => import('./components/AccountActivationModal'));
 import { initialUsers, initialCourses, initialEnrollments, initialLessonProgress, initialTaskSubmissions, initialCertificates, initialDegrees } from './mockData';
 import { CheckCircle2 } from 'lucide-react';
 import aarohaLogo from './assets/aaroha_logo.webp';
@@ -24,6 +27,17 @@ import {
   getViewFromUrl,
   updateViewUrl
 } from './routes';
+
+function ViewLoadingFallback() {
+  return (
+    <div className="min-h-[400px] flex items-center justify-center p-8">
+      <div className="flex flex-col items-center gap-3 text-slate-500">
+        <div className="w-8 h-8 border-3 border-[#0A7CB3] border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-xs font-semibold text-slate-600">Loading module...</span>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [users, setUsers] = useState(() => {
@@ -101,6 +115,22 @@ export default function App() {
       return HOMEPAGE_ROUTE;
     }
   });
+
+  // Exclude single-use setup tokens and reset URLs from search indexing and crawler previews
+  useEffect(() => {
+    let robotsMeta = document.querySelector('meta[name="robots"]');
+    const isSensitive = activeView === 'activate' || activeView === 'reset-password' || (typeof window !== 'undefined' && window.location.search.includes('token='));
+    if (isSensitive) {
+      if (!robotsMeta) {
+        robotsMeta = document.createElement('meta');
+        robotsMeta.name = 'robots';
+        document.head.appendChild(robotsMeta);
+      }
+      robotsMeta.content = 'noindex, nofollow, noarchive';
+    } else if (robotsMeta) {
+      robotsMeta.content = 'index, follow';
+    }
+  }, [activeView]);
 
   const [viewingCertificate, setViewingCertificate] = useState(null);
   
@@ -1611,6 +1641,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden">
+      {/* Skip to Main Content Link for Keyboard and Screen-Reader Users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:px-4 focus:py-2.5 focus:bg-[#0A7CB3] focus:text-white focus:text-sm focus:font-bold focus:rounded-xl focus:shadow-xl focus:outline-none focus:ring-2 focus:ring-white transition-all"
+      >
+        Skip to main content
+      </a>
+
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl border border-slate-700 flex items-center gap-3">
@@ -1640,7 +1678,9 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full ${activeView === 'course-classroom' || activeView === 'admin' || activeView === 'catalog' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+      <main id="main-content" tabIndex={-1} className={`flex-1 w-full focus:outline-none ${activeView === 'course-classroom' || activeView === 'admin' || activeView === 'catalog' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6'}`}>
+        <ErrorBoundary>
+          <Suspense fallback={<ViewLoadingFallback />}>
         {/* 1. Main Course Catalog */}
         {activeView === 'catalog' && (
           <UserCatalogView
@@ -1804,6 +1844,8 @@ export default function App() {
             onLogout={handleLogout}
           />
         )}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* Auth Modal */}
@@ -1816,29 +1858,43 @@ export default function App() {
         initialResetToken={authModal.initialResetToken || ''}
       />
 
-      {/* Account Activation Modal */}
-      <AccountActivationModal
-        isOpen={isActivationModalOpen}
-        token={activationToken}
-        onClose={() => {
-          setIsActivationModalOpen(false);
-          setActivationToken('');
-          try {
-            const cleanPath = window.location.pathname.replace(/\/activate\/?$/, '/');
-            const params = new URLSearchParams(window.location.search);
-            params.delete('token');
-            params.delete('activation_token');
-            if (!params.has('view') && currentUser) {
-              const dashView = isFacultyRole(currentUser.role) ? 'admin' : 'student';
-              params.set('view', dashView);
-            }
-            const q = params.toString();
-            window.history.replaceState({}, document.title, (cleanPath || '/') + (q ? ('?' + q) : ''));
-          } catch (e) {}
-        }}
-        onSuccess={handleActivationSuccess}
-        onOpenLogin={() => handleOpenAuth('login')}
-      />
+      {/* Suspended Modal Layer for Lazy Loaded Modals */}
+      <Suspense fallback={null}>
+        {/* Account Activation Modal */}
+        {isActivationModalOpen && (
+          <AccountActivationModal
+            isOpen={isActivationModalOpen}
+            token={activationToken}
+            onClose={() => {
+              setIsActivationModalOpen(false);
+              setActivationToken('');
+              try {
+                const cleanPath = window.location.pathname.replace(/\/activate\/?$/, '/');
+                const params = new URLSearchParams(window.location.search);
+                params.delete('token');
+                params.delete('activation_token');
+                if (!params.has('view') && currentUser) {
+                  const dashView = isFacultyRole(currentUser.role) ? 'admin' : 'student';
+                  params.set('view', dashView);
+                }
+                const q = params.toString();
+                window.history.replaceState({}, document.title, (cleanPath || '/') + (q ? ('?' + q) : ''));
+              } catch (e) {}
+            }}
+            onSuccess={handleActivationSuccess}
+            onOpenLogin={() => handleOpenAuth('login')}
+          />
+        )}
+
+        {/* Official Accredited Digital Certificate Viewer Modal */}
+        {viewingCertificate && (
+          <CertificateModal
+            isOpen={!!viewingCertificate}
+            onClose={() => setViewingCertificate(null)}
+            certificate={viewingCertificate}
+          />
+        )}
+      </Suspense>
 
       {/* User Profile & Avatar Customization Modal */}
       <ProfileModal
@@ -1847,13 +1903,6 @@ export default function App() {
         currentUser={currentUser}
         onSaveProfile={handleUpdateProfile}
         onLogout={handleLogout}
-      />
-
-      {/* Official Accredited Digital Certificate Viewer Modal */}
-      <CertificateModal
-        isOpen={!!viewingCertificate}
-        onClose={() => setViewingCertificate(null)}
-        certificate={viewingCertificate}
       />
 
       {/* Student Ranking Leaderboard Toggle on Right Edge (Student Workspace Only) */}

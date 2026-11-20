@@ -2,15 +2,44 @@
 // Aaroha LMS - REST API Entrypoint Router
 // Optimized for Hostinger Shared LAMP stack (Native PHP 8.x + MySQL)
 
+// Request ID generation for traceability across logs and client reports
+$reqId = 'req_' . bin2hex(random_bytes(8));
+if (!defined('APP_REQUEST_ID')) {
+    define('APP_REQUEST_ID', $reqId);
+}
+
 // Global Exception & Fatal Error Trap to Guarantee JSON Response on Production
 set_exception_handler(function(Throwable $e) {
-    http_response_code(500);
+    $reqId = defined('APP_REQUEST_ID') ? APP_REQUEST_ID : ('req_' . bin2hex(random_bytes(6)));
+    
+    // Always log internal details securely to server log with Request ID
+    error_log(sprintf(
+        "[%s] Internal Server Error: %s in %s:%d\nStack trace:\n%s",
+        $reqId,
+        $e->getMessage(),
+        $e->getFile(),
+        $e->getLine(),
+        $e->getTraceAsString()
+    ));
+
+    $code = http_response_code();
+    if ($code < 400) {
+        $code = 500;
+        http_response_code(500);
+    }
+
     header('Content-Type: application/json; charset=UTF-8');
+    
+    // Check if error is a client-facing domain/validation error
+    $isClientSafe = ($e instanceof InvalidArgumentException) || ($code >= 400 && $code < 500);
+    $errorMessage = $isClientSafe 
+        ? $e->getMessage() 
+        : 'An unexpected internal server error occurred. Please quote Request ID: ' . $reqId;
+
     echo json_encode([
         'success' => false,
-        'error' => 'Internal Server Error: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'error' => $errorMessage,
+        'request_id' => $reqId
     ], JSON_UNESCAPED_SLASHES);
     exit;
 });
@@ -18,13 +47,20 @@ set_exception_handler(function(Throwable $e) {
 register_shutdown_function(function() {
     $err = error_get_last();
     if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        $reqId = defined('APP_REQUEST_ID') ? APP_REQUEST_ID : ('req_' . bin2hex(random_bytes(6)));
+        error_log(sprintf(
+            "[%s] Fatal Server Error: %s in %s:%d",
+            $reqId,
+            $err['message'],
+            $err['file'],
+            $err['line']
+        ));
         http_response_code(500);
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode([
             'success' => false,
-            'error' => 'Fatal Server Error: ' . $err['message'],
-            'file' => basename($err['file']),
-            'line' => $err['line']
+            'error' => 'A fatal server error occurred. Please quote Request ID: ' . $reqId,
+            'request_id' => $reqId
         ], JSON_UNESCAPED_SLASHES);
         exit;
     }

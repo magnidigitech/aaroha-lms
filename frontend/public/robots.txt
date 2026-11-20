@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /activate
+Disallow: /reset-password
+Disallow: /api/
+Allow: /
+Allow: /catalog
+Allow: /degrees
+Allow: /course/
+
+Sitemap: https://lms.aaroha-inc.com/sitemap.xml
