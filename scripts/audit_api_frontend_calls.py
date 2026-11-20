@@ -36,3 +36,4 @@ if mismatches:
         print(f"  Missing method: api.{m} in {file}")
 else:
     print("\n✓ All api.<method> calls exist in apiService.js!")
+
