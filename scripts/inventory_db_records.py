@@ -38,3 +38,4 @@ fetch('/admin/schedule', 'SCHEDULE SESSIONS')
 fetch('/admin/materials', 'MATERIALS')
 fetch('/admin/announcements', 'ANNOUNCEMENTS')
 fetch('/admin/certificates', 'CERTIFICATES')
+

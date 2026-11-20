@@ -27,3 +27,4 @@ for ep in endpoints:
             print(f"{ep}:", {k: len(v) if isinstance(v, list) else v for k, v in data.items() if k != 'success'})
     except Exception as e:
         print(f"{ep} error:", e)
+

@@ -77,3 +77,4 @@ try:
     ws.close()
 finally:
     chrome_proc.terminate()
+
