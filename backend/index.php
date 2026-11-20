@@ -566,6 +566,10 @@ try {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::removeFacultyAssignment((int)$matches[1], (int)$matches[2], $actor);
     }
+    elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/faculty/(\d+)/assignments/(\d+)(?:/update)?$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::updateFacultyAssignment((int)$matches[1], (int)$matches[2], $inputData, $actor);
+    }
     elseif ($requestMethod === 'POST' && preg_match('#^/admin/faculty/(\d+)/deactivate$#', $path, $matches)) {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::deactivateFacultyAccount((int)$matches[1], $inputData, $actor);
@@ -630,6 +634,10 @@ try {
     elseif ($requestMethod === 'POST' && preg_match('#^/admin/batches/(\d+)/restore$#', $path, $matches)) {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::restoreBatch((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/batches/(\d+)/status$#', $path, $matches)) {
+        $actor = AuthMiddleware::requireCoordinator();
+        $response = AdminPortalController::updateBatchStatus((int)$matches[1], $inputData, $actor);
     }
     elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/admin/batches/(\d+)(?:/delete)?$#', $path, $matches)) {
         $actor = AuthMiddleware::requireAdmin();

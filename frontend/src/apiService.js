@@ -718,9 +718,24 @@ export const api = {
     body: JSON.stringify(data)
   }),
 
-  // Class Session Deletion
+  // Class Session Deletion (aliases for compatibility)
   adminDeleteSession: (sessionId) => request(`/admin/schedule/${sessionId}`, {
     method: 'DELETE'
+  }),
+  adminDeleteScheduleSession: (sessionId) => request(`/admin/schedule/${sessionId}`, {
+    method: 'DELETE'
+  }),
+
+  // Batch Status Update
+  adminUpdateBatchStatus: (batchId, status) => request(`/admin/batches/${batchId}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status })
+  }),
+
+  // Faculty Assignment Role Update
+  adminUpdateFacultyAssignment: (facultyId, assignmentId, data) => request(`/admin/faculty/${facultyId}/assignments/${assignmentId}/update`, {
+    method: 'POST',
+    body: JSON.stringify(data)
   }),
 
 

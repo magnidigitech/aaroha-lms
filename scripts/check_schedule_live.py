@@ -35,3 +35,4 @@ for s in sessions:
             email = r.get('email')
             status = r.get('status')
             print(f"    - Student {uid}: {name} ({email}) | Status: {status}")
+

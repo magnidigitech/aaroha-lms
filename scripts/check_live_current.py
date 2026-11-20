@@ -29,3 +29,4 @@ def check(endpoint, label):
 check('/admin/users', 'ALL USERS DIRECTORY')
 check('/admin/students', 'STUDENTS DIRECTORY')
 check('/admin/faculty', 'FACULTY DIRECTORY')
+

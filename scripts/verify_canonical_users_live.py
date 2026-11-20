@@ -118,3 +118,4 @@ for email, pw, expected_role in test_credentials:
         print(f"   ✗ {email} -> ERROR: {e}")
 
 print("\n" + "="*60)
+

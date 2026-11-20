@@ -30,3 +30,4 @@ except urllib.error.HTTPError as e:
     print("DELETE Faculty 4 HTTPError:", e.code, e.read().decode())
 except Exception as e:
     print("DELETE Faculty 4 Error:", e)
+

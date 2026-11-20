@@ -37,3 +37,4 @@ for uid in [2, 4]:
             print("Faculty eligibility:", resp.read().decode())
     except Exception as e:
         print("Faculty eligibility error:", e)
+

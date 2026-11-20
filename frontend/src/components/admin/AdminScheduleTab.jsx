@@ -13,6 +13,7 @@ export default function AdminScheduleTab({
   onScheduleSession,
   onRescheduleSession,
   onCancelSession,
+  onDeleteSession,
   onMarkAttendance
 }) {
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
@@ -43,10 +44,15 @@ export default function AdminScheduleTab({
     if (!deleteSessionModal.session) return;
     try {
       setDeleteSessionModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
-      await api.adminDeleteScheduleSession(deleteSessionModal.session.id);
       const sessId = deleteSessionModal.session.id;
+      if (typeof onDeleteSession === 'function') {
+        await onDeleteSession(sessId);
+      } else if (typeof api.adminDeleteScheduleSession === 'function') {
+        await api.adminDeleteScheduleSession(sessId);
+      } else if (typeof api.adminDeleteSession === 'function') {
+        await api.adminDeleteSession(sessId);
+      }
       setDeleteSessionModal({ isOpen: false, session: null, isSubmitting: false, error: '' });
-      if (onCancelSession) await onCancelSession(sessId, { reason: 'Deleted from schedule' });
     } catch (err) {
       setDeleteSessionModal(prev => ({
         ...prev,

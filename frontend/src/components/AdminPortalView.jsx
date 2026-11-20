@@ -579,6 +579,22 @@ export default function AdminPortalView({
     }
   };
 
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      const deleteFn = api.adminDeleteScheduleSession || api.adminDeleteSession;
+      const res = await deleteFn(sessionId);
+      if (res?.success) {
+        showToast(res.message || 'Class session permanently deleted');
+        await fetchSchedule();
+        await fetchDashboardStats();
+      }
+      return res;
+    } catch (err) {
+      showToast(err.message || 'Error deleting session', 'error');
+      throw err;
+    }
+  };
+
   const handleFetchSessionAttendance = async (sessionId) => {
     return await api.adminGetSessionAttendance(sessionId);
   };
@@ -1166,6 +1182,7 @@ export default function AdminPortalView({
               onScheduleSession={handleScheduleSession}
               onRescheduleSession={handleRescheduleSession}
               onCancelSession={handleCancelSession}
+              onDeleteSession={handleDeleteSession}
               onMarkAttendance={(sess) => {
                 setSelectedSessionId(sess.id);
                 setActiveModule('attendance');

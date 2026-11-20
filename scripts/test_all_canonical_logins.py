@@ -34,3 +34,4 @@ for email, expected_role in test_accounts:
         all_ok = False
 
 print(f"\nAll 5 Canonical Accounts Login Test: {'SUCCESS' if all_ok else 'FAILED'}")
+

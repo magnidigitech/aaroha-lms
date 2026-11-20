@@ -15,3 +15,4 @@ headers = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json
 # Could it be audit_logs? Yes! AuditLogger inserts user_id into audit_logs!
 # Let's check audit_logs
 print("Checking if audit_logs or other tables have foreign key ON DELETE RESTRICT on users.id")
+

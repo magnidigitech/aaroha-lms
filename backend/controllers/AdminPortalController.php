@@ -1532,6 +1532,18 @@ class AdminPortalController {
         }
     }
 
+    public static function updateFacultyAssignment($facultyId, $assignmentId, $data, $actor) {
+        $pdo = Database::getConnection();
+        $facultyId = (int)$facultyId;
+        $assignmentId = (int)$assignmentId;
+        $role = trim($data['role'] ?? 'Primary Faculty');
+
+        $stmt = $pdo->prepare("UPDATE faculty_batch_assignments SET role = ? WHERE (id = ? OR (faculty_id = ? AND batch_id = ?))");
+        $stmt->execute([$role, $assignmentId, $facultyId, $assignmentId]);
+        AuditLogger::log('UPDATE_FACULTY_ASSIGNMENT', 'faculty_batch_assignment', $assignmentId, ['role' => $role], $actor);
+        return ['success' => true, 'message' => 'Faculty assignment role updated.'];
+    }
+
     public static function deactivateFacultyAccount($facultyId, $data, $actor) {
         $pdo = Database::getConnection();
         $facultyId = (int)$facultyId;
@@ -2180,6 +2192,23 @@ class AdminPortalController {
 
         AuditLogger::log('RESTORE_BATCH', 'batch', $batchId, [], $actor);
         return ['success' => true, 'message' => 'Batch restored to active cohorts.'];
+    }
+
+    public static function updateBatchStatus($batchId, $data, $actor) {
+        $pdo = Database::getConnection();
+        $batchId = (int)$batchId;
+        $status = strtolower(trim($data['status'] ?? 'active'));
+        $allowed = ['active', 'upcoming', 'completed', 'cancelled', 'archived'];
+        if (!in_array($status, $allowed)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Invalid batch status.'];
+        }
+
+        $stmt = $pdo->prepare("UPDATE batches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute([$status, $batchId]);
+
+        AuditLogger::log('UPDATE_BATCH_STATUS', 'batch', $batchId, ['status' => $status], $actor);
+        return ['success' => true, 'message' => "Batch status updated to {$status}."];
     }
 
     public static function checkBatchDeletionEligibility($batchId) {
