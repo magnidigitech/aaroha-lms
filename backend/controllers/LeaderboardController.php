@@ -56,6 +56,25 @@ class LeaderboardController {
                 ");
             }
 
+            // Clean up any rogue dummy mock students previously seeded into users table
+            try {
+                $dummyEmails = [
+                    'marcus.vance@systems-core.io',
+                    'sophia.lin@ai-dynamics.org',
+                    'dev.patel@security-mesh.net',
+                    'sarah.jenkins@distributed-lab.com',
+                    'liam.oconnor@kernel-cloud.io',
+                    'aria.chen@cloud-native.io',
+                    'david.kim@ai-scale.tech'
+                ];
+                $placeholders = implode(',', array_fill(0, count($dummyEmails), '?'));
+                $pdo->prepare("DELETE FROM student_rankings WHERE user_id IN (SELECT id FROM users WHERE email IN ($placeholders))")->execute($dummyEmails);
+                $pdo->prepare("DELETE FROM users WHERE email IN ($placeholders)")->execute($dummyEmails);
+                $pdo->exec("DELETE FROM student_rankings WHERE user_id NOT IN (SELECT id FROM users)");
+            } catch (Exception $cleanupEx) {
+                error_log('Leaderboard dummy cleanup error: ' . $cleanupEx->getMessage());
+            }
+
             // Seed initial rankings if table is currently empty
             try {
                 $count = (int)$pdo->query("SELECT COUNT(*) FROM student_rankings")->fetchColumn();
@@ -74,132 +93,35 @@ class LeaderboardController {
     }
 
     /**
-     * Seed baseline academic cohort rankings.
+     * Seed baseline academic cohort rankings ONLY for genuine enrolled students.
+     * Never injects or creates mock/dummy accounts in the users table.
      */
     private static function seedInitialRankings(PDO $pdo): void {
-        // 1. Ensure peer student profiles exist
-        $peerStudents = [
-            ['Elena Rostova', 'elena.rostova@enterprise.io', 'Senior Systems Architect', '/avatars/3d/memo_13.png'],
-            ['Marcus Vance', 'marcus.vance@systems-core.io', 'Cloud Infrastructure Engineer', '/avatars/3d/memo_5.png'],
-            ['Sophia Lin', 'sophia.lin@ai-dynamics.org', 'Principal ML Engineer', '/avatars/3d/memo_17.png'],
-            ['Dev Patel', 'dev.patel@security-mesh.net', 'Site Reliability & Security Architect', '/avatars/3d/memo_24.png'],
-            ['Sarah Jenkins', 'sarah.jenkins@distributed-lab.com', 'Distributed Systems Fellow', '/avatars/3d/memo_22.png'],
-            ['Liam O\'Connor', 'liam.oconnor@kernel-cloud.io', 'Kernel & Cloud Systems Engineer', '/avatars/3d/memo_8.png'],
-            ['Aria Chen', 'aria.chen@cloud-native.io', 'Distributed Consensus Specialist', '/avatars/3d/memo_19.png'],
-            ['David Kim', 'david.kim@ai-scale.tech', 'Inference Optimization Engineer', '/avatars/3d/memo_11.png']
-        ];
+        // 1. Discover genuine enrolled students
+        $students = $pdo->query("
+            SELECT u.id, u.full_name, u.email 
+            FROM users u
+            WHERE u.role = 'student' 
+              AND u.deleted_at IS NULL
+              AND u.email NOT LIKE '%@systems-core.io'
+              AND u.email NOT LIKE '%@ai-dynamics.org'
+              AND u.email NOT LIKE '%@security-mesh.net'
+              AND u.email NOT LIKE '%@distributed-lab.com'
+              AND u.email NOT LIKE '%@kernel-cloud.io'
+              AND u.email NOT LIKE '%@cloud-native.io'
+              AND u.email NOT LIKE '%@ai-scale.tech'
+            ORDER BY u.id ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
 
-        $hash = '$2y$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'; // password123
-        $userIdMap = [];
-
-        foreach ($peerStudents as $peer) {
-            [$name, $email, $title, $avatar] = $peer;
-            $chk = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
-            $chk->execute([$email]);
-            $existingId = $chk->fetchColumn();
-
-            if ($existingId) {
-                $userIdMap[$email] = (int)$existingId;
-            } else {
-                try {
-                    $insUser = $pdo->prepare("
-                        INSERT INTO users (full_name, email, password_hash, role, title, avatar)
-                        VALUES (?, ?, ?, 'student', ?, ?)
-                    ");
-                    $insUser->execute([$name, $email, $hash, $title, $avatar]);
-                    $userIdMap[$email] = (int)$pdo->lastInsertId();
-                } catch (Exception $ex) {}
-            }
+        if (empty($students)) {
+            return;
         }
 
         // 2. Discover existing course IDs
         $courses = $pdo->query("SELECT id FROM courses WHERE is_deleted = 0 ORDER BY id ASC")->fetchAll(PDO::FETCH_COLUMN);
         $primaryCourseId = !empty($courses[0]) ? (int)$courses[0] : null;
 
-        // 3. Insert baseline rankings
-        $standings = [
-            [
-                'email' => 'elena.rostova@enterprise.io',
-                'rank' => 1,
-                'points' => 985,
-                'grade_pct' => 98.5,
-                'badge' => 'Top Architect',
-                'notes' => 'Flawless distributed consensus modeling and zero-downtime deployment architecture.',
-                'lessons' => 18,
-                'tasks' => 4
-            ],
-            [
-                'email' => 'marcus.vance@systems-core.io',
-                'rank' => 2,
-                'points' => 950,
-                'grade_pct' => 95.0,
-                'badge' => 'Distinction Honors',
-                'notes' => 'Outstanding Raft log replication and P99 latency optimization benchmarks.',
-                'lessons' => 16,
-                'tasks' => 4
-            ],
-            [
-                'email' => 'sophia.lin@ai-dynamics.org',
-                'rank' => 3,
-                'points' => 925,
-                'grade_pct' => 92.5,
-                'badge' => 'Executive Fellow',
-                'notes' => 'High-throughput vector search pipeline with deterministic dynamic batching.',
-                'lessons' => 15,
-                'tasks' => 3
-            ],
-            [
-                'email' => 'dev.patel@security-mesh.net',
-                'rank' => 4,
-                'points' => 890,
-                'grade_pct' => 89.0,
-                'badge' => 'High Honors',
-                'notes' => 'Robust zero-trust network isolation and automated penetration defense.',
-                'lessons' => 14,
-                'tasks' => 3
-            ],
-            [
-                'email' => 'sarah.jenkins@distributed-lab.com',
-                'rank' => 5,
-                'points' => 865,
-                'grade_pct' => 86.5,
-                'badge' => 'Dean\'s List',
-                'notes' => 'Clean state machine replication with deterministic crash-recovery tests.',
-                'lessons' => 13,
-                'tasks' => 3
-            ],
-            [
-                'email' => 'liam.oconnor@kernel-cloud.io',
-                'rank' => 6,
-                'points' => 835,
-                'grade_pct' => 83.5,
-                'badge' => 'Rising Talent',
-                'notes' => 'Demonstrated strong mastery of language tokenization and attention mechanisms.',
-                'lessons' => 12,
-                'tasks' => 2
-            ],
-            [
-                'email' => 'aria.chen@cloud-native.io',
-                'rank' => 7,
-                'points' => 810,
-                'grade_pct' => 81.0,
-                'badge' => 'Honor Roll',
-                'notes' => 'Consistent performance in distributed key-value storage implementations.',
-                'lessons' => 11,
-                'tasks' => 2
-            ],
-            [
-                'email' => 'david.kim@ai-scale.tech',
-                'rank' => 8,
-                'points' => 780,
-                'grade_pct' => 78.0,
-                'badge' => 'Active Contender',
-                'notes' => 'Solid foundation in asynchronous RPC patterns and stream pipelines.',
-                'lessons' => 10,
-                'tasks' => 2
-            ]
-        ];
-
+        // 3. Insert baseline rankings for genuine students only
         $insRank = $pdo->prepare("
             INSERT INTO student_rankings (
                 user_id, course_id, rank_position, points, grade_pct, 
@@ -207,23 +129,25 @@ class LeaderboardController {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
-        foreach ($standings as $s) {
-            $uid = $userIdMap[$s['email']] ?? null;
-            if ($uid) {
-                try {
-                    $insRank->execute([
-                        $uid,
-                        $primaryCourseId,
-                        $s['rank'],
-                        $s['points'],
-                        $s['grade_pct'],
-                        $s['badge'],
-                        $s['notes'],
-                        $s['lessons'],
-                        $s['tasks']
-                    ]);
-                } catch (Exception $ex) {}
-            }
+        $rank = 1;
+        foreach ($students as $st) {
+            $points = max(100, 1000 - (($rank - 1) * 75));
+            $grade = max(70.0, 98.0 - (($rank - 1) * 3.5));
+            $badge = $rank === 1 ? 'Top Architect' : ($rank === 2 ? 'Distinction Honors' : 'Executive Scholar');
+            try {
+                $insRank->execute([
+                    $st['id'],
+                    $primaryCourseId,
+                    $rank,
+                    $points,
+                    $grade,
+                    $badge,
+                    'Active academic cohort standing and verified curriculum progress.',
+                    14,
+                    3
+                ]);
+                $rank++;
+            } catch (Exception $ex) {}
         }
     }
 

@@ -3,7 +3,6 @@ import Navbar from './components/Navbar';
 import UserCatalogView from './components/UserCatalogView';
 import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
-import LeaderboardToggle from './components/LeaderboardToggle';
 import LeaderboardDrawer from './components/LeaderboardDrawer';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -1922,22 +1921,15 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      {/* Academic Leaderboard Toggle & Slide-out Drawer (Accessible across Student & Admin Roles) */}
+      {/* Academic Leaderboard Slide-out Drawer (Accessible across Student & Admin Roles via Navigation) */}
       {(activeView === 'student' || activeView === 'admin' || currentUser) && (
-        <>
-          <LeaderboardToggle 
-            isOpen={isLeaderboardOpen} 
-            onToggle={() => setIsLeaderboardOpen(prev => !prev)} 
-          />
-
-          <LeaderboardDrawer
-            isOpen={isLeaderboardOpen}
-            onClose={() => setIsLeaderboardOpen(false)}
-            currentUser={currentUser}
-            courses={courses}
-            showToast={showToast}
-          />
-        </>
+        <LeaderboardDrawer
+          isOpen={isLeaderboardOpen}
+          onClose={() => setIsLeaderboardOpen(false)}
+          currentUser={currentUser}
+          courses={courses}
+          showToast={showToast}
+        />
       )}
 
       {/* Multi-Column Footer (Hidden in focused classroom view and administrative workspace shell) */}

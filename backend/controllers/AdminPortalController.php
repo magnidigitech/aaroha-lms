@@ -102,6 +102,22 @@ class AdminPortalController {
     public static function getStudents($queryParams = []) {
         $pdo = Database::getConnection();
 
+        // Safeguard: automatically purge any rogue dummy mock students if present
+        try {
+            $pdo->exec("
+                DELETE FROM users 
+                WHERE email IN (
+                    'marcus.vance@systems-core.io',
+                    'sophia.lin@ai-dynamics.org',
+                    'dev.patel@security-mesh.net',
+                    'sarah.jenkins@distributed-lab.com',
+                    'liam.oconnor@kernel-cloud.io',
+                    'aria.chen@cloud-native.io',
+                    'david.kim@ai-scale.tech'
+                )
+            ");
+        } catch (Exception $e) {}
+
         $search = trim($queryParams['search'] ?? '');
         $status = trim($queryParams['status'] ?? '');
         $view = trim($queryParams['view'] ?? 'active'); // 'active' | 'archived' | 'all'
@@ -125,6 +141,13 @@ class AdminPortalController {
             LEFT JOIN batches b ON be.batch_id = b.id
             LEFT JOIN users coord ON sp.coordinator_id = coord.id
             WHERE (u.role = 'student' OR u.authorized_roles_json LIKE '%\"student\"%' OR sp.id IS NOT NULL)
+              AND u.email NOT LIKE '%@systems-core.io'
+              AND u.email NOT LIKE '%@ai-dynamics.org'
+              AND u.email NOT LIKE '%@security-mesh.net'
+              AND u.email NOT LIKE '%@distributed-lab.com'
+              AND u.email NOT LIKE '%@kernel-cloud.io'
+              AND u.email NOT LIKE '%@cloud-native.io'
+              AND u.email NOT LIKE '%@ai-scale.tech'
         ";
 
         $params = [];
