@@ -10,7 +10,7 @@ import CourseCardBadge, { BADGE_COLOR_PRESETS } from '../CourseCardBadge';
 import { AVATAR_PRESETS } from '../../avatarPresets';
 import api from '../../apiService';
 
-const PRESET_DOMAINS = [
+export const PRESET_DOMAINS = [
   'Cloud Architecture',
   'Applied AI',
   'Cybersecurity',
@@ -67,6 +67,29 @@ export default function CourseModal({
 
   const instructorFileInputRef = useRef(null);
   const thumbnailFileInputRef = useRef(null);
+
+  // Deduplicated canonical existing categories (trimmed & case-insensitive)
+  const existingCategoryOptions = useMemo(() => {
+    const map = new Map();
+    (availableCategories || []).forEach(cat => {
+      const trimmed = typeof cat === 'string' ? cat.trim() : '';
+      if (trimmed && !map.has(trimmed.toLowerCase())) {
+        map.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+    if (initialData?.category) {
+      const trimmed = initialData.category.trim();
+      if (trimmed && !map.has(trimmed.toLowerCase())) {
+        map.set(trimmed.toLowerCase(), trimmed);
+      }
+    }
+    PRESET_DOMAINS.forEach(p => {
+      if (!map.has(p.toLowerCase())) {
+        map.set(p.toLowerCase(), p);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [availableCategories, initialData?.category]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -170,8 +193,10 @@ export default function CourseModal({
       setUploadError('');
 
       if (initialData) {
-        const cat = initialData.category || availableCategories[0] || 'Cloud Architecture';
-        const isCustom = !PRESET_DOMAINS.includes(cat);
+        const rawCat = (initialData.category || '').trim();
+        const matchedExisting = existingCategoryOptions.find(c => c.toLowerCase() === rawCat.toLowerCase());
+        const cat = matchedExisting || rawCat || existingCategoryOptions[0] || 'Cloud Architecture';
+        const isCustom = Boolean(cat && !existingCategoryOptions.some(c => c.toLowerCase() === cat.toLowerCase()));
         setIsCustomCategory(isCustom);
         setCustomCategoryVal(isCustom ? cat : '');
 
@@ -314,9 +339,14 @@ export default function CourseModal({
     setIsSaving(true);
     setSaveError(null);
 
-    const finalCategory = isCustomCategory 
-      ? customCategoryVal.trim() 
-      : formData.category;
+    let finalCategory = '';
+    if (isCustomCategory) {
+      const trimmed = customCategoryVal.trim();
+      const match = existingCategoryOptions.find(c => c.toLowerCase() === trimmed.toLowerCase());
+      finalCategory = match || trimmed;
+    } else {
+      finalCategory = (formData.category || '').trim();
+    }
 
     const parsedSkills = skillsInput
       .split(',')
@@ -485,26 +515,64 @@ export default function CourseModal({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Curriculum Domain</label>
-                  {isCustomCategory ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={customCategoryVal}
-                        onChange={(e) => {
-                          setCustomCategoryVal(e.target.value);
-                          setIsDirty(true);
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 block text-xs">Curriculum Domain / Category *</label>
+                    {!isCustomCategory ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomCategory(true);
+                          setCustomCategoryVal('');
                         }}
-                        placeholder="e.g. Quantum Infrastructure"
-                        className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                      />
+                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      >
+                        + Create New
+                      </button>
+                    ) : (
                       <button
                         type="button"
                         onClick={() => setIsCustomCategory(false)}
-                        className="px-2.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[11px] font-semibold"
+                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                       >
-                        Preset
+                        Choose Existing
                       </button>
+                    )}
+                  </div>
+                  {isCustomCategory ? (
+                    <div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={customCategoryVal}
+                          onChange={(e) => {
+                            setCustomCategoryVal(e.target.value);
+                            setIsDirty(true);
+                            if (errors.category) setErrors(prev => ({ ...prev, category: null }));
+                          }}
+                          placeholder="e.g. Distributed Consensus Systems"
+                          className={`flex-1 p-2.5 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-xs ${errors.category ? 'border-red-400' : 'border-slate-200'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomCategory(false)}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[11px] font-semibold cursor-pointer shrink-0"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {(() => {
+                        const trimmed = customCategoryVal.trim();
+                        if (!trimmed) return null;
+                        const match = existingCategoryOptions.find(c => c.toLowerCase() === trimmed.toLowerCase());
+                        if (match) {
+                          return (
+                            <p className="text-[11px] text-amber-700 bg-amber-50/80 border border-amber-200/80 rounded-lg px-2.5 py-1 mt-1.5 flex items-center gap-1.5">
+                              <span>Notice: Matches existing category <strong>"{match}"</strong>. Will reuse canonical category chip without duplicates.</span>
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   ) : (
                     <select
@@ -517,13 +585,16 @@ export default function CourseModal({
                           handleChange('category', e.target.value);
                         }
                       }}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-xs"
                     >
-                      {availableCategories.map(cat => (
+                      {existingCategoryOptions.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
-                      <option value="__custom__">+ Custom Domain...</option>
+                      <option value="__custom__">+ Create New Category...</option>
                     </select>
+                  )}
+                  {errors.category && (
+                    <p className="text-[11px] text-red-500 mt-1">{errors.category}</p>
                   )}
                 </div>
 

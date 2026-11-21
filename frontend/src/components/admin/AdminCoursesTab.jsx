@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   BookOpen, Plus, Edit3, Trash2, Award, FileText, GraduationCap,
   Sparkles, CheckCircle2, Video, Check, Layers, ListTodo, AlertCircle,
@@ -42,6 +42,18 @@ export default function AdminCoursesTab({
   const setCourseCardTab = (courseId, tab) => {
     setCourseCardTabs(prev => ({ ...prev, [courseId]: tab }));
   };
+
+  // Deduplicated dynamic categories across existing programs
+  const availableCategories = useMemo(() => {
+    const set = new Set();
+    (courses || []).forEach(c => {
+      if (c && c.category && typeof c.category === 'string') {
+        const trimmed = c.category.trim();
+        if (trimmed) set.add(trimmed);
+      }
+    });
+    return Array.from(set);
+  }, [courses]);
 
   // Publish / Unpublish Toggle
   const handleTogglePublish = async (course) => {
@@ -848,6 +860,7 @@ export default function AdminCoursesTab({
         isOpen={courseModal.isOpen}
         initialData={courseModal.initialData}
         initialTab={courseModal.initialTab}
+        availableCategories={availableCategories}
         faculty={faculty}
         currentUser={currentUser}
         onClose={() => setCourseModal({ isOpen: false, initialData: null, initialTab: 'syllabus' })}

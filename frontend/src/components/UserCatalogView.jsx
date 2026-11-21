@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Star, ArrowRight, BookOpen, 
-  Sparkles, X 
+  Sparkles, X, ChevronDown, Search, Check
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import heroStudentsImg from '../assets/hero_learning_students.webp';
@@ -15,35 +15,111 @@ export default function UserCatalogView({
   onOpenCourseDetails, 
   searchQuery, 
   setSearchQuery,
-  selectedCategory,
+  selectedCategory = 'All',
   setSelectedCategory
 }) {
-  const dynamicCategories = ['All', ...Array.from(new Set([
-    'Applied AI',
-    'Cloud Architecture',
-    'Cybersecurity',
-    ...courses.map(c => c.category).filter(Boolean)
-  ]))];
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileDropdownOpen, setIsMobileDropdownOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
+  const desktopDropdownRef = useRef(null);
+  const mobileDropdownRef = useRef(null);
 
-  const publishedCourses = courses.filter(c => c.is_published !== 0 && c.is_published !== false && !c.is_deleted);
+  // Close dropdowns on outside click or escape key
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (desktopDropdownRef.current && !desktopDropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+      if (mobileDropdownRef.current && !mobileDropdownRef.current.contains(e.target)) {
+        setIsMobileDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsDropdownOpen(false);
+        setIsMobileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Public category filter is built strictly from categories with at least one publicly visible course.
+  // Filters out unpublished, deleted, or archived courses.
+  const publishedCourses = useMemo(() => {
+    return courses.filter(c => {
+      if (!c) return false;
+      const isPub = c.is_published !== 0 && c.is_published !== false && c.is_published !== '0';
+      const notDel = !c.is_deleted && c.is_deleted !== 1;
+      const notArchived = !c.is_archived && c.is_archived !== 1 && c.status !== 'archived';
+      return isPub && notDel && notArchived;
+    });
+  }, [courses]);
+
+  // Aggregate category counts with case-insensitive deduplication and canonical naming
+  const categoryStats = useMemo(() => {
+    const map = new Map();
+    publishedCourses.forEach(course => {
+      const raw = (course.category || '').trim();
+      if (!raw) return;
+      const lower = raw.toLowerCase();
+      if (!map.has(lower)) {
+        map.set(lower, { name: raw, count: 1 });
+      } else {
+        map.get(lower).count += 1;
+      }
+    });
+    // Alphabetical stable display order so chips stay in familiar positions as courses are added
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }, [publishedCourses]);
+
+  const allCategories = useMemo(() => {
+    return categoryStats.map(stat => stat.name);
+  }, [categoryStats]);
+
+  // Desktop chips: Up to 4 category chips.
+  // If selectedCategory is selected from More Categories (and not in top 4), show it as one of the 4 chips while keeping 4-chip limit.
+  const visibleDesktopChips = useMemo(() => {
+    if (allCategories.length <= 4) {
+      return allCategories;
+    }
+    const defaultFour = allCategories.slice(0, 4);
+    if (!selectedCategory || selectedCategory === 'All') {
+      return defaultFour;
+    }
+    const isSelectedInDefault = defaultFour.some(c => c.toLowerCase() === selectedCategory.toLowerCase());
+    if (isSelectedInDefault) {
+      return defaultFour;
+    }
+    const fourWithSelected = [...allCategories.slice(0, 3), selectedCategory];
+    return fourWithSelected.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [allCategories, selectedCategory]);
+
+  const filteredDropdownCategories = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase();
+    if (!q) return categoryStats;
+    return categoryStats.filter(c => c.name.toLowerCase().includes(q));
+  }, [categoryStats, categorySearch]);
 
   const hasSearch = searchQuery && searchQuery.trim().length > 0;
 
-  // Smart semantic matching using open-source technology taxonomy
-  const filteredCourses = publishedCourses.filter(course => {
-    const matchesSearch = hasSearch ? courseMatchesQuery(course, searchQuery) : true;
-    
-    // When a search query is active, prioritize semantic relevance across all programs
-    // so results NEVER get stuck or hidden by previous category selections.
-    const matchesCategory = !hasSearch
-      ? (selectedCategory === 'All' || course.category === selectedCategory)
-      : (selectedCategory === 'All' || course.category === selectedCategory || matchesSearch);
+  // Apply category selection together with the existing search query (AND condition)
+  const filteredCourses = useMemo(() => {
+    return publishedCourses.filter(course => {
+      const matchesSearch = hasSearch ? courseMatchesQuery(course, searchQuery) : true;
+      const matchesCategory = (!selectedCategory || selectedCategory === 'All')
+        ? true
+        : (course.category || '').trim().toLowerCase() === selectedCategory.trim().toLowerCase();
 
-    return matchesSearch && matchesCategory;
-  });
+      return matchesSearch && matchesCategory;
+    });
+  }, [publishedCourses, hasSearch, searchQuery, selectedCategory]);
 
   const handleSearchSubmit = (q) => {
-    if (setSelectedCategory) setSelectedCategory('All');
     setTimeout(() => {
       const target = document.getElementById('browse-courses-section');
       if (target) {
@@ -206,20 +282,244 @@ export default function UserCatalogView({
           </div>
         )}
 
-        {/* Category Pills (Coursera Style) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {dynamicCategories.map(cat => (
+        {/* Responsive Category Filters */}
+        <div className="relative">
+          {/* Desktop Filter Row (sm and up): All Courses + up to 4 Category Chips + More Categories */}
+          <div className="hidden sm:flex items-center gap-2 flex-wrap">
+            {/* All Courses Chip */}
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={'px-4 py-2 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ' +
-                (selectedCategory === cat
+              type="button"
+              onClick={() => setSelectedCategory('All')}
+              className={`px-4 py-2 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                selectedCategory === 'All'
                   ? 'bg-[#0A7CB3] text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700')}
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700'
+              }`}
             >
-              {cat === 'All' ? 'All Courses' : cat}
+              All Courses ({publishedCourses.length})
             </button>
-          ))}
+
+            {/* Up to 4 Category Chips */}
+            {visibleDesktopChips.map(catName => {
+              const stat = categoryStats.find(s => s.name.toLowerCase() === catName.toLowerCase());
+              const count = stat ? stat.count : 0;
+              const isSelected = selectedCategory.toLowerCase() === catName.toLowerCase();
+              return (
+                <button
+                  key={catName}
+                  type="button"
+                  onClick={() => setSelectedCategory(catName)}
+                  className={`px-4 py-2 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#0A7CB3] text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  {catName} ({count})
+                </button>
+              );
+            })}
+
+            {/* More Categories Dropdown (if > 4 categories available) */}
+            {allCategories.length > 4 && (
+              <div className="relative" ref={desktopDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDropdownOpen(prev => !prev);
+                    setCategorySearch('');
+                  }}
+                  className={`px-3.5 py-2 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    isDropdownOpen || (selectedCategory !== 'All' && !visibleDesktopChips.some(c => c.toLowerCase() === selectedCategory.toLowerCase()))
+                      ? 'bg-slate-100 dark:bg-slate-700 text-[#0A7CB3] dark:text-sky-400 border-[#0A7CB3]'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <span>More Categories</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute left-0 mt-2 w-72 max-h-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col">
+                    <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={categorySearch}
+                          onChange={(e) => setCategorySearch(e.target.value)}
+                          placeholder="Search categories..."
+                          className="w-full pl-8 pr-7 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-[#0A7CB3] dark:focus:border-sky-400 text-slate-900 dark:text-white"
+                          autoFocus
+                        />
+                        {categorySearch && (
+                          <button
+                            type="button"
+                            onClick={() => setCategorySearch('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="overflow-y-auto max-h-60 p-1 divide-y divide-slate-50 dark:divide-slate-800/60">
+                      {filteredDropdownCategories.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400">
+                          No matching categories
+                        </div>
+                      ) : (
+                        filteredDropdownCategories.map(cat => {
+                          const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
+                          return (
+                            <button
+                              key={cat.name}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCategory(cat.name);
+                                setIsDropdownOpen(false);
+                                setCategorySearch('');
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left rounded-lg transition-colors cursor-pointer ${
+                                isSelected
+                                  ? 'font-bold text-[#0A7CB3] dark:text-sky-400 bg-blue-50/70 dark:bg-blue-950/40'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              }`}
+                            >
+                              <span className="truncate pr-2">{cat.name}</span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+                                  {cat.count}
+                                </span>
+                                {isSelected && (
+                                  <Check className="w-3.5 h-3.5 text-[#0A7CB3] dark:text-sky-400" />
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Filter Controls (sm:hidden) */}
+          <div className="flex sm:hidden items-center gap-2 flex-wrap">
+            {/* All Courses Chip */}
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('All')}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                selectedCategory === 'All'
+                  ? 'bg-[#0A7CB3] text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              All Courses ({publishedCourses.length})
+            </button>
+
+            {/* Categories Selector Button */}
+            <div className="relative" ref={mobileDropdownRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileDropdownOpen(prev => !prev);
+                  setCategorySearch('');
+                }}
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1 cursor-pointer border ${
+                  isMobileDropdownOpen
+                    ? 'bg-slate-100 dark:bg-slate-700 text-[#0A7CB3] border-[#0A7CB3]'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                <span>Categories</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMobileDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Mobile Category Dropdown */}
+              {isMobileDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-72 max-h-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col">
+                  <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={categorySearch}
+                        onChange={(e) => setCategorySearch(e.target.value)}
+                        placeholder="Search categories..."
+                        className="w-full pl-8 pr-7 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-[#0A7CB3] dark:focus:border-sky-400 text-slate-900 dark:text-white"
+                        autoFocus
+                      />
+                      {categorySearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCategorySearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto max-h-60 p-1 divide-y divide-slate-50 dark:divide-slate-800/60">
+                    {filteredDropdownCategories.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        No matching categories
+                      </div>
+                    ) : (
+                      filteredDropdownCategories.map(cat => {
+                        const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
+                        return (
+                          <button
+                            key={cat.name}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategory(cat.name);
+                              setIsMobileDropdownOpen(false);
+                              setCategorySearch('');
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left rounded-lg transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'font-bold text-[#0A7CB3] dark:text-sky-400 bg-blue-50/70 dark:bg-blue-950/40'
+                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <span className="truncate pr-2">{cat.name}</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+                                {cat.count}
+                              </span>
+                              {isSelected && (
+                                <Check className="w-3.5 h-3.5 text-[#0A7CB3] dark:text-sky-400" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Selected Category Pill on Mobile with Quick Clear */}
+            {selectedCategory && selectedCategory !== 'All' && (
+              <div className="flex items-center gap-1.5 pl-3 pr-2 py-1 bg-[#0A7CB3] text-white text-xs font-semibold rounded-full shadow-xs">
+                <span className="truncate max-w-[150px]">{selectedCategory}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('All')}
+                  aria-label="Clear category selection"
+                  className="p-0.5 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="w-3 h-3 text-white" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Coursera-Style Course Cards Grid */}
@@ -320,19 +620,32 @@ export default function UserCatalogView({
       </div>
 
       {filteredCourses.length === 0 && (
-        <div className="text-center py-20 bg-white dark:bg-[#0c1527] rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-8 space-y-3">
+        <div className="text-center py-16 bg-white dark:bg-[#0c1527] rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-8 space-y-3">
           <BookOpen className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto" />
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No programs match your search</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Try searching for topics like "AI", "NLP", "Raft", "Distributed Systems", or select All Courses.</p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedCategory('All');
-            }}
-            className="px-4 py-2 text-xs font-bold text-[#0A7CB3] dark:text-sky-400 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-md transition-colors cursor-pointer"
-          >
-            Clear Filters & View All
-          </button>
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No programs match your filters</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            {hasSearch && selectedCategory !== 'All' ? (
+              <span>No courses found matching &ldquo;<strong className="text-slate-700 dark:text-slate-200">{searchQuery}</strong>&rdquo; within the <strong className="text-slate-700 dark:text-slate-200">{selectedCategory}</strong> category.</span>
+            ) : hasSearch ? (
+              <span>No courses found matching &ldquo;<strong className="text-slate-700 dark:text-slate-200">{searchQuery}</strong>&rdquo;.</span>
+            ) : selectedCategory !== 'All' ? (
+              <span>No published courses currently available under <strong className="text-slate-700 dark:text-slate-200">{selectedCategory}</strong>.</span>
+            ) : (
+              <span>No published programs are currently available in the catalogue.</span>
+            )}
+          </p>
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (setSearchQuery) setSearchQuery('');
+                if (setSelectedCategory) setSelectedCategory('All');
+              }}
+              className="px-4 py-2 text-xs font-bold text-white bg-[#0A7CB3] hover:bg-[#086491] rounded-xl transition-colors cursor-pointer shadow-xs"
+            >
+              Clear Filters & View All
+            </button>
+          </div>
         </div>
       )}
       </div>
