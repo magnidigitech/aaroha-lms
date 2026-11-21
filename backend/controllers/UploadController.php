@@ -169,12 +169,12 @@ class UploadController {
         $mimeType = finfo_file($finfo, $destPath) ?: 'application/octet-stream';
         finfo_close($finfo);
 
-        $pdo = Database::getConnection();
         $uploaderId = !empty($user['id']) ? (int)$user['id'] : 1;
         $isPub = $cfg['is_public'] ? 1 : 0;
         $vis = $cfg['is_public'] ? 'public' : 'private';
 
         try {
+            $pdo = Database::getConnection();
             $stmt = $pdo->prepare("
                 INSERT INTO uploaded_files (
                     file_key, storage_key, original_filename, filename, mime_type,
@@ -187,25 +187,8 @@ class UploadController {
                 $fileSize, $category, $vis, $isPub, $uploaderId,
                 $uploaderId, $cfg['dir'] . '/' . $destFilename
             ]);
-        } catch (Exception $e) {
-            try {
-                @$pdo->exec("ALTER TABLE uploaded_files MODIFY uploaded_by INT UNSIGNED NULL DEFAULT NULL");
-                @$pdo->exec("ALTER TABLE uploaded_files MODIFY uploader_user_id INT UNSIGNED NULL DEFAULT NULL");
-                $stmt = $pdo->prepare("
-                    INSERT INTO uploaded_files (
-                        file_key, storage_key, original_filename, filename, mime_type,
-                        file_size, category, visibility, is_public, uploaded_by,
-                        uploader_user_id, storage_path, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ");
-                $stmt->execute([
-                    $storageKey, $storageKey, $filename, $filename, $mimeType,
-                    $fileSize, $category, $vis, $isPub, $uploaderId,
-                    $uploaderId, $cfg['dir'] . '/' . $destFilename
-                ]);
-            } catch (Exception $e2) {
-                error_log("UploadController file record insert fallback warning: " . $e2->getMessage());
-            }
+        } catch (\Throwable $e) {
+            error_log("UploadController DB insert non-fatal notice (disk asset saved): " . $e->getMessage());
         }
 
         $publicUrl = '/api/uploads/public/' . $storageKey;
@@ -302,19 +285,23 @@ class UploadController {
             $fileSize = filesize($destPath);
             $mimeType = 'video/mp4';
 
-            $pdo = Database::getConnection();
-            $uploaderId = $user['id'] ?? null;
-            $stmt = $pdo->prepare("
-                INSERT INTO uploaded_files (
-                    file_key, storage_key, original_filename, filename, mime_type,
-                    file_size, category, visibility, is_public, uploaded_by,
-                    uploader_user_id, storage_path, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'private', 0, ?, ?, ?, CURRENT_TIMESTAMP)
-            ");
-            $stmt->execute([
-                $storageKey, $storageKey, $filename, $filename, $mimeType,
-                $fileSize, $category, $uploaderId, $uploaderId, $cfg['dir'] . '/' . $destFilename
-            ]);
+            $uploaderId = !empty($user['id']) ? (int)$user['id'] : 1;
+            try {
+                $pdo = Database::getConnection();
+                $stmt = $pdo->prepare("
+                    INSERT INTO uploaded_files (
+                        file_key, storage_key, original_filename, filename, mime_type,
+                        file_size, category, visibility, is_public, uploaded_by,
+                        uploader_user_id, storage_path, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'private', 0, ?, ?, ?, CURRENT_TIMESTAMP)
+                ");
+                $stmt->execute([
+                    $storageKey, $storageKey, $filename, $filename, $mimeType,
+                    $fileSize, $category, $uploaderId, $uploaderId, $cfg['dir'] . '/' . $destFilename
+                ]);
+            } catch (\Throwable $e) {
+                error_log("UploadController uploadChunk DB insert non-fatal notice: " . $e->getMessage());
+            }
 
             $streamUrl = '/api/uploads/stream/' . $storageKey;
             $signedToken = self::signFileToken($storageKey, $uploaderId);
@@ -343,26 +330,59 @@ class UploadController {
      * Serve Public Asset
      */
     public static function servePublic(string $fileKey): void {
-        $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT * FROM uploaded_files WHERE storage_key = ? OR file_key = ? LIMIT 1");
-        $stmt->execute([$fileKey, $fileKey]);
-        $row = $stmt->fetch();
-
-        if (!$row) {
-            http_response_code(404);
-            echo json_encode(['success' => false, 'error' => 'File not found']);
-            exit;
-        }
+        $row = null;
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("SELECT * FROM uploaded_files WHERE storage_key = ? OR file_key = ? LIMIT 1");
+            $stmt->execute([$fileKey, $fileKey]);
+            $row = $stmt->fetch();
+        } catch (\Throwable $e) {}
 
         $baseDir = self::getUploadsBaseDir();
-        $filePath = $baseDir . '/' . $row['storage_path'];
-        if (!file_exists($filePath)) {
+        $filePath = null;
+        $mimeType = 'application/octet-stream';
+
+        if ($row && !empty($row['storage_path'])) {
+            $candidate = $baseDir . '/' . $row['storage_path'];
+            if (file_exists($candidate)) {
+                $filePath = $candidate;
+                $mimeType = $row['mime_type'] ?: 'application/octet-stream';
+            }
+        }
+
+        // Direct filesystem search fallback across categories if DB record is missing
+        if (!$filePath) {
+            $searchCandidates = [
+                $baseDir . '/courses/' . $fileKey,
+                $baseDir . '/courses/' . $fileKey . '.png',
+                $baseDir . '/courses/' . $fileKey . '.jpg',
+                $baseDir . '/courses/' . $fileKey . '.jpeg',
+                $baseDir . '/courses/' . $fileKey . '.webp',
+                $baseDir . '/courses/' . $fileKey . '.svg',
+                $baseDir . '/avatars/' . $fileKey,
+                $baseDir . '/avatars/' . $fileKey . '.png',
+                $baseDir . '/avatars/' . $fileKey . '.jpg',
+                $baseDir . '/avatars/' . $fileKey . '.webp',
+                $baseDir . '/materials/' . $fileKey,
+            ];
+            foreach ($searchCandidates as $cand) {
+                if (file_exists($cand)) {
+                    $filePath = $cand;
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $mimeType = finfo_file($finfo, $cand) ?: 'application/octet-stream';
+                    finfo_close($finfo);
+                    break;
+                }
+            }
+        }
+
+        if (!$filePath || !file_exists($filePath)) {
             http_response_code(404);
             echo json_encode(['success' => false, 'error' => 'File data not found on disk']);
             exit;
         }
 
-        header('Content-Type: ' . ($row['mime_type'] ?: 'application/octet-stream'));
+        header('Content-Type: ' . $mimeType);
         header('Content-Length: ' . filesize($filePath));
         header('Cache-Control: public, max-age=86400');
         readfile($filePath);

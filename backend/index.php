@@ -912,7 +912,9 @@ try {
     http_response_code(500);
     $response = [
         'success' => false,
-        'error' => 'Internal Server Error: ' . $e->getMessage()
+        'error' => 'Internal Server Error: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
     ];
 }
 
