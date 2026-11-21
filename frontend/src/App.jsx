@@ -1712,6 +1712,7 @@ export default function App() {
           setSearchQuery={setSearchQuery}
           onSelectCategory={(cat) => setSelectedCategory(cat)}
           courses={courses}
+          onOpenCourseDetails={handleOpenCourseDetails}
         />
       )}
 
