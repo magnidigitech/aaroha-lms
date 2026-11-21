@@ -500,6 +500,18 @@ class AdminPortalController {
         $stmt->execute([(int)$userId]);
         $placement = $stmt->fetch() ?: null;
 
+        // 6. Certificates & Credentials
+        $stmt = $pdo->prepare("
+            SELECT c.*, crs.title as course_title, b.batch_code
+            FROM certificates c
+            LEFT JOIN courses crs ON c.course_id = crs.id
+            LEFT JOIN batches b ON c.batch_id = b.id
+            WHERE c.user_id = ?
+            ORDER BY c.issued_at DESC
+        ");
+        $stmt->execute([(int)$userId]);
+        $certificates = $stmt->fetchAll();
+
         // 7. Activity / Audit history
         $stmt = $pdo->prepare("
             SELECT action, details_json, created_at, user_email
@@ -518,6 +530,7 @@ class AdminPortalController {
             'attendance' => $attendance,
             'assessments' => $assessments,
             'placement' => $placement,
+            'certificates' => $certificates,
             'activity' => $activity
         ];
     }
@@ -2962,7 +2975,7 @@ class AdminPortalController {
         ];
     }
 
-    public static function getTicketThread($ticketId) {
+    public static function getTicketThread($ticketId, $actor = null) {
         $pdo = Database::getConnection();
         $ticketId = (int)$ticketId;
 
@@ -2982,20 +2995,34 @@ class AdminPortalController {
             return ['success' => false, 'error' => 'Support ticket not found.'];
         }
 
-        $msgStmt = $pdo->prepare("
+        // Authorization: students can only access their own ticket threads
+        if ($actor && !in_array($actor['role'] ?? '', ['super_admin', 'admin', 'coordinator', 'faculty'])) {
+            if ((int)$ticket['user_id'] !== (int)$actor['id']) {
+                http_response_code(403);
+                return ['success' => false, 'error' => 'Unauthorized access to support ticket thread.'];
+            }
+        }
+
+        $filterInternal = ($actor && !in_array($actor['role'] ?? '', ['super_admin', 'admin', 'coordinator', 'faculty']));
+        $msgSql = "
             SELECT tm.*, u.full_name as sender_name, u.role as sender_role, u.avatar as sender_avatar
             FROM ticket_messages tm
             JOIN users u ON tm.sender_id = u.id
             WHERE tm.ticket_id = ?
-            ORDER BY tm.created_at ASC
-        ");
+        ";
+        if ($filterInternal) {
+            $msgSql .= " AND (tm.is_internal_note = 0 OR tm.is_internal_note IS NULL)";
+        }
+        $msgSql .= " ORDER BY tm.created_at ASC";
+
+        $msgStmt = $pdo->prepare($msgSql);
         $msgStmt->execute([$ticketId]);
         $messages = $msgStmt->fetchAll();
 
         return [
             'success' => true,
             'ticket' => $ticket,
-            'messages' => $messages
+            'messages' => $messages ?: []
         ];
     }
 
@@ -3003,12 +3030,28 @@ class AdminPortalController {
         $pdo = Database::getConnection();
         $ticketId = (int)$ticketId;
         $message = trim($data['message'] ?? '');
-        $isInternal = !empty($data['is_internal_note']) ? 1 : 0;
         $senderId = (int)$actor['id'];
+
+        $isPrivileged = in_array($actor['role'] ?? '', ['super_admin', 'admin', 'coordinator', 'faculty']);
+        $isInternal = ($isPrivileged && !empty($data['is_internal_note'])) ? 1 : 0;
 
         if (!$message) {
             http_response_code(400);
             return ['success' => false, 'error' => 'Message text cannot be empty.'];
+        }
+
+        // Check ticket exists and access
+        $checkStmt = $pdo->prepare("SELECT user_id, status FROM support_tickets WHERE id = ?");
+        $checkStmt->execute([$ticketId]);
+        $t = $checkStmt->fetch();
+        if (!$t) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Support ticket not found.'];
+        }
+
+        if (!$isPrivileged && (int)$t['user_id'] !== $senderId) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Unauthorized: Cannot reply to another student\'s ticket.'];
         }
 
         $stmt = $pdo->prepare("
@@ -3025,6 +3068,9 @@ class AdminPortalController {
         AuditLogger::log('REPLY_SUPPORT_TICKET', 'support_ticket', $ticketId, ['is_internal' => $isInternal], $actor);
         return [
             'success' => true,
+            'message' => 'Reply posted successfully.'
+        ];
+    }
             'message' => $isInternal ? 'Internal staff note saved.' : 'Reply sent to student fellow.'
         ];
     }

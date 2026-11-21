@@ -1470,7 +1470,20 @@ export default function App() {
     showToast('Assignment archived.');
   };
 
-  const handleGradeSubmission = async ({ submissionId, score, status, feedback }) => {
+  const handleGradeSubmission = async (submissionIdOrPayload, maybePayload) => {
+    let submissionId, score, status, feedback;
+    if (typeof submissionIdOrPayload === 'object' && submissionIdOrPayload !== null) {
+      submissionId = submissionIdOrPayload.submissionId;
+      score = submissionIdOrPayload.score;
+      status = submissionIdOrPayload.status;
+      feedback = submissionIdOrPayload.feedback;
+    } else {
+      submissionId = submissionIdOrPayload;
+      score = maybePayload?.score;
+      status = maybePayload?.status;
+      feedback = maybePayload?.feedback;
+    }
+
     try {
       await api.gradeSubmission(submissionId, { score, status, feedback });
     } catch (err) {
@@ -1478,7 +1491,7 @@ export default function App() {
     }
 
     const updated = taskSubmissions.map(s => {
-      if (s.id === submissionId) {
+      if (String(s.id) === String(submissionId)) {
         return {
           ...s,
           score: score,

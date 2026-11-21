@@ -5,7 +5,7 @@ import {
   MoreVertical, CheckCircle2, XCircle, AlertTriangle, Mail,
   Eye, Edit3, UserCheck, UserX, RefreshCw, Layers, FileText,
   Calendar, Clock, ExternalLink, X, ShieldAlert, UserMinus, UserPlus, AlertCircle,
-  RotateCcw, Trash2, Archive, ChevronDown, KeyRound, Link as LinkIcon
+  RotateCcw, Trash2, Archive, ChevronDown, KeyRound, Link as LinkIcon, Award, GitBranch
 } from 'lucide-react';
 import { exportToCsv, formatDate, formatDateTime, calculateAccessExpiry, getAccessWindowInfo } from '../../adminUtils';
 import api from '../../apiService';
@@ -1950,13 +1950,15 @@ export default function AdminStudentsTab({
               </div>
             </div>
 
-            {/* 8-Tab Navigation Bar */}
+            {/* Navigation Bar */}
             <div className="flex border-b border-slate-200 bg-slate-50 px-4 overflow-x-auto custom-scrollbar shrink-0">
               {[
                 { id: 'profile', label: 'Profile' },
                 { id: 'enrolments', label: 'Enrolments' },
                 { id: 'attendance', label: 'Attendance' },
                 { id: 'assessments', label: 'Assessments' },
+                { id: 'placement', label: 'Placement & Career' },
+                { id: 'certificates', label: 'Certificates' },
                 { id: 'documents', label: 'Documents' },
                 { id: 'communications', label: 'Communications' },
                 { id: 'activity', label: 'Activity' }
@@ -2244,7 +2246,114 @@ export default function AdminStudentsTab({
                 </div>
               )}
 
-              {/* Tab 5: Documents */}
+              {/* Tab 5: Placement & Career */}
+              {detailTab === 'placement' && (
+                <div className="space-y-4">
+                  {selectedStudentDetail.placement ? (
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-900">Career Placement Profile</span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-semibold ${
+                            selectedStudentDetail.placement.placement_status === 'placed'
+                              ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                              : selectedStudentDetail.placement.placement_status === 'ready_for_interviews'
+                              ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                              : 'bg-amber-100 text-amber-900 border border-amber-200'
+                          }`}>
+                            {selectedStudentDetail.placement.placement_status?.replace(/_/g, ' ') || 'training'}
+                          </span>
+                        </div>
+
+                        {/* Readiness Score */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-500 font-medium">Readiness Index:</span>
+                            <span className="font-mono font-bold text-slate-900">
+                              {selectedStudentDetail.placement.readiness_score || 0}%
+                            </span>
+                          </div>
+                          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{ width: `${Math.min(100, Math.max(2, selectedStudentDetail.placement.readiness_score || 0))}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-200">
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Target Roles</span>
+                            <strong className="text-slate-900">{selectedStudentDetail.placement.target_roles || 'Cloud Systems Engineer'}</strong>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">Technical Skills</span>
+                            <span className="text-slate-700">{selectedStudentDetail.placement.skills || 'Linux, Python, Systems'}</span>
+                          </div>
+                          {selectedStudentDetail.placement.placement_status === 'placed' && (
+                            <div className="col-span-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between">
+                              <span>Company: <strong>{selectedStudentDetail.placement.placed_company || 'Corporate Partner'}</strong></span>
+                              <span className="font-mono font-bold">{selectedStudentDetail.placement.package_offered || 'Confidential'}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Links */}
+                      <div className="p-3.5 rounded-xl bg-white border border-slate-200 flex flex-wrap items-center gap-3 text-xs">
+                        {selectedStudentDetail.placement.resume_url && (
+                          <a href={selectedStudentDetail.placement.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 font-medium">
+                            <FileText size={13} /> Resume
+                          </a>
+                        )}
+                        {selectedStudentDetail.placement.github_url && (
+                          <a href={selectedStudentDetail.placement.github_url} target="_blank" rel="noopener noreferrer" className="text-slate-800 hover:text-slate-900 flex items-center gap-1 font-medium">
+                            <GitBranch size={13} /> GitHub
+                          </a>
+                        )}
+                        {selectedStudentDetail.placement.portfolio_url && (
+                          <a href={selectedStudentDetail.placement.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-[#0A7CB3] hover:underline flex items-center gap-1 font-medium">
+                            <ExternalLink size={13} /> Portfolio
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                      No active placement profile found.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 6: Certificates */}
+              {detailTab === 'certificates' && (
+                <div className="space-y-3">
+                  {(selectedStudentDetail.certificates || []).length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                      No certificates issued yet for this student.
+                    </div>
+                  ) : (
+                    (selectedStudentDetail.certificates || []).map(cert => (
+                      <div key={cert.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Award size={16} className="text-[#0A7CB3]" />
+                            <strong className="text-slate-900 font-semibold">{cert.course_title || 'Certified Specialization'}</strong>
+                          </div>
+                          <div className="text-[11px] font-mono text-[#0A7CB3] mt-1">{cert.certificate_code}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">Issued on {formatDate(cert.issued_at || cert.completion_date)}</div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-100 text-emerald-800 font-bold">
+                          {cert.status || 'ISSUED'}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Tab 7: Documents */}
               {detailTab === 'documents' && (
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">

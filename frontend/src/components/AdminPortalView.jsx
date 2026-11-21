@@ -839,9 +839,15 @@ export default function AdminPortalView({
   };
 
   // Quick navigation helper from dashboard cards
-  const handleNavigateTab = (tabId, filter) => {
+  const handleNavigateTab = async (tabId, filter) => {
     if (canAccessModule(userRole, tabId)) {
       setActiveModule(tabId);
+      if (tabId === 'attendance' && filter?.sessionId) {
+        setSelectedSessionId(filter.sessionId);
+      }
+      if (tabId === 'students' && filter?.studentId) {
+        await handleViewStudentDetail(filter.studentId);
+      }
     } else {
       showToast(`Module '${tabId}' is restricted to your role`, 'error');
     }
@@ -1150,7 +1156,7 @@ export default function AdminPortalView({
               supportData={supportData}
               auditLogs={auditLogs}
               currentUser={currentUser}
-              onNavigateTab={(tab) => setActiveModule(tab)}
+              onNavigateTab={handleNavigateTab}
               onQuickAction={(action, payload) => {
                 if (action === 'onboard_student' || action === 'add_student') setActiveModule('students');
                 else if (action === 'create_batch') setActiveModule('batches');
@@ -1340,6 +1346,7 @@ export default function AdminPortalView({
           {activeModule === 'support' && (
             <AdminSupportTab
               supportData={supportData}
+              onRefreshSupport={fetchSupportData}
             />
           )}
 

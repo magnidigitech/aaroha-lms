@@ -750,12 +750,12 @@ try {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
         $response = AdminPortalController::getSupportTickets();
     }
-    elseif ($requestMethod === 'GET' && preg_match('#^/admin/support/tickets/(\d+)/thread$#', $path, $matches)) {
-        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
-        $response = AdminPortalController::getTicketThread((int)$matches[1]);
+    elseif ($requestMethod === 'GET' && (preg_match('#^/admin/support/tickets/(\d+)/thread$#', $path, $matches) || preg_match('#^/student/support/tickets/(\d+)/thread$#', $path, $matches) || preg_match('#^/support/tickets/(\d+)/thread$#', $path, $matches))) {
+        $actor = AuthMiddleware::requireAuth();
+        $response = AdminPortalController::getTicketThread((int)$matches[1], $actor);
     }
-    elseif ($requestMethod === 'POST' && preg_match('#^/admin/support/tickets/(\d+)/reply$#', $path, $matches)) {
-        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'faculty']);
+    elseif ($requestMethod === 'POST' && (preg_match('#^/admin/support/tickets/(\d+)/reply$#', $path, $matches) || preg_match('#^/student/support/tickets/(\d+)/reply$#', $path, $matches) || preg_match('#^/support/tickets/(\d+)/reply$#', $path, $matches))) {
+        $actor = AuthMiddleware::requireAuth();
         $response = AdminPortalController::replySupportTicket((int)$matches[1], $inputData, $actor);
     }
     elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/support/tickets/(\d+)/status$#', $path, $matches)) {

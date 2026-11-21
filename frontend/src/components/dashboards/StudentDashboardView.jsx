@@ -255,11 +255,11 @@ export default function StudentDashboardView({
             View Certificates
           </button>
           <button
-            onClick={() => onOpenTicketModal && onOpenTicketModal()}
+            onClick={() => onOpenTicketModal && onOpenTicketModal('my_tickets')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             <HelpCircle size={13} />
-            Raise Support Ticket
+            Support & Helpdesk
           </button>
         </div>
       </div>

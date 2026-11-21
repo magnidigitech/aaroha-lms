@@ -17,7 +17,7 @@ export default function StudentPortalView({
   showToast
 }) {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
-  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [ticketModalConfig, setTicketModalConfig] = useState({ isOpen: false, initialTab: 'my_tickets' });
 
   return (
     <div className="pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,16 +28,17 @@ export default function StudentPortalView({
         onContinueLearning={onOpenCourse}
         onOpenClassroom={onOpenCourse}
         onOpenProfile={onOpenProfile}
-        onOpenTicketModal={() => setIsTicketModalOpen(true)}
+        onOpenTicketModal={(tab) => setTicketModalConfig({ isOpen: true, initialTab: tab || 'my_tickets' })}
         onExploreCatalog={onExploreCatalog}
         onViewWebsite={onViewWebsite || onExploreCatalog}
       />
 
       {/* Support & Academic Ticket Modal */}
       <StudentTicketModal
-        isOpen={isTicketModalOpen}
-        onClose={() => setIsTicketModalOpen(false)}
+        isOpen={ticketModalConfig.isOpen}
+        onClose={() => setTicketModalConfig(prev => ({ ...prev, isOpen: false }))}
         currentUser={currentUser}
+        initialTab={ticketModalConfig.initialTab}
         onSuccess={(msg) => {
           if (showToast) showToast(msg);
         }}

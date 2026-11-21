@@ -712,6 +712,11 @@ export const api = {
     body: JSON.stringify(data)
   }),
   studentGetMySupportTickets: () => request('/student/support/tickets'),
+  studentGetTicketThread: (ticketId) => request(`/student/support/tickets/${ticketId}/thread`),
+  studentReplyTicket: (ticketId, data) => request(`/student/support/tickets/${ticketId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
 
   // Course Archive & Restore
   adminArchiveCourse: (courseId) => request(`/admin/courses/${courseId}/archive`, {
