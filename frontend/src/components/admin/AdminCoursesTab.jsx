@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   BookOpen, Plus, Edit3, Trash2, Award, FileText, GraduationCap,
   Sparkles, CheckCircle2, Video, Check, Layers, ListTodo, AlertCircle,
-  Eye, EyeOff, Archive, X, Lock, Unlock, RotateCcw
+  Eye, EyeOff, Archive, X, Lock, Unlock, RotateCcw, Play
 } from 'lucide-react';
 import api from '../../apiService';
 import CourseCardBadge from '../CourseCardBadge';

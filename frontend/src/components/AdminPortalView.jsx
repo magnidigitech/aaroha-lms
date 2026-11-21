@@ -273,6 +273,17 @@ export default function AdminPortalView({
     }
   }, []);
 
+  const fetchCertificates = useCallback(async () => {
+    try {
+      const res = await api.adminGetCertificates();
+      if (res?.certificates && Array.isArray(res.certificates)) {
+        setCertificates(res.certificates);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch certificates:', err);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     setIsLoading(true);
@@ -288,7 +299,8 @@ export default function AdminPortalView({
       fetchPlacementData(),
       fetchSupportData(),
       fetchSettings(),
-      fetchAuditLogs()
+      fetchAuditLogs(),
+      fetchCertificates()
     ]).finally(() => {
       setIsLoading(false);
     });
@@ -304,7 +316,8 @@ export default function AdminPortalView({
     fetchPlacementData,
     fetchSupportData,
     fetchSettings,
-    fetchAuditLogs
+    fetchAuditLogs,
+    fetchCertificates
   ]);
 
   // Handlers for Student operations
@@ -1139,6 +1152,7 @@ export default function AdminPortalView({
               onGenerateSetupLink={handleGenerateSetupLink}
               onGenerateResetLink={handleGenerateResetLink}
               onRevokeInvite={handleRevokeInvite}
+              showToast={showToast}
             />
           )}
 
@@ -1171,6 +1185,7 @@ export default function AdminPortalView({
               coordinators={coordinators}
               onCreateBatch={handleCreateBatch}
               onUpdateBatch={fetchBatches}
+              showToast={showToast}
             />
           )}
 

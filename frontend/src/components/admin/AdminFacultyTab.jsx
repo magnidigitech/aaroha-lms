@@ -19,7 +19,9 @@ export default function AdminFacultyTab({
   onResendInvite,
   onGenerateSetupLink,
   onGenerateResetLink,
-  onRevokeInvite
+  onRevokeInvite,
+  onDeleteFaculty,
+  showToast
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -344,7 +346,7 @@ export default function AdminFacultyTab({
       if (onUpdateFaculty) await onUpdateFaculty();
       if (onDeleteFaculty) await onDeleteFaculty();
       if (rosterView === 'archived') await loadArchivedFaculty();
-      showToast('Faculty record removed successfully');
+      if (showToast) showToast('Faculty record removed successfully');
     } catch (err) {
       setDeleteModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to delete faculty member.' }));
     }

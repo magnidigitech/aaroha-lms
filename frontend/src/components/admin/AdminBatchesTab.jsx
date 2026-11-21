@@ -14,7 +14,8 @@ export default function AdminBatchesTab({
   faculty = [],
   coordinators = [],
   onCreateBatch,
-  onUpdateBatch
+  onUpdateBatch,
+  showToast
 }) {
   const [rosterView, setRosterView] = useState('active'); // 'active' | 'archived'
   const [archivedBatches, setArchivedBatches] = useState([]);
@@ -138,7 +139,7 @@ export default function AdminBatchesTab({
       setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
       if (onUpdateBatch) await onUpdateBatch();
       if (rosterView === 'archived') await loadArchivedBatches();
-      showToast('Cohort batch removed successfully');
+      if (showToast) showToast('Cohort batch removed successfully');
     } catch (err) {
       setDeleteBatchModal(prev => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to permanently delete cohort batch.' }));
     }
@@ -150,7 +151,7 @@ export default function AdminBatchesTab({
     setArchivedBatches(prev => prev.filter(b => b.id !== batchId));
     setDeleteBatchModal({ isOpen: false, batch: null, isChecking: false, eligibility: null, confirmText: '', isSubmitting: false, error: '' });
     if (onUpdateBatch) onUpdateBatch();
-    showToast('Cohort batch removed from view');
+    if (showToast) showToast('Cohort batch removed from view');
   };
 
   const handleArchiveFromModal = async () => {

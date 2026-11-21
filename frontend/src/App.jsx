@@ -880,7 +880,6 @@ export default function App() {
       };
       setEnrollments(prev => [...prev, newEnrollment]);
     }
-    setActiveStudentCourseId(courseId);
     handleOpenCourseDetails({ id: courseId });
     showToast('Enrolled successfully! Course interface unlocked.');
   };
