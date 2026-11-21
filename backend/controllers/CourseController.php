@@ -17,8 +17,12 @@ class CourseController {
     // AUTHORIZATION HELPERS (RELATIONSHIP-DERIVED ACCESS CONTROL)
     // -------------------------------------------------------------
 
+    private static function isPrivilegedRole(string $userRole): bool {
+        return in_array(strtolower($userRole), ['super_admin', 'admin', 'coordinator', 'faculty', 'instructor'], true);
+    }
+
     private static function checkCourseOwnership($pdo, int $courseId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
+        if (!self::isPrivilegedRole($userRole)) {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -30,8 +34,8 @@ class CourseController {
             return ['allowed' => false, 'code' => 404, 'error' => 'Program not found or has been removed'];
         }
 
-        // Administrators and Faculty Members have curriculum management authority across programs
-        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$course['created_by'] !== $userId) {
+        // Administrators, coordinators, and Faculty Members have curriculum management authority across programs
+        if (!self::isPrivilegedRole($userRole) && (int)$course['created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this course'];
         }
 
@@ -39,7 +43,7 @@ class CourseController {
     }
 
     private static function checkModuleOwnership($pdo, int $moduleId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
+        if (!self::isPrivilegedRole($userRole)) {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -58,7 +62,7 @@ class CourseController {
         }
 
         // Administrators and Faculty Members have full access across all programs
-        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$row['course_created_by'] !== $userId) {
+        if (!self::isPrivilegedRole($userRole) && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this module'];
         }
 
@@ -66,7 +70,7 @@ class CourseController {
     }
 
     private static function checkLessonOwnership($pdo, int $lessonId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
+        if (!self::isPrivilegedRole($userRole)) {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -87,7 +91,7 @@ class CourseController {
         }
 
         // Administrators and Faculty Members have full access across all programs
-        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$row['course_created_by'] !== $userId) {
+        if (!self::isPrivilegedRole($userRole) && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this lecture'];
         }
 
@@ -95,7 +99,7 @@ class CourseController {
     }
 
     private static function checkTaskOwnership($pdo, int $taskId, int $userId, string $userRole): array {
-        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
+        if (!self::isPrivilegedRole($userRole)) {
             return ['allowed' => false, 'code' => 403, 'error' => 'Faculty or administrative privileges required'];
         }
 
@@ -116,7 +120,7 @@ class CourseController {
         }
 
         // Administrators and Faculty Members have full access across all programs
-        if ($userRole !== 'admin' && $userRole !== 'faculty' && $userRole !== 'instructor' && (int)$row['course_created_by'] !== $userId) {
+        if (!self::isPrivilegedRole($userRole) && (int)$row['course_created_by'] !== $userId) {
             return ['allowed' => false, 'code' => 403, 'error' => 'You are not authorized to manage this assignment'];
         }
 
@@ -395,7 +399,7 @@ class CourseController {
     // -------------------------------------------------------------
 
     public static function createCourse($data, $adminId, $userRole = 'admin') {
-        if ($userRole !== 'admin' && $userRole !== 'instructor' && $userRole !== 'faculty') {
+        if (!self::isPrivilegedRole($userRole)) {
             self::setHttpStatus(403);
             return ['success' => false, 'error' => 'Faculty or administrative privileges required'];
         }

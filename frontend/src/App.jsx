@@ -1057,14 +1057,17 @@ export default function App() {
     }
   };
 
-  const handleAddModule = async (courseId, title) => {
+  const handleAddModule = async (courseId, moduleInput) => {
+    const payload = typeof moduleInput === 'string' ? { title: moduleInput } : (moduleInput || {});
+    const title = payload.title || 'New Module';
     let createdModule = null;
     try {
-      const res = await api.createModule(courseId, { title });
+      const res = await api.createModule(courseId, payload);
       if (res && (res.module || res.module_id)) {
         createdModule = res.module || {
           id: res.module_id,
           course_id: courseId,
+          ...payload,
           title,
           sequence_order: 1,
           lessons: [],
@@ -1081,6 +1084,7 @@ export default function App() {
           const newMod = createdModule || {
             id: Date.now(),
             course_id: courseId,
+            ...payload,
             title: title,
             sequence_order: (c.modules?.length || 0) + 1,
             lessons: [],
@@ -1102,6 +1106,7 @@ export default function App() {
       const newMod = createdModule || {
         id: Date.now(),
         course_id: courseId,
+        ...payload,
         title: title,
         sequence_order: (prevSel.modules?.length || 0) + 1,
         lessons: [],
@@ -1294,15 +1299,16 @@ export default function App() {
   };
 
   const handleUpdateModule = async (courseId, moduleId, moduleData) => {
+    const payload = typeof moduleData === 'string' ? { title: moduleData } : (moduleData || {});
     try {
-      await api.updateModule(moduleId, moduleData);
+      await api.updateModule(moduleId, payload);
     } catch (err) {
       console.warn('API update module sync skipped:', err.message);
     }
     setCourses(prev => {
       const updated = prev.map(c => {
         if (String(c.id) === String(courseId)) {
-          const updatedMods = (c.modules || []).map(m => String(m.id) === String(moduleId) ? { ...m, ...moduleData } : m);
+          const updatedMods = (c.modules || []).map(m => String(m.id) === String(moduleId) ? { ...m, ...payload } : m);
           return { ...c, modules: updatedMods };
         }
         return c;
@@ -1315,7 +1321,7 @@ export default function App() {
 
     setSelectedCourse(prevSel => {
       if (!prevSel || String(prevSel.id) !== String(courseId)) return prevSel;
-      const updatedMods = (prevSel.modules || []).map(m => String(m.id) === String(moduleId) ? { ...m, ...moduleData } : m);
+      const updatedMods = (prevSel.modules || []).map(m => String(m.id) === String(moduleId) ? { ...m, ...payload } : m);
       return { ...prevSel, modules: updatedMods };
     });
 

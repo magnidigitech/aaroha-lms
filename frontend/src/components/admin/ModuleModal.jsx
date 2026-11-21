@@ -96,12 +96,13 @@ export default function ModuleModal({
     setSaveError(null);
 
     try {
-      await onSave({
+      const payload = {
         ...formData,
         title: formData.title.trim(),
         estimated_time: formData.estimated_time.trim(),
         description: formData.description.trim()
-      });
+      };
+      await onSave(payload, courseId);
       setIsSaving(false);
       setIsDirty(false);
       onClose();

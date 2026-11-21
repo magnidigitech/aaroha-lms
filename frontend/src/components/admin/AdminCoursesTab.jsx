@@ -867,11 +867,24 @@ export default function AdminCoursesTab({
         courseId={moduleModal.courseId}
         initialData={moduleModal.initialData}
         onClose={() => setModuleModal({ isOpen: false, courseId: null, initialData: null })}
-        onSave={async (courseId, formData) => {
+        onSave={async (arg1, arg2) => {
+          let targetCourseId = moduleModal.courseId;
+          let payload = arg1;
+
+          if (arg2 !== undefined) {
+            if (typeof arg1 === 'object' && arg1 !== null) {
+              payload = arg1;
+              targetCourseId = arg2 || moduleModal.courseId;
+            } else {
+              targetCourseId = arg1 || moduleModal.courseId;
+              payload = arg2;
+            }
+          }
+
           if (moduleModal.initialData) {
-            if (onUpdateModule) await onUpdateModule(courseId, moduleModal.initialData.id, formData);
+            if (onUpdateModule) await onUpdateModule(targetCourseId, moduleModal.initialData.id, payload);
           } else {
-            if (onAddModule) await onAddModule(courseId, formData);
+            if (onAddModule) await onAddModule(targetCourseId, payload);
           }
           setModuleModal({ isOpen: false, courseId: null, initialData: null });
         }}
@@ -884,11 +897,29 @@ export default function AdminCoursesTab({
         moduleId={lectureModal.moduleId}
         initialData={lectureModal.initialData}
         onClose={() => setLectureModal({ isOpen: false, courseId: null, moduleId: null, initialData: null })}
-        onSave={async (courseId, moduleId, formData) => {
+        onSave={async (arg1, arg2, arg3) => {
+          let targetCourseId = lectureModal.courseId;
+          let targetModuleId = lectureModal.moduleId;
+          let payload = arg1;
+
+          if (arg3 !== undefined) {
+            targetCourseId = arg1 || lectureModal.courseId;
+            targetModuleId = arg2 || lectureModal.moduleId;
+            payload = arg3;
+          } else if (arg2 !== undefined) {
+            if (typeof arg1 === 'object' && arg1 !== null) {
+              payload = arg1;
+              targetModuleId = arg2 || lectureModal.moduleId;
+            } else {
+              targetModuleId = arg1 || lectureModal.moduleId;
+              payload = arg2;
+            }
+          }
+
           if (lectureModal.initialData) {
-            if (onUpdateLesson) await onUpdateLesson(courseId, moduleId, lectureModal.initialData.id, formData);
+            if (onUpdateLesson) await onUpdateLesson(targetCourseId, targetModuleId, lectureModal.initialData.id, payload);
           } else {
-            if (onAddLesson) await onAddLesson(courseId, moduleId, formData);
+            if (onAddLesson) await onAddLesson(targetCourseId, targetModuleId, payload);
           }
           setLectureModal({ isOpen: false, courseId: null, moduleId: null, initialData: null });
         }}
@@ -901,11 +932,29 @@ export default function AdminCoursesTab({
         moduleId={assignmentModal.moduleId}
         initialData={assignmentModal.initialData}
         onClose={() => setAssignmentModal({ isOpen: false, courseId: null, moduleId: null, initialData: null })}
-        onSave={async (courseId, moduleId, formData) => {
+        onSave={async (arg1, arg2, arg3) => {
+          let targetCourseId = assignmentModal.courseId;
+          let targetModuleId = assignmentModal.moduleId;
+          let payload = arg1;
+
+          if (arg3 !== undefined) {
+            targetCourseId = arg1 || assignmentModal.courseId;
+            targetModuleId = arg2 || assignmentModal.moduleId;
+            payload = arg3;
+          } else if (arg2 !== undefined) {
+            if (typeof arg1 === 'object' && arg1 !== null) {
+              payload = arg1;
+              targetModuleId = arg2 || assignmentModal.moduleId;
+            } else {
+              targetModuleId = arg1 || assignmentModal.moduleId;
+              payload = arg2;
+            }
+          }
+
           if (assignmentModal.initialData) {
-            if (onUpdateTask) await onUpdateTask(courseId, moduleId, assignmentModal.initialData.id, formData);
+            if (onUpdateTask) await onUpdateTask(targetCourseId, targetModuleId, assignmentModal.initialData.id, payload);
           } else {
-            if (onAddTask) await onAddTask(courseId, moduleId, formData);
+            if (onAddTask) await onAddTask(targetCourseId, targetModuleId, payload);
           }
           setAssignmentModal({ isOpen: false, courseId: null, moduleId: null, initialData: null });
         }}
