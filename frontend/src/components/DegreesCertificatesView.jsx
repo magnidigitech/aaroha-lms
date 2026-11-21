@@ -110,14 +110,14 @@ export default function DegreesCertificatesView({
       </section>
 
       {/* 2. Navigation Tabs */}
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3 overflow-x-auto">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab('verify')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'verify'
                 ? 'bg-[#0A7CB3] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -129,7 +129,7 @@ export default function DegreesCertificatesView({
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'courses'
                 ? 'bg-[#0A7CB3] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
             }`}
           >
             <Award className="w-4 h-4 text-amber-500" />
@@ -141,7 +141,7 @@ export default function DegreesCertificatesView({
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'my_certs'
                 ? 'bg-[#0A7CB3] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
             }`}
           >
             <BookOpen className="w-4 h-4 text-sky-500" />
@@ -156,7 +156,7 @@ export default function DegreesCertificatesView({
 
         <button
           onClick={onExploreCatalog}
-          className="text-xs font-bold text-[#0A7CB3] hover:text-[#086491] flex items-center gap-1 hover:underline cursor-pointer hidden md:flex shrink-0"
+          className="text-xs font-bold text-[#0A7CB3] dark:text-[#38bdf8] hover:text-[#086491] flex items-center gap-1 hover:underline cursor-pointer hidden md:flex shrink-0"
         >
           <span>Browse All Courses</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -167,17 +167,17 @@ export default function DegreesCertificatesView({
       {activeTab === 'verify' && (
         <div className="space-y-8 animate-in fade-in duration-200">
           <div className="max-w-3xl space-y-2">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               Cryptographic Credential Verification Engine
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
               Every certificate issued by Aaroha Technologies is encoded with a tamper-evident cryptographic identifier. Enter the certificate code below to authenticate the recipient, verified coursework, and faculty approval.
             </p>
           </div>
 
           {/* Search Box */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-4 max-w-3xl">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+          <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-4 max-w-3xl">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               Certificate Credential Code
             </label>
 
@@ -189,7 +189,7 @@ export default function DegreesCertificatesView({
                   value={searchCode}
                   onChange={(e) => setSearchCode(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
-                  className="w-full pl-4 pr-10 py-3 text-xs sm:text-sm font-mono uppercase bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-[#0A7CB3] transition-all"
+                  className="w-full pl-4 pr-10 py-3 text-xs sm:text-sm font-mono uppercase bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-[#0A7CB3] transition-all"
                 />
                 <ShieldCheck className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -206,7 +206,7 @@ export default function DegreesCertificatesView({
 
             {/* Live Registry Sample if Available */}
             {certificates.length > 0 && (
-              <div className="pt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <div className="pt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <span>Registry Sample:</span>
                 <button
                   type="button"
@@ -399,7 +399,7 @@ export default function DegreesCertificatesView({
               return (
                 <div 
                   key={course.id}
-                  className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+                  className="bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
                 >
                   <div>
                     {/* Thumbnail */}
@@ -418,32 +418,32 @@ export default function DegreesCertificatesView({
 
                     {/* Content */}
                     <div className="p-5 space-y-3">
-                      <h3 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug">
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2 leading-snug">
                         {course.title}
                       </h3>
 
-                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                         {course.description || 'Master hands-on systems architecture with verified interactive modules.'}
                       </p>
 
                       {/* Course Certificate Specs */}
-                      <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
-                        <div className="flex items-center gap-2 text-slate-700">
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs">
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                           <Award className="w-3.5 h-3.5 text-[#0A7CB3] shrink-0" />
                           <span className="font-semibold">Award:</span>
-                          <span className="text-slate-600 truncate">Verified Course Certificate</span>
+                          <span className="text-slate-600 dark:text-slate-400 truncate">Verified Course Certificate</span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-slate-700">
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                           <Video className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           <span className="font-semibold">Curriculum:</span>
-                          <span className="text-slate-600">{modulesCount} Modules · {totalLessons} Lessons</span>
+                          <span className="text-slate-600 dark:text-slate-400">{modulesCount} Modules · {totalLessons} Lessons</span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-slate-700">
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                           <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                           <span className="font-semibold">Requirement:</span>
-                          <span className="text-slate-600">Video Completion + Capstone</span>
+                          <span className="text-slate-600 dark:text-slate-400">Video Completion + Capstone</span>
                         </div>
                       </div>
                     </div>
@@ -453,7 +453,7 @@ export default function DegreesCertificatesView({
                   <div className="p-5 pt-0">
                     <button
                       onClick={() => onOpenCourseDetails && onOpenCourseDetails(course)}
-                      className="w-full py-2.5 px-4 bg-slate-50 hover:bg-[#0A7CB3] text-slate-800 hover:text-white border border-slate-200 hover:border-[#0A7CB3] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                      className="w-full py-2.5 px-4 bg-slate-50 dark:bg-slate-800 hover:bg-[#0A7CB3] dark:hover:bg-[#0A7CB3] text-slate-800 dark:text-slate-200 hover:text-white dark:hover:text-white border border-slate-200 dark:border-slate-700 hover:border-[#0A7CB3] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                     >
                       <span>Explore Program & Syllabus</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -479,21 +479,21 @@ export default function DegreesCertificatesView({
           </div>
 
           {!currentUser ? (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 max-w-lg mx-auto space-y-4">
+            <div className="p-12 text-center bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 max-w-lg mx-auto space-y-4">
               <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto" />
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-800">Sign in to view your certificates</h3>
-                <p className="text-xs text-slate-500">
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Sign in to view your certificates</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Log in to your student account to inspect your earned digital parchments and verification codes.
                 </p>
               </div>
             </div>
           ) : studentCertificates.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 max-w-lg mx-auto space-y-4">
-              <Award className="w-12 h-12 text-slate-300 mx-auto" />
+            <div className="p-12 text-center bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 max-w-lg mx-auto space-y-4">
+              <Award className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto" />
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-800">No certificates awarded yet</h3>
-                <p className="text-xs text-slate-500">
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">No certificates awarded yet</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Complete video modules, finish exercises, and submit your capstone deliverable to earn your official verified certificate.
                 </p>
               </div>
@@ -510,11 +510,11 @@ export default function DegreesCertificatesView({
               {studentCertificates.map((cert) => (
                 <div 
                   key={cert.id} 
-                  className="bg-white rounded-2xl border border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-md transition-all p-5 space-y-4 flex flex-col justify-between"
+                  className="bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs hover:shadow-md transition-all p-5 space-y-4 flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
                         Accredited & Verified
                       </span>
                       <span className="text-[10px] font-mono text-slate-400">
@@ -522,22 +522,22 @@ export default function DegreesCertificatesView({
                       </span>
                     </div>
 
-                    <h3 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-2 leading-snug">
                       {cert.course_title}
                     </h3>
 
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-xs space-y-1">
                       <div className="text-[10px] uppercase font-bold text-slate-400">Credential ID</div>
-                      <div className="font-mono text-slate-800 font-bold text-xs select-all">
+                      <div className="font-mono text-slate-800 dark:text-slate-200 font-bold text-xs select-all">
                         {cert.certificate_code}
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                     <button
                       onClick={() => handleCopyCode(cert.certificate_code)}
-                      className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 cursor-pointer"
                     >
                       {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedCode ? 'Copied' : 'Copy ID'}</span>

@@ -11,6 +11,7 @@ import { api } from '../apiService';
 import MediaSourceInput from './common/MediaSourceInput';
 import { formatDate } from '../adminUtils';
 import { isFacultyRole } from '../routes';
+import ThemeToggle from './ThemeToggle';
 
 /**
  * Resilient Lesson Thumbnail Component
@@ -346,12 +347,12 @@ export default function CourseClassroomView({
 
   if (!course) {
     return (
-      <div className="min-h-screen bg-[#071322] flex flex-col items-center justify-center p-8 text-white space-y-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#071322] flex flex-col items-center justify-center p-8 text-slate-800 dark:text-white space-y-4 transition-colors duration-200">
         <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-        <p className="text-xs text-slate-300">Retrieving curriculum specifications...</p>
+        <p className="text-xs text-slate-500 dark:text-slate-300">Retrieving curriculum specifications...</p>
         <button
           onClick={onBack}
-          className="px-4 py-2 bg-[#132A4A] hover:bg-[#1A3860] border border-[#23456F] text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer"
+          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-[#132A4A] dark:hover:bg-[#1A3860] border border-slate-300 dark:border-[#23456F] text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Return to Dashboard</span>
@@ -361,15 +362,15 @@ export default function CourseClassroomView({
   }
 
   return (
-    <div className="min-h-screen bg-[#071322] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#071322] text-slate-800 dark:text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
       {/* Top Header Bar */}
-      <header className="bg-[#0B192C] border-b border-[#1b3d63] px-4 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-lg">
+      <header className="bg-white dark:bg-[#0B192C] border-b border-slate-200 dark:border-[#1b3d63] px-4 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-xs dark:shadow-lg transition-colors duration-200">
         {/* Left: Back to Dashboard Button */}
         <button
           onClick={onBack}
-          className="bg-[#132A4A] hover:bg-[#1A3860] text-slate-200 hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border border-[#23456F] flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-97"
+          className="bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border-slate-200 dark:bg-[#132A4A] dark:hover:bg-[#1A3860] dark:text-slate-200 dark:hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border dark:border-[#23456F] flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-97"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-300" />
+          <ArrowLeft className="w-4 h-4 text-slate-500 dark:text-slate-300" />
           <span>Back to Dashboard</span>
         </button>
 
@@ -379,7 +380,7 @@ export default function CourseClassroomView({
           className="cursor-pointer select-none group"
           title="Return to Catalog"
         >
-          <div className="bg-white hover:bg-slate-50 px-3.5 py-1.5 rounded-xl border border-slate-200 flex items-center shadow-xs transition-all group-hover:border-slate-300">
+          <div className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center shadow-xs transition-all group-hover:border-slate-300 dark:group-hover:border-slate-600">
             <img
               src={aarohaLogo}
               alt="Aaroha Technologies"
@@ -388,16 +389,16 @@ export default function CourseClassroomView({
           </div>
         </div>
 
-        {/* Right: Enrollment CTA or Learner Account Badge */}
-        <div className="flex items-center gap-3">
+        {/* Right: Enrollment CTA, Theme Toggle & Learner Account Badge */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {isFacultyOrAdmin ? (
-            <div className="flex items-center gap-2 bg-blue-950/80 border border-blue-600 px-3 py-1.5 rounded-xl text-xs text-blue-300 font-semibold shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+            <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-600 px-3 py-1.5 rounded-xl text-xs text-[#0A7CB3] dark:text-blue-300 font-semibold shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
               <span className="hidden sm:inline">Faculty / Admin Full Access</span>
             </div>
           ) : isEnrolled ? (
-            <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-700 px-3 py-1.5 rounded-xl text-xs text-emerald-300 font-semibold shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 rounded-xl text-xs text-emerald-700 dark:text-emerald-300 font-semibold shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="hidden sm:inline">
                 {completedCount >= totalLessonsCount && totalLessonsCount > 0 
                   ? 'Completed • Unlimited Rewatch' 
@@ -414,27 +415,30 @@ export default function CourseClassroomView({
             </button>
           )}
 
+          {/* Small Round Theme Toggle in Classroom Bar */}
+          <ThemeToggle size="small" />
+
           {currentUser ? (
             <button
               type="button"
               onClick={onOpenProfile}
               title="Click to view & edit your profile and avatar"
-              className="flex items-center gap-2 pl-2 border-l border-[#1b3d63] hover:opacity-90 transition-all cursor-pointer group text-left"
+              className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-[#1b3d63] hover:opacity-90 transition-all cursor-pointer group text-left"
             >
               <img
                 src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                 alt={currentUser.full_name || 'User'}
                 onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
-                className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50 group-hover:ring-blue-400 group-hover:scale-105 transition-all shrink-0 bg-slate-100"
+                className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50 group-hover:ring-blue-400 group-hover:scale-105 transition-all shrink-0 bg-slate-100 dark:bg-slate-800"
               />
-              <span className="text-xs font-semibold text-slate-200 group-hover:text-white hidden md:inline">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white hidden md:inline">
                 {currentUser.full_name ? currentUser.full_name.split(' ')[0] : (currentUser.display_name || 'Learner')}
               </span>
             </button>
           ) : (
             <button
               onClick={() => onEnroll(course)}
-              className="text-xs text-slate-300 hover:text-white font-semibold px-2 py-1 transition-colors"
+              className="text-xs text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-semibold px-2 py-1 transition-colors"
             >
               Sign In
             </button>
@@ -468,30 +472,30 @@ export default function CourseClassroomView({
             <div className="flex items-center gap-2 text-xs font-medium flex-wrap">
               <span 
                 onClick={onBack}
-                className="text-emerald-400 font-bold hover:underline cursor-pointer transition-colors"
+                className="text-[#0A7CB3] dark:text-emerald-400 font-bold hover:underline cursor-pointer transition-colors"
               >
                 {course.title}
               </span>
-              <span className="text-slate-500 font-normal">›</span>
-              <span className="text-white font-semibold truncate max-w-xl">
+              <span className="text-slate-400 dark:text-slate-500 font-normal">›</span>
+              <span className="text-slate-900 dark:text-white font-semibold truncate max-w-xl">
                 {activeLesson?.title || 'Program Foundations'}
               </span>
             </div>
 
             {/* Main Video Player Container (16:9 Cinema Box) */}
-            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-[#1b3d63] shadow-2xl">
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-200 dark:border-[#1b3d63] shadow-md dark:shadow-2xl">
               {allLessons.length === 0 ? (
-                <div className="w-full h-full bg-[#081526] flex flex-col items-center justify-center p-8 text-center text-slate-300">
-                  <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3 shadow-lg">
+                <div className="w-full h-full bg-slate-100 dark:bg-[#081526] flex flex-col items-center justify-center p-8 text-center text-slate-700 dark:text-slate-300">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-600/20 border border-blue-200 dark:border-blue-500/30 flex items-center justify-center text-[#0A7CB3] dark:text-blue-400 mb-3 shadow-lg">
                     <BookOpen className="w-7 h-7" />
                   </div>
-                  <h4 className="text-base font-bold text-white">Syllabus Modules Loading</h4>
-                  <p className="text-xs text-slate-300 mt-2 max-w-md leading-relaxed">
+                  <h4 className="text-base font-bold text-slate-900 dark:text-white">Syllabus Modules Loading</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-300 mt-2 max-w-md leading-relaxed">
                     Curriculum lectures and modules are being retrieved for this program.
                   </p>
                   <button
                     onClick={onBack}
-                    className="mt-4 px-4 py-2 bg-[#132A4A] hover:bg-[#1A3860] border border-[#23456F] text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer"
+                    className="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-[#132A4A] dark:hover:bg-[#1A3860] border border-slate-300 dark:border-[#23456F] text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     <span>Return to Catalog</span>
@@ -656,19 +660,19 @@ export default function CourseClassroomView({
             </div>
 
             {/* Minimalist & Professional Playback Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-[#1b3d63] text-xs text-slate-300">
+            <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-slate-200 dark:border-[#1b3d63] text-xs text-slate-600 dark:text-slate-300">
               {/* Left: Clean Lesson Context & Duration */}
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="px-2.5 py-1 rounded-md bg-[#0F223A] border border-[#1b3d63] text-[11px] font-bold text-blue-300 uppercase tracking-wider">
+                <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-[#0F223A] border border-blue-200 dark:border-[#1b3d63] text-[11px] font-bold text-[#0A7CB3] dark:text-blue-300 uppercase tracking-wider">
                   {activeLesson?.moduleTitle || 'Module'}
                 </span>
-                <span className="text-slate-500">•</span>
-                <div className="flex items-center gap-1.5 text-xs text-slate-200 font-semibold">
+                <span className="text-slate-400 dark:text-slate-500">•</span>
+                <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-semibold">
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
                   <span>{activeLesson?.duration || '15 min'}</span>
                 </div>
                 {activeLesson?.is_free_preview && (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 text-[10px] font-bold">
                     Free Preview
                   </span>
                 )}
@@ -681,7 +685,7 @@ export default function CourseClassroomView({
                     onClick={() => handleToggleComplete(activeLesson.id)}
                     className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
                       isLessonCompleted(activeLesson.id)
-                        ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-600'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600'
                         : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                     }`}
                   >
@@ -705,7 +709,7 @@ export default function CourseClassroomView({
                 {hasPrevLesson && (
                   <button
                     onClick={handlePrevLesson}
-                    className="bg-[#0F223A] hover:bg-[#163356] border border-[#1b3d63] px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 transition-colors cursor-pointer"
+                    className="bg-slate-100 hover:bg-slate-200 dark:bg-[#0F223A] dark:hover:bg-[#163356] border border-slate-300 dark:border-[#1b3d63] px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
                     title="Previous Lesson"
                   >
                     Previous
@@ -727,24 +731,24 @@ export default function CourseClassroomView({
 
             {/* Big Prominent Lesson Heading */}
             <div className="pt-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-snug">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-snug">
                 {activeLesson?.title || course.title}
               </h1>
-              <p className="text-xs text-slate-400 mt-1">
-                Part of <span className="text-slate-200 font-semibold">{course.title}</span> · Accredited by Aaroha Institute
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Part of <span className="text-slate-800 dark:text-slate-200 font-semibold">{course.title}</span> · Accredited by Aaroha Institute
               </p>
             </div>
 
             {/* Lesson Content / Tabs Section */}
-            <div className="bg-[#0B1A2F] rounded-2xl border border-[#1b3d63] overflow-hidden shadow-lg mt-4">
+            <div className="bg-white dark:bg-[#0B1A2F] rounded-2xl border border-slate-200 dark:border-[#1b3d63] overflow-hidden shadow-xs dark:shadow-lg mt-4">
               {/* Tab Navigation */}
-              <div className="flex items-center gap-2 px-4 pt-3 border-b border-[#1b3d63] bg-[#081526]/80 text-xs font-bold overflow-x-auto scrollbar-none">
+              <div className="flex items-center gap-2 px-4 pt-3 border-b border-slate-200 dark:border-[#1b3d63] bg-slate-50/80 dark:bg-[#081526]/80 text-xs font-bold overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setActiveTab('notes')}
                   className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'notes'
-                      ? 'border-[#0A7CB3] text-[#38bdf8]'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                      ? 'border-[#0A7CB3] text-[#0A7CB3] dark:text-[#38bdf8]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -756,8 +760,8 @@ export default function CourseClassroomView({
                     onClick={() => setActiveTab('tasks')}
                     className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                       activeTab === 'tasks'
-                        ? 'border-[#0A7CB3] text-[#38bdf8]'
-                        : 'border-transparent text-slate-400 hover:text-slate-200'
+                        ? 'border-[#0A7CB3] text-[#0A7CB3] dark:text-[#38bdf8]'
+                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                   >
                     <Award className="w-3.5 h-3.5" />
@@ -769,8 +773,8 @@ export default function CourseClassroomView({
                   onClick={() => setActiveTab('instructor')}
                   className={`pb-2.5 px-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                     activeTab === 'instructor'
-                      ? 'border-[#0A7CB3] text-[#38bdf8]'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                      ? 'border-[#0A7CB3] text-[#0A7CB3] dark:text-[#38bdf8]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   <User className="w-3.5 h-3.5" />
@@ -780,20 +784,20 @@ export default function CourseClassroomView({
 
               {/* Tab 1: Notes & Overview */}
               {activeTab === 'notes' && (
-                <div className="p-5 space-y-4 text-xs text-slate-300 leading-relaxed">
+                <div className="p-5 space-y-4 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                   <div className="space-y-2">
-                    <h4 className="text-sm font-bold text-white">Summary & Learning Objectives</h4>
-                    <p className="text-slate-300">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Summary & Learning Objectives</h4>
+                    <p className="text-slate-600 dark:text-slate-300">
                       {activeLesson?.content_body || activeLesson?.summary || course.description}
                     </p>
                   </div>
 
-                  <div className="bg-[#0e213b] p-4 rounded-xl border border-[#1b3d63] space-y-2">
-                    <h5 className="font-bold text-white text-xs flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-[#38bdf8]" />
+                  <div className="bg-slate-50 dark:bg-[#0e213b] p-4 rounded-xl border border-slate-200 dark:border-[#1b3d63] space-y-2">
+                    <h5 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-[#0A7CB3] dark:text-[#38bdf8]" />
                       <span>Production Takeaways & Applied Systems Architecture</span>
                     </h5>
-                    <ul className="list-disc list-inside space-y-1 text-slate-300">
+                    <ul className="list-disc list-inside space-y-1 text-slate-600 dark:text-slate-300">
                       <li>Understand key design trade-offs and edge failure modes covered in this lecture.</li>
                       <li>Review benchmark implementations aligned with production distributed engineering standards.</li>
                       <li>Verify zero-trust security postures and telemetry observability patterns.</li>
@@ -808,20 +812,20 @@ export default function CourseClassroomView({
                   {currentModuleTasks.map(task => {
                     const submission = (taskSubmissions || []).find(s => s.task_id === task.id);
                     return (
-                      <div key={task.id} className="bg-[#0e213b] p-4 rounded-xl border border-[#1b3d63] space-y-3">
+                      <div key={task.id} className="bg-slate-50 dark:bg-[#0e213b] p-4 rounded-xl border border-slate-200 dark:border-[#1b3d63] space-y-3">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
                               Module Evaluated Defense
                             </span>
-                            <h4 className="text-sm font-bold text-white mt-1">{task.title}</h4>
-                            <p className="text-slate-300 text-xs mt-1 leading-relaxed">{task.description}</p>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1">{task.title}</h4>
+                            <p className="text-slate-600 dark:text-slate-300 text-xs mt-1 leading-relaxed">{task.description}</p>
                           </div>
                           {submission && (
                             <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md border flex-shrink-0 ${
                               submission.status === 'graded' 
-                                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800' 
-                                : 'bg-amber-950/80 text-amber-300 border-amber-800'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800' 
+                                : 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
                             }`}>
                               {submission.status === 'graded' ? 'Accredited / Passed' : 'Pending Review'}
                             </span>
@@ -830,26 +834,26 @@ export default function CourseClassroomView({
 
                         {/* Submission Form (Enrolled Students Only) */}
                         {isAccessExpired ? (
-                          <div className="p-3 bg-rose-950/40 rounded-xl border border-rose-900/60 text-xs text-rose-200 space-y-1">
-                            <div className="font-bold flex items-center gap-1.5 text-rose-300">
+                          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-200 space-y-1">
+                            <div className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
                               <Lock size={14} />
                               <span>Submission Locked (Course Access Expired)</span>
                             </div>
-                            <p className="text-[11px] text-slate-300">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300">
                               New assignment submissions are locked because your enrolment access duration has ended. Your previously evaluated solutions and grades remain visible.
                             </p>
                           </div>
                         ) : hasAccess ? (
-                          <form onSubmit={(e) => handleTaskSubmit(e, task.id)} className="space-y-3 pt-2 border-t border-[#1b3d63]">
+                          <form onSubmit={(e) => handleTaskSubmit(e, task.id)} className="space-y-3 pt-2 border-t border-slate-200 dark:border-[#1b3d63]">
                             <div>
-                              <label className="font-semibold text-slate-300 block mb-1">Defense Solution Notes / Implementation Rationale:</label>
+                              <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Defense Solution Notes / Implementation Rationale:</label>
                               <textarea
                                 rows={3}
                                 required
                                 value={submissionText}
                                 onChange={(e) => setSubmissionText(e.target.value)}
                                 placeholder="Detail your architecture choices, benchmarks, and edge failover handling..."
-                                className="w-full p-2.5 bg-[#081526] border border-[#1b3d63] rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-blue-500"
+                                className="w-full p-2.5 bg-white dark:bg-[#081526] border border-slate-300 dark:border-[#1b3d63] rounded-xl text-slate-900 dark:text-white text-xs placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#0A7CB3] focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
                             <div>
@@ -864,8 +868,8 @@ export default function CourseClassroomView({
                             </div>
                             <div className="flex items-center justify-between pt-1">
                               {submitSuccess && (
-                                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                                  <Check className="w-4 h-4 text-emerald-400" /> Solution submitted for faculty review.
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                                  <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Solution submitted for faculty review.
                                 </span>
                               )}
                               <button
@@ -879,11 +883,11 @@ export default function CourseClassroomView({
                             </div>
                           </form>
                         ) : (
-                          <div className="p-3 bg-blue-950/40 rounded-lg border border-blue-900 flex items-center justify-between text-xs">
-                            <span className="text-slate-300">Enroll to submit coursework and receive verified faculty evaluations.</span>
+                          <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900 flex items-center justify-between text-xs">
+                            <span className="text-slate-700 dark:text-slate-300">Enroll to submit coursework and receive verified faculty evaluations.</span>
                             <button
                               onClick={() => onEnroll(course)}
-                              className="text-[#38bdf8] font-bold hover:underline ml-3 flex-shrink-0"
+                              className="text-[#0A7CB3] dark:text-[#38bdf8] font-bold hover:underline ml-3 flex-shrink-0"
                             >
                               Enroll Now
                             </button>
@@ -899,7 +903,7 @@ export default function CourseClassroomView({
               {activeTab === 'instructor' && (
                 <div className="p-5 space-y-4 text-xs">
                   {course.instructor && (
-                    <div className="flex items-start gap-4 bg-[#0e213b] p-4 rounded-xl border border-[#1b3d63]">
+                    <div className="flex items-start gap-4 bg-slate-50 dark:bg-[#0e213b] p-4 rounded-xl border border-slate-200 dark:border-[#1b3d63]">
                       <img
                         src={course.instructor.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
                         alt={course.instructor.name}
@@ -907,29 +911,29 @@ export default function CourseClassroomView({
                         className="w-14 h-14 rounded-full object-cover ring-2 ring-blue-500/50 flex-shrink-0"
                       />
                       <div className="space-y-1">
-                        <h4 className="text-sm font-bold text-white">{course.instructor.name}</h4>
-                        <p className="text-[#38bdf8] font-semibold">{course.instructor.title}</p>
-                        <p className="text-slate-300">{course.instructor.department}</p>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">{course.instructor.name}</h4>
+                        <p className="text-[#0A7CB3] dark:text-[#38bdf8] font-semibold">{course.instructor.title}</p>
+                        <p className="text-slate-600 dark:text-slate-300">{course.instructor.department}</p>
                       </div>
                     </div>
                   )}
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
-                      <div className="text-slate-400 text-[10px] uppercase font-bold">Target Level</div>
-                      <div className="text-white font-bold text-xs mt-1">{course.level || 'Principal Systems'}</div>
+                    <div className="p-3 bg-slate-50 dark:bg-[#0e213b] rounded-xl border border-slate-200 dark:border-[#1b3d63]">
+                      <div className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold">Target Level</div>
+                      <div className="text-slate-900 dark:text-white font-bold text-xs mt-1">{course.level || 'Principal Systems'}</div>
                     </div>
-                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
-                      <div className="text-slate-400 text-[10px] uppercase font-bold">Duration</div>
-                      <div className="text-white font-bold text-xs mt-1">{course.duration || '8 Weeks'}</div>
+                    <div className="p-3 bg-slate-50 dark:bg-[#0e213b] rounded-xl border border-slate-200 dark:border-[#1b3d63]">
+                      <div className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold">Duration</div>
+                      <div className="text-slate-900 dark:text-white font-bold text-xs mt-1">{course.duration || '8 Weeks'}</div>
                     </div>
-                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
-                      <div className="text-slate-400 text-[10px] uppercase font-bold">Total Lessons</div>
-                      <div className="text-white font-bold text-xs mt-1">{totalLessonsCount} Lectures</div>
+                    <div className="p-3 bg-slate-50 dark:bg-[#0e213b] rounded-xl border border-slate-200 dark:border-[#1b3d63]">
+                      <div className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold">Total Lessons</div>
+                      <div className="text-slate-900 dark:text-white font-bold text-xs mt-1">{totalLessonsCount} Lectures</div>
                     </div>
-                    <div className="p-3 bg-[#0e213b] rounded-xl border border-[#1b3d63]">
-                      <div className="text-slate-400 text-[10px] uppercase font-bold">Accreditation</div>
-                      <div className="text-emerald-400 font-bold text-xs mt-1">Verified Certificate</div>
+                    <div className="p-3 bg-slate-50 dark:bg-[#0e213b] rounded-xl border border-slate-200 dark:border-[#1b3d63]">
+                      <div className="text-slate-500 dark:text-slate-400 text-[10px] uppercase font-bold">Accreditation</div>
+                      <div className="text-emerald-600 dark:text-emerald-400 font-bold text-xs mt-1">Verified Certificate</div>
                     </div>
                   </div>
                 </div>
@@ -943,19 +947,19 @@ export default function CourseClassroomView({
             
             {/* Course Title */}
             <div>
-              <h2 className="text-xl font-extrabold text-white tracking-tight leading-tight">
+              <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
                 {course.title}
               </h2>
             </div>
 
             {/* Course Progress Section */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
                 <span>Course Progress</span>
-                <span className="font-bold text-emerald-400">{progressPct}% Completed</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{progressPct}% Completed</span>
               </div>
               {/* Progress Bar Track & Vibrant Green Fill */}
-              <div className="w-full h-2 rounded-full bg-[#071322] border border-[#1b3d63] overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-[#071322] border border-slate-300/80 dark:border-[#1b3d63] overflow-hidden">
                 <div 
                   className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${Math.max(progressPct, isEnrolled ? 4 : 0)}%` }}
@@ -964,12 +968,12 @@ export default function CourseClassroomView({
             </div>
 
             {/* Module Accordion Playlist Card */}
-            <div className="rounded-2xl bg-[#0B1A2F] border border-[#1b3d63] p-4 shadow-xl space-y-4">
+            <div className="rounded-2xl bg-white dark:bg-[#0B1A2F] border border-slate-200 dark:border-[#1b3d63] p-4 shadow-xs dark:shadow-xl space-y-4">
               {(!course.modules || course.modules.length === 0) ? (
                 <div className="p-6 text-center space-y-2">
                   <div className="w-7 h-7 rounded-full border-2 border-blue-500/30 border-t-blue-500 animate-spin mx-auto mb-2" />
-                  <p className="text-xs text-slate-300 font-semibold">Loading Modules...</p>
-                  <p className="text-[11px] text-slate-500">Retrieving syllabus structure</p>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold">Loading Modules...</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Retrieving syllabus structure</p>
                 </div>
               ) : (
                 (course.modules || []).map((mod, modIdx) => {
@@ -982,7 +986,7 @@ export default function CourseClassroomView({
                     {/* Module Accordion Header */}
                     <button
                       onClick={() => toggleModule(modIdx)}
-                      className="w-full flex items-center justify-between text-left p-2.5 rounded-xl hover:bg-[#132d4e] transition-colors cursor-pointer group"
+                      className="w-full flex items-center justify-between text-left p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-[#132d4e] transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Blue Module Circle Icon */}
@@ -990,23 +994,23 @@ export default function CourseClassroomView({
                           {modIdx + 1}
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors truncate">
+                          <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#0A7CB3] dark:text-white dark:group-hover:text-blue-400 transition-colors truncate">
                             {(mod?.title || '').startsWith('Module') ? mod.title : `Module ${modIdx + 1}: ${mod?.title || 'Core Curriculum'}`}
                           </h3>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                             {modLessonsCount} Lessons · {mod.duration || '2 hr 15 min'}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-slate-400 group-hover:text-slate-200 transition-colors pl-2 flex-shrink-0">
+                      <div className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors pl-2 flex-shrink-0">
                         {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </div>
                     </button>
 
                     {/* Lesson Timeline (When Expanded) */}
                     {isOpen && (
-                      <div className="relative pl-6 space-y-2.5 before:absolute before:left-[17px] before:top-2 before:bottom-3 before:w-0.5 before:bg-[#1b3d63]">
+                      <div className="relative pl-6 space-y-2.5 before:absolute before:left-[17px] before:top-2 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-[#1b3d63]">
                         {modLessons.map((lesson) => {
                           const isCurrent = activeLesson?.id === lesson.id;
                           const completed = isLessonCompleted(lesson.id);
@@ -1026,8 +1030,8 @@ export default function CourseClassroomView({
                               }}
                               className={`relative group rounded-xl p-2 flex items-center gap-3 transition-all cursor-pointer select-none ${
                                 isCurrent
-                                  ? 'bg-[#132d4e] border-2 border-[#0A7CB3] shadow-md'
-                                  : 'bg-[#0F223A]/80 hover:bg-[#153154] border border-[#1b3d63]'
+                                  ? 'bg-blue-50/90 dark:bg-[#132d4e] border-2 border-[#0A7CB3] shadow-xs dark:shadow-md'
+                                  : 'bg-slate-50/80 dark:bg-[#0F223A]/80 hover:bg-slate-100 dark:hover:bg-[#153154] border border-slate-200 dark:border-[#1b3d63]'
                               }`}
                             >
                               {/* Timeline Node on the Left Vertical Line */}
@@ -1037,16 +1041,16 @@ export default function CourseClassroomView({
                                     <Check className="w-3 h-3 stroke-[3]" />
                                   </div>
                                 ) : isCurrent ? (
-                                  <div className="w-5 h-5 rounded-full bg-blue-600 ring-4 ring-blue-900/60 flex items-center justify-center shadow-xs">
+                                  <div className="w-5 h-5 rounded-full bg-blue-600 ring-4 ring-blue-200 dark:ring-blue-900/60 flex items-center justify-center shadow-xs">
                                     <Play className="w-2.5 h-2.5 text-white fill-current" />
                                   </div>
                                 ) : (
-                                  <div className="w-4 h-4 rounded-full bg-[#0B1A2F] border-2 border-slate-600"></div>
+                                  <div className="w-4 h-4 rounded-full bg-white dark:bg-[#0B1A2F] border-2 border-slate-300 dark:border-slate-600"></div>
                                 )}
                               </div>
 
                               {/* 16:9 Thumbnail Preview */}
-                              <div className="relative w-16 h-10 sm:w-20 sm:h-11 rounded-lg overflow-hidden bg-slate-900 border border-[#1b3d63] flex-shrink-0">
+                              <div className="relative w-16 h-10 sm:w-20 sm:h-11 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-[#1b3d63] flex-shrink-0">
                                 <LessonThumbnailItem
                                   lesson={lesson}
                                   courseThumbnail={course?.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80'}
@@ -1067,20 +1071,20 @@ export default function CourseClassroomView({
                               {/* Lesson Title & Status */}
                               <div className="flex-1 min-w-0 space-y-0.5">
                                 <h4 className={`text-xs font-bold line-clamp-2 leading-snug transition-colors ${
-                                  isCurrent ? 'text-[#38bdf8]' : 'text-slate-200 group-hover:text-white'
+                                  isCurrent ? 'text-[#0A7CB3] dark:text-[#38bdf8]' : 'text-slate-800 dark:text-slate-200 group-hover:text-[#0A7CB3] dark:group-hover:text-white'
                                 }`}>
                                   {lesson.title}
                                 </h4>
 
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   {Boolean(lesson.is_free_preview) ? (
-                                    <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800">
+                                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
                                       Free Preview
                                     </span>
                                   ) : null}
 
                                   {locked && (
-                                    <span className="text-[9px] font-medium text-slate-400 flex items-center gap-1">
+                                    <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                       <Lock className="w-2.5 h-2.5 text-slate-400" /> Enrolled Only
                                     </span>
                                   )}

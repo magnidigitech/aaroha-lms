@@ -31,6 +31,7 @@ import AdminFollowupsTab from './admin/AdminFollowupsTab';
 
 import api from '../apiService';
 import { canAccessModule } from '../adminUtils';
+import ThemeToggle from './ThemeToggle';
 
 const BREADCRUMB_MAP = {
   dashboard: { group: 'Overview', label: 'Dashboard' },
@@ -897,15 +898,15 @@ export default function AdminPortalView({
       />
 
       {/* Main Content Area (Remaining Width, Single Scroll) */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen bg-slate-50 dark:bg-[#070e1b] text-slate-900 dark:text-slate-100 transition-colors duration-200">
         {/* Compact Operational Header (~64px / h-16) */}
-        <header className="h-16 px-4 sm:px-6 bg-white border-b border-slate-200 flex items-center justify-between gap-4 sticky top-0 z-30 shadow-2xs shrink-0">
+        <header className="h-16 px-4 sm:px-6 bg-white dark:bg-[#0c1527] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 sticky top-0 z-30 shadow-2xs shrink-0 transition-colors duration-200">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile Drawer Hamburger */}
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+              className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               aria-label="Open navigation menu"
             >
               <Menu size={20} />
@@ -926,10 +927,10 @@ export default function AdminPortalView({
             </div>
 
             {/* Breadcrumb Navigation */}
-            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
-              <span className="font-medium text-slate-500">{breadcrumb.group}</span>
-              <span className="text-slate-300">/</span>
-              <span className="font-semibold text-slate-900 truncate">{breadcrumb.label}</span>
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 truncate">
+              <span className="font-medium text-slate-500 dark:text-slate-400">{breadcrumb.group}</span>
+              <span className="text-slate-300 dark:text-slate-600">/</span>
+              <span className="font-semibold text-slate-900 dark:text-white truncate">{breadcrumb.label}</span>
             </nav>
           </div>
 
@@ -938,13 +939,17 @@ export default function AdminPortalView({
             <button
               type="button"
               onClick={onViewWebsite}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0a7cb3] border border-slate-200 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-[#0a7cb3] dark:hover:text-sky-300 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
               title="Return to public homepage"
               aria-label="Back to Website"
             >
-              <ArrowLeft size={14} className="text-[#0a7cb3]" />
+              <ArrowLeft size={14} className="text-[#0a7cb3] dark:text-sky-400" />
               <span className="hidden sm:inline">Back to Website</span>
             </button>
+
+            {/* Small Round Theme Toggle in Admin Header */}
+            <ThemeToggle size="small" />
+
             {/* Role-Scoped Workspace Search */}
             <div className="relative hidden sm:block w-48 md:w-64">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -964,7 +969,7 @@ export default function AdminPortalView({
                     else if (q.includes('cert')) setActiveModule('certificates');
                   }
                 }}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-[#0a7cb3] focus:ring-1 focus:ring-[#0a7cb3] transition-colors"
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-hidden focus:border-[#0a7cb3] focus:ring-1 focus:ring-[#0a7cb3] transition-colors"
                 aria-label="Search workspace"
               />
             </div>

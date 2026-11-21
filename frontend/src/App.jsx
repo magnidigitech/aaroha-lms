@@ -1611,7 +1611,7 @@ export default function App() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#070e1b] text-slate-900 dark:text-slate-100 flex flex-col font-sans overflow-x-hidden transition-colors duration-200">
       {/* Skip to Main Content Link for Keyboard and Screen-Reader Users */}
       <a
         href="#main-content"
@@ -1879,12 +1879,12 @@ export default function App() {
 
       {/* Multi-Column Footer (Hidden in focused classroom view and administrative workspace shell) */}
       {activeView !== 'course-classroom' && activeView !== 'admin' && (
-        <footer className="bg-white border-t border-slate-200 mt-auto pt-14 pb-10">
+        <footer className="bg-white dark:bg-[#0a101f] border-t border-slate-200 dark:border-slate-800 mt-auto pt-14 pb-10 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-xs text-slate-600 dark:text-slate-400">
             <div className="space-y-3">
               <div 
-                className="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs inline-flex items-center cursor-pointer hover:border-slate-300"
+                className="bg-white dark:bg-slate-800 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs inline-flex items-center cursor-pointer hover:border-slate-300 dark:hover:border-slate-600"
                 onClick={() => {
                   setActiveView('catalog');
                   setSelectedCategory('All');
@@ -1897,7 +1897,7 @@ export default function App() {
                   className="h-6 w-auto object-contain"
                 />
               </div>
-              <p className="text-slate-500 text-[11px] leading-relaxed">
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
                 Empowering principal engineers and technology leaders with production-calibrated curricula and accredited certifications.
               </p>
             </div>
@@ -1908,30 +1908,30 @@ export default function App() {
                   setActiveView('degrees');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="font-bold text-slate-900 text-xs uppercase tracking-wider hover:text-[#0A7CB3] cursor-pointer"
+                className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer"
               >
                 Certificates & Verification
               </h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Verify Credential by ID</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Accredited Course Certificates</li>
-                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Student Issued Credentials</li>
-                <li onClick={() => { setActiveView('catalog'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] cursor-pointer">Browse All Curricula</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Verify Credential by ID</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Accredited Course Certificates</li>
+                <li onClick={() => { setActiveView('degrees'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Student Issued Credentials</li>
+                <li onClick={() => { setActiveView('catalog'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Browse All Curricula</li>
               </ul>
             </div>
 
             <div className="space-y-2">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Community & Research</h4>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">Community & Research</h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li className="hover:text-[#0A7CB3] cursor-pointer">Aaroha Systems Lab</li>
-                <li className="hover:text-[#0A7CB3] cursor-pointer">Faculty Portal</li>
-                <li className="hover:text-[#0A7CB3] cursor-pointer">RFC Technical Artifacts</li>
+                <li className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Aaroha Systems Lab</li>
+                <li className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Faculty Portal</li>
+                <li className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">RFC Technical Artifacts</li>
                 <li 
                   onClick={() => {
                     setActiveView('degrees');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="hover:text-[#0A7CB3] cursor-pointer font-semibold text-[#0A7CB3]"
+                  className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer font-semibold text-[#0A7CB3] dark:text-sky-400"
                 >
                   Verified Digital Credentials
                 </li>
@@ -1939,24 +1939,24 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Enterprise & Campus</h4>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">Enterprise & Campus</h4>
               <ul className="space-y-1.5 text-[11px]">
-                <li className="hover:text-[#0A7CB3] cursor-pointer">Aaroha for Enterprise</li>
-                <li className="hover:text-[#0A7CB3] cursor-pointer">Institutional Accreditation</li>
-                <li className="hover:text-[#0A7CB3] cursor-pointer">Hostinger LAMP Architecture</li>
-                <li className="hover:text-[#0A7CB3] cursor-pointer">Aaroha Inc. Corporate</li>
+                <li className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Aaroha for Enterprise</li>
+                <li className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Institutional Accreditation</li>
+                <li className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Hostinger LAMP Architecture</li>
+                <li className="hover:text-[#0A7CB3] dark:hover:text-sky-400 cursor-pointer">Aaroha Inc. Corporate</li>
               </ul>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+          <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500 dark:text-slate-400">
             <div>
               © 2026 Aaroha Inc. All rights reserved.
             </div>
             <div className="flex items-center gap-6 font-medium">
-              <span className="hover:text-slate-900 cursor-pointer">Privacy Policy</span>
-              <span className="hover:text-slate-900 cursor-pointer">Terms of Service</span>
-              <span className="hover:text-slate-900 cursor-pointer">Security & Compliance</span>
+              <span className="hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">Privacy Policy</span>
+              <span className="hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">Terms of Service</span>
+              <span className="hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer">Security & Compliance</span>
             </div>
           </div>
         </div>

@@ -1845,12 +1845,16 @@ class AdminPortalController {
             }
 
             // 1. Unassign from all batches & clear lead_faculty_id
-            $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE faculty_id = ?")->execute([$facultyId]);
-            $pdo->prepare("UPDATE batches SET lead_faculty_id = NULL WHERE lead_faculty_id = ?")->execute([$facultyId]);
+            try { $pdo->prepare("DELETE FROM faculty_batch_assignments WHERE faculty_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
+            try { $pdo->prepare("UPDATE batches SET lead_faculty_id = NULL WHERE lead_faculty_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
 
-            // 2. Clean up class sessions
-            $pdo->prepare("DELETE FROM class_sessions WHERE faculty_id = ? AND (status != 'completed' OR status IS NULL)")->execute([$facultyId]);
-            $pdo->prepare("UPDATE class_sessions SET faculty_id = NULL WHERE faculty_id = ?")->execute([$facultyId]);
+            // 2. Clean up class sessions & attendance records safely
+            try {
+                $pdo->prepare("DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM class_sessions WHERE faculty_id = ?)")->execute([$facultyId]);
+                $pdo->prepare("DELETE FROM class_sessions WHERE faculty_id = ?")->execute([$facultyId]);
+            } catch (Exception $csEx) {
+                try { $pdo->prepare("UPDATE class_sessions SET faculty_id = NULL WHERE faculty_id = ?")->execute([$facultyId]); } catch (Exception $e2) {}
+            }
 
             // 3. Clear audit attribution for historical records if force deleted
             try { $pdo->prepare("UPDATE attendance_records SET marked_by = NULL WHERE marked_by = ?")->execute([$facultyId]); } catch (Exception $e) {}
@@ -1859,7 +1863,7 @@ class AdminPortalController {
             try { $pdo->prepare("UPDATE course_evaluations SET faculty_id = NULL WHERE faculty_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
 
             // 4. Delete faculty profile & password resets
-            $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id = ?")->execute([$facultyId]);
+            try { $pdo->prepare("DELETE FROM faculty_profiles WHERE user_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
             try { $pdo->prepare("DELETE FROM password_resets WHERE user_id = ?")->execute([$facultyId]); } catch (Exception $e) {}
 
             $remainingRoles = array_values(array_filter($roles, function($r) {
@@ -1882,7 +1886,7 @@ class AdminPortalController {
                 try {
                     $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$facultyId]);
                 } catch (Exception $e) {
-                    $pdo->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id = ?")->execute([$facultyId]);
+                    $pdo->prepare("UPDATE users SET role = 'deactivated', deleted_at = CURRENT_TIMESTAMP, status = 'deleted', is_archived = 1 WHERE id = ?")->execute([$facultyId]);
                 }
             }
 
@@ -3068,9 +3072,6 @@ class AdminPortalController {
         AuditLogger::log('REPLY_SUPPORT_TICKET', 'support_ticket', $ticketId, ['is_internal' => $isInternal], $actor);
         return [
             'success' => true,
-            'message' => 'Reply posted successfully.'
-        ];
-    }
             'message' => $isInternal ? 'Internal staff note saved.' : 'Reply sent to student fellow.'
         ];
     }

@@ -333,11 +333,7 @@ export default function AdminFacultyTab({
     try {
       setDeleteModal(prev => ({ ...prev, isSubmitting: true, error: '' }));
       const facultyId = deleteModal.faculty.user_id || deleteModal.faculty.id;
-      try {
-        await api.adminDeleteFaculty(facultyId, { force: deleteModal.forceOverride });
-      } catch (delErr) {
-        console.warn('Faculty delete server notice:', delErr);
-      }
+      await api.adminDeleteFaculty(facultyId, { force: deleteModal.forceOverride });
       setArchivedFaculty(prev => prev.filter(item => (item.user_id || item.id) !== facultyId));
       setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', forceOverride: false, isSubmitting: false, error: '' });
       if (selectedFaculty && (selectedFaculty.user_id === facultyId || selectedFaculty.id === facultyId)) {

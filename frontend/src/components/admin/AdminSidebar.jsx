@@ -100,13 +100,13 @@ export default function AdminSidebar({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed md:sticky top-0 h-screen z-50 flex flex-col bg-white border-r border-slate-200 text-slate-700 transition-all duration-200 shadow-xs ${
+        className={`fixed md:sticky top-0 h-screen z-50 flex flex-col bg-white dark:bg-[#0c1527] border-r border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all duration-200 shadow-xs ${
           isCollapsed ? 'w-20' : 'w-60'
         } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         aria-label="Main Navigation"
       >
         {/* Brand Header with Aaroha Logo Linking to Public Homepage */}
-        <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-slate-200 bg-white shrink-0`}>
+        <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1527] shrink-0`}>
           {!isCollapsed && (
             <div
               onClick={() => {
@@ -124,7 +124,7 @@ export default function AdminSidebar({
                 }
               }}
             >
-              <div className="bg-white hover:bg-slate-50 p-1 rounded-lg border border-transparent group-hover:border-slate-200 transition-all flex items-center shrink-0">
+              <div className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 p-1 rounded-lg border border-transparent group-hover:border-slate-200 dark:group-hover:border-slate-700 transition-all flex items-center shrink-0">
                 <img
                   src={aarohaLogo}
                   alt="Aaroha Technologies"
@@ -185,7 +185,7 @@ export default function AdminSidebar({
                     />
                   </button>
                 ) : (
-                  <div className="h-px bg-slate-100 my-2 mx-1" />
+                  <div className="h-px bg-slate-100 dark:bg-slate-800 my-2 mx-1" />
                 )}
 
                 {/* Group Items */}
@@ -206,8 +206,8 @@ export default function AdminSidebar({
                           }}
                           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors group relative cursor-pointer focus-visible:outline-2 focus-visible:outline-[#0a7cb3] ${
                             isActive
-                              ? 'bg-[#f0f8fc] text-[#0a7cb3] font-semibold'
-                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal'
+                              ? 'bg-[#f0f8fc] dark:bg-blue-950/60 text-[#0a7cb3] dark:text-sky-300 font-semibold'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal'
                           }`}
                           title={isCollapsed ? item.label : undefined}
                           aria-current={isActive ? 'page' : undefined}
@@ -215,7 +215,7 @@ export default function AdminSidebar({
                           <Icon
                             size={18}
                             className={`shrink-0 transition-colors ${
-                              isActive ? 'text-[#0a7cb3]' : 'text-slate-400 group-hover:text-slate-600'
+                              isActive ? 'text-[#0a7cb3] dark:text-sky-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'
                             }`}
                           />
 
@@ -229,7 +229,7 @@ export default function AdminSidebar({
                               className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium ${
                                 isActive
                                   ? 'bg-[#0a7cb3] text-white'
-                                  : 'bg-slate-100 text-slate-700'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                               } ${isCollapsed ? 'absolute top-1.5 right-1.5 text-[9px] px-1' : 'ml-auto'}`}
                             >
                               {badge}
@@ -246,14 +246,14 @@ export default function AdminSidebar({
         </nav>
 
         {/* Clearly Visible Back to Website Navigation Link */}
-        <div className="p-3 border-t border-slate-200 bg-white shrink-0">
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1527] shrink-0">
           <button
             type="button"
             onClick={() => {
               if (onViewWebsite) onViewWebsite();
               if (onCloseMobile) onCloseMobile();
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 hover:text-[#0a7cb3] hover:bg-blue-50/70 border border-slate-200/90 transition-all cursor-pointer shadow-2xs group focus-visible:outline-2 focus-visible:outline-[#0a7cb3] ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-[#0a7cb3] dark:hover:text-sky-300 hover:bg-blue-50/70 dark:hover:bg-blue-950/50 border border-slate-200/90 dark:border-slate-800 transition-all cursor-pointer shadow-2xs group focus-visible:outline-2 focus-visible:outline-[#0a7cb3] ${
               isCollapsed ? 'justify-center px-0' : ''
             }`}
             title="Return to Public Website Homepage"
@@ -261,7 +261,7 @@ export default function AdminSidebar({
           >
             <Globe
               size={18}
-              className="text-[#0a7cb3] shrink-0 group-hover:scale-105 transition-transform"
+              className="text-[#0a7cb3] dark:text-sky-400 shrink-0 group-hover:scale-105 transition-transform"
             />
             {!isCollapsed && (
               <span className="truncate flex-1 text-left">Back to Website</span>

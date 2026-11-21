@@ -91,18 +91,18 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('courses')}
           aria-label={`Enrolled Courses: ${summary.active_courses ?? 0}. Click to filter active learning programs`}
-          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-[#0A7CB3] hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2"
+          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-[#0A7CB3] dark:hover:border-[#0A7CB3] hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Enrolled Courses</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-[#0A7CB3] group-hover:scale-110 transition-transform">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Enrolled Courses</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] dark:text-[#38bdf8] group-hover:scale-110 transition-transform">
               <BookOpen size={16} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{summary.active_courses ?? 0}</div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+          <div className="text-2xl font-black text-slate-900 dark:text-white">{summary.active_courses ?? 0}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
             <span>Active learning programs</span>
-            <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={12} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
 
@@ -111,22 +111,22 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('performance')}
           aria-label={`Curriculum Completion: ${summary.course_completion_pct ?? 0} percent. Click to view performance details`}
-          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Completion</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 group-hover:scale-110 transition-transform">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Completion</span>
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
               <CheckCircle2 size={16} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">
+          <div className="text-2xl font-black text-slate-900 dark:text-white">
             {summary.course_completion_pct !== 'Not available yet' && summary.course_completion_pct !== null && summary.course_completion_pct !== undefined
               ? (summary.course_completion_pct + '%')
               : 'Not available yet'}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
             <span>Overall curriculum items</span>
-            <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={12} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
 
@@ -135,22 +135,22 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('performance')}
           aria-label={`Attendance: ${summary.attendance_pct ?? 0} percent. Click to view attendance details`}
-          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-indigo-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-indigo-500 dark:hover:border-indigo-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Attendance</span>
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 group-hover:scale-110 transition-transform">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Attendance</span>
+            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
               <UserCheck size={16} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">
+          <div className="text-2xl font-black text-slate-900 dark:text-white">
             {summary.attendance_pct !== 'Not available yet' && summary.attendance_pct !== null && summary.attendance_pct !== undefined
               ? (summary.attendance_pct + '%')
               : '—'}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
             <span>{summary.attendance_pct !== null && summary.attendance_pct !== undefined && summary.attendance_pct !== 'Not available yet' ? 'Live sessions record' : 'No attendance recorded yet'}</span>
-            <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={12} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
 
@@ -159,18 +159,18 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('performance')}
           aria-label={`Assignments Due: ${summary.assignments_awaiting_submission ?? 0}. Click to view pending tasks`}
-          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-amber-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-amber-500 dark:hover:border-amber-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Assignments Due</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition-transform">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Assignments Due</span>
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
               <Clock size={16} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{summary.assignments_awaiting_submission ?? 0}</div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+          <div className="text-2xl font-black text-slate-900 dark:text-white">{summary.assignments_awaiting_submission ?? 0}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
             <span>Awaiting submission</span>
-            <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={12} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
 
@@ -179,18 +179,18 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('schedule')}
           aria-label={`Upcoming Quizzes: ${summary.upcoming_quizzes ?? summary.upcoming_assessments ?? 0}. Click to view schedule`}
-          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-purple-500 dark:hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Upcoming Quizzes</span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600 group-hover:scale-110 transition-transform">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Upcoming Quizzes</span>
+            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
               <Award size={16} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">{summary.upcoming_quizzes ?? summary.upcoming_assessments ?? 0}</div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+          <div className="text-2xl font-black text-slate-900 dark:text-white">{summary.upcoming_quizzes ?? summary.upcoming_assessments ?? 0}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
             <span>Pending quiz attempts</span>
-            <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={12} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
 
@@ -199,28 +199,28 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('certificates')}
           aria-label={`Certificates: ${summary.earned_certificates ?? certificates.length ?? 0}. Click to view issued credentials`}
-          className="w-full text-left bg-white rounded-2xl border border-slate-200/90 p-4.5 shadow-2xs hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-purple-500 dark:hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Certificates</span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600 group-hover:scale-110 transition-transform">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Certificates</span>
+            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
               <Award size={16} />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">
+          <div className="text-2xl font-black text-slate-900 dark:text-white">
             {summary.earned_certificates ?? certificates.length ?? 0}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
             <span>Issued credentials</span>
-            <ChevronRight size={12} className="text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight size={12} className="text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </button>
 
       </div>
 
       {/* Student Quick Action Bar */}
-      <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+      <div className="bg-slate-50 dark:bg-[#0c1527] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
           <span>Quick Launch:</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -235,28 +235,28 @@ export default function StudentDashboardView({
           )}
           <button
             onClick={() => setActiveTab('schedule')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             <Calendar size={13} />
             View Schedule
           </button>
           <button
             onClick={() => setActiveTab('performance')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             <FileText size={13} />
             Submit Assignment
           </button>
           <button
             onClick={() => setActiveTab('certificates')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             <Award size={13} />
             View Certificates
           </button>
           <button
             onClick={() => onOpenTicketModal && onOpenTicketModal('my_tickets')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             <HelpCircle size={13} />
             Support & Helpdesk
@@ -306,7 +306,7 @@ export default function StudentDashboardView({
       )}
 
       {/* Main Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-1 text-xs font-bold text-slate-500">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-1 text-xs font-bold text-slate-500 dark:text-slate-400">
         {[
           { id: 'all', label: 'Dashboard Overview' },
           { id: 'courses', label: 'My Enrolled Courses (' + myCourses.length + ')' },
@@ -322,8 +322,8 @@ export default function StudentDashboardView({
             onClick={() => setActiveTab(tab.id)}
             className={'px-3.5 py-2.5 rounded-t-xl transition-all whitespace-nowrap cursor-pointer ' + 
               (activeTab === tab.id 
-                ? 'text-[#0A7CB3] border-b-2 border-[#0A7CB3] bg-blue-50/40' 
-                : 'hover:text-slate-800 hover:bg-slate-50')}
+                ? 'text-[#0A7CB3] dark:text-[#38bdf8] border-b-2 border-[#0A7CB3] dark:border-[#38bdf8] bg-blue-50/40 dark:bg-blue-950/40 font-bold' 
+                : 'hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/40')}
           >
             {tab.label}
           </button>
@@ -335,8 +335,8 @@ export default function StudentDashboardView({
         <div id="my-courses-section" className="space-y-4 scroll-mt-24">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">My Courses & Cohorts</h2>
-              <p className="text-xs text-slate-500">Active institutional enrollments and learning progressions.</p>
+              <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">My Courses & Cohorts</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Active institutional enrollments and learning progressions.</p>
             </div>
 
             {/* Filter and Search */}
@@ -348,13 +348,13 @@ export default function StudentDashboardView({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filter courses..."
-                  className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]/30"
+                  className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-[#0A7CB3]/30"
                 />
               </div>
               <select
                 value={courseFilter}
                 onChange={(e) => setCourseFilter(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-700 focus:outline-none"
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none"
               >
                 <option value="all">All Enrolled</option>
                 <option value="in_progress">In Progress</option>
@@ -364,13 +364,13 @@ export default function StudentDashboardView({
           </div>
 
           {myCourses.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#0A7CB3] flex items-center justify-center mx-auto shadow-2xs">
+            <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-8 sm:p-10 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] dark:text-[#38bdf8] flex items-center justify-center mx-auto shadow-2xs">
                 <BookOpen size={32} />
               </div>
               <div className="space-y-1.5 max-w-md mx-auto">
-                <div className="text-base font-bold text-slate-900">No courses assigned yet.</div>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <div className="text-base font-bold text-slate-900 dark:text-white">No courses assigned yet.</div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   You are currently not enrolled in any academic curriculum or cohort batches. Once your academic coordinator assigns your courses, your syllabus, lecture schedules, and materials will appear here.
                 </p>
               </div>
@@ -389,7 +389,7 @@ export default function StudentDashboardView({
                   <button
                     type="button"
                     onClick={onExploreCatalog}
-                    className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+                    className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-2xs"
                   >
                     Explore Specialization Catalog
                   </button>
@@ -397,10 +397,10 @@ export default function StudentDashboardView({
               </div>
             </div>
           ) : filteredCourses.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-3">
-              <BookOpen size={36} className="mx-auto text-slate-300" />
-              <div className="text-sm font-bold text-slate-800">No matching courses found</div>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
+            <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-8 text-center space-y-3">
+              <BookOpen size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">No matching courses found</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
                 No enrolled courses match the current filter or search criteria.
               </p>
             </div>
@@ -414,15 +414,15 @@ export default function StudentDashboardView({
                 return (
                 <div 
                   key={course.course_id}
-                  className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-all space-y-4 flex flex-col justify-between"
+                  className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-all space-y-4 flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 mb-1">
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 mb-1">
                           Cohort: {course.batch_code}
                         </div>
-                        <h3 className="text-base font-black text-slate-900 tracking-tight leading-snug">
+                        <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-snug">
                           {course.course_title}
                         </h3>
                       </div>

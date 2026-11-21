@@ -129,15 +129,15 @@ export default function CourseBrochureView({
           </div>
 
           {/* Right Action Card (Floating Enrollment Box) */}
-          <div className="lg:col-span-4 bg-white text-slate-900 rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5 border border-slate-100">
+          <div className="lg:col-span-4 bg-white dark:bg-[#0c1527] text-slate-900 dark:text-white rounded-2xl p-6 sm:p-7 shadow-2xl space-y-5 border border-slate-100 dark:border-slate-800">
             <div className="space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 {isFacultyOrAdmin ? 'Faculty & Admin Clearance' : isEnrolled ? 'Enrolled Candidate' : 'Enrollment Open'}
               </span>
-              <div className="text-xl font-bold text-slate-900">
+              <div className="text-xl font-bold text-slate-900 dark:text-white">
                 {hasCourseAccess ? 'Course Interface Unlocked' : 'Enroll in Program'}
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {isFacultyOrAdmin
                   ? 'Faculty and administrative full-access clearance is active across all modules and lectures.'
                   : hasCourseAccess 
@@ -168,10 +168,10 @@ export default function CourseBrochureView({
               </button>
             )}
 
-            <div className="pt-2 border-t border-slate-100 space-y-2 text-xs text-slate-600">
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs text-slate-600 dark:text-slate-400">
               <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-[#0A7CB3]" />
-                <span className="font-semibold text-slate-800">Shareable Specialization Certificate</span>
+                <Award className="w-4 h-4 text-[#0A7CB3] dark:text-[#38bdf8]" />
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Shareable Specialization Certificate</span>
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4 text-slate-400" />
@@ -192,33 +192,33 @@ export default function CourseBrochureView({
       </section>
 
       {/* Sticky Sub-Navigation Tabs */}
-      <div className="border-b border-slate-200 sticky top-16 bg-white/95 backdrop-blur-md z-20 py-2">
-        <div className="flex items-center gap-6 text-xs font-bold text-slate-600 overflow-x-auto scrollbar-none">
+      <div className="border-b border-slate-200 dark:border-slate-800 sticky top-16 bg-white/95 dark:bg-[#070e1b]/95 backdrop-blur-md z-20 py-2">
+        <div className="flex items-center gap-6 text-xs font-bold text-slate-600 dark:text-slate-400 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('syllabus')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'syllabus' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'syllabus' ? 'border-[#0A7CB3] text-[#0A7CB3] dark:text-[#38bdf8] dark:border-[#38bdf8]' : 'border-transparent hover:text-slate-900 dark:hover:text-white')}
           >
             Modules & Syllabus ({course.modules?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab('outcomes')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'outcomes' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'outcomes' ? 'border-[#0A7CB3] text-[#0A7CB3] dark:text-[#38bdf8] dark:border-[#38bdf8]' : 'border-transparent hover:text-slate-900 dark:hover:text-white')}
           >
             What You'll Learn
           </button>
           <button
             onClick={() => setActiveTab('about')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'about' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'about' ? 'border-[#0A7CB3] text-[#0A7CB3] dark:text-[#38bdf8] dark:border-[#38bdf8]' : 'border-transparent hover:text-slate-900 dark:hover:text-white')}
           >
             About & Prerequisites
           </button>
           <button
             onClick={() => setActiveTab('instructors')}
             className={'pb-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ' + 
-              (activeTab === 'instructors' ? 'border-[#0A7CB3] text-[#0A7CB3]' : 'border-transparent hover:text-slate-900')}
+              (activeTab === 'instructors' ? 'border-[#0A7CB3] text-[#0A7CB3] dark:text-[#38bdf8] dark:border-[#38bdf8]' : 'border-transparent hover:text-slate-900 dark:hover:text-white')}
           >
             Faculty & Instructors
           </button>
@@ -276,32 +276,32 @@ export default function CourseBrochureView({
               return (
                 <div
                   key={mod.id || modIdx}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden transition-all"
+                  className="bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden transition-all"
                 >
                   {/* Module Accordion Header */}
                   <button
                     onClick={() => toggleModule(modIdx)}
-                    className="w-full p-5 sm:p-6 text-left flex items-start sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors cursor-pointer"
+                    className="w-full p-5 sm:p-6 text-left flex items-start sm:items-center justify-between gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-xs font-bold text-[#0A7CB3] uppercase tracking-wider">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#0A7CB3] dark:text-[#38bdf8] uppercase tracking-wider">
                         <span>Module {modIdx + 1}</span>
                         <span>·</span>
-                        <span className="text-slate-500 font-semibold">{mod.duration || '5 hours to complete'}</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-semibold">{mod.duration || '5 hours to complete'}</span>
                       </div>
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                         {mod.title}
                       </h3>
-                      <p className="text-xs text-slate-500 line-clamp-1 max-w-2xl">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 max-w-2xl">
                         {mod.description || 'Deep dive into practical distributed architecture patterns and failure dynamics.'}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-4 flex-shrink-0">
-                      <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium hidden sm:inline">
                         {lessonCount} lectures · {taskCount} project
                       </span>
-                      <div className="p-1 rounded-full bg-slate-100 text-slate-600">
+                      <div className="p-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </div>
                     </div>
@@ -309,7 +309,7 @@ export default function CourseBrochureView({
 
                   {/* Expanded Syllabus Items */}
                   {isExpanded && (
-                    <div className="border-t border-slate-100 divide-y divide-slate-100 bg-slate-50/40">
+                    <div className="border-t border-slate-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800/60 bg-slate-50/40 dark:bg-slate-900/40">
                       {mod.lessons?.map((lesson, lIdx) => (
                         <div
                           key={lesson.id || lIdx}
@@ -320,14 +320,14 @@ export default function CourseBrochureView({
                               onEnroll(course);
                             }
                           }}
-                          className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-white transition-colors cursor-pointer group"
+                          className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-white dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0A7CB3] group-hover:bg-[#0A7CB3] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] dark:text-[#38bdf8] group-hover:bg-[#0A7CB3] group-hover:text-white transition-colors flex items-center justify-center flex-shrink-0">
                               <Play className="w-3.5 h-3.5 fill-current" />
                             </div>
                             <div className="min-w-0">
-                              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 group-hover:text-[#0A7CB3] transition-colors truncate">
+                              <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white group-hover:text-[#0A7CB3] dark:group-hover:text-[#38bdf8] transition-colors truncate">
                                 {lesson.title}
                               </h4>
                               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">

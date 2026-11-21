@@ -407,27 +407,12 @@ class Database {
                                 }
                             } catch (Exception $bErr) {}
 
-                            // Non-destructive synchronization for faculty profiles and teaching staff
+                            // Purge dummy faculty profiles so they do not resurrect in MySQL
                             try {
                                 $fpCheck = self::$pdo->query("SHOW TABLES LIKE 'faculty_profiles'")->fetch();
                                 if ($fpCheck) {
-                                    // Ensure core faculty profiles exist for teaching staff
-                                    // 1. Dr. Aris Thorne (user_id = 1)
-                                    $hasFp1 = (int)self::$pdo->query("SELECT COUNT(*) FROM faculty_profiles WHERE user_id = 1")->fetchColumn();
-                                    if ($hasFp1 === 0) {
-                                        self::$pdo->exec("INSERT INTO faculty_profiles (user_id, faculty_id_code, mobile, expertise, account_status) VALUES (1, 'FAC-001', '+91 98111 22233', 'Distributed Systems, Cloud Architecture', 'active')");
-                                    }
-                                    // 2. Professor Test (user_id = 4)
-                                    self::$pdo->exec("UPDATE users SET is_archived = 0, status = 'active', role = 'faculty' WHERE id = 4");
-                                    $hasFp4 = (int)self::$pdo->query("SELECT COUNT(*) FROM faculty_profiles WHERE user_id = 4")->fetchColumn();
-                                    if ($hasFp4 === 0) {
-                                        self::$pdo->exec("INSERT INTO faculty_profiles (user_id, faculty_id_code, mobile, expertise, account_status) VALUES (4, 'FAC-004', '+91 98111 44455', 'Cloud Native Systems & Kubernetes', 'active')");
-                                    }
-                                    // 3. Elena Rostova (user_id = 2)
-                                    $hasFp2 = (int)self::$pdo->query("SELECT COUNT(*) FROM faculty_profiles WHERE user_id = 2")->fetchColumn();
-                                    if ($hasFp2 === 0) {
-                                        self::$pdo->exec("INSERT INTO faculty_profiles (user_id, faculty_id_code, mobile, expertise, account_status) VALUES (2, 'FAC-002', '+91 98111 33344', 'Applied AI & Neural Engineering', 'active')");
-                                    }
+                                    self::$pdo->exec("DELETE FROM faculty_profiles WHERE user_id = 1 OR user_id IN (SELECT id FROM users WHERE email = 'admin@aaroha-inc.com' OR email LIKE '%@aaroha-inc.com' AND role = 'super_admin')");
+                                    self::$pdo->exec("DELETE FROM faculty_batch_assignments WHERE faculty_id = 1 OR faculty_id IN (SELECT id FROM users WHERE email = 'admin@aaroha-inc.com')");
                                 }
                             } catch (Exception $fpErr) {}
 

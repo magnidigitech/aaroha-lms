@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import TechSearchBar from './TechSearchBar';
+import ThemeToggle from './ThemeToggle';
 import { ROUTES, HOMEPAGE_ROUTE, getAuthorizedDashboardView, isFacultyRole } from '../routes';
 
 export default function Navbar({
@@ -48,7 +49,7 @@ export default function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200/90 shadow-2xs">
+    <header className="sticky top-0 z-40 bg-white dark:bg-[#0c1527] border-b border-slate-200/90 dark:border-slate-800 shadow-2xs transition-colors duration-200">
       <div className="max-w-7xl 2xl:max-w-[1536px] mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-18 gap-2 sm:gap-4">
           
@@ -63,7 +64,7 @@ export default function Navbar({
                 setIsMobileMenuOpen(false);
               }}
             >
-              <div className="bg-white hover:bg-slate-50 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-200 flex items-center shadow-xs transition-all duration-200 group-hover:border-slate-300">
+              <div className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/80 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center shadow-xs transition-all duration-200 group-hover:border-slate-300 dark:group-hover:border-slate-600">
                 <img
                   src={aarohaLogo}
                   alt="Aaroha Technologies"
@@ -88,10 +89,10 @@ export default function Navbar({
               {/* Explore Menu Dropdown */}
               {isExploreOpen && (
                 <div 
-                  className="absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute left-0 mt-2 w-64 bg-white dark:bg-[#0f1b33] rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                   onMouseLeave={() => setIsExploreOpen(false)}
                 >
-                  <div className="px-4 py-2 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                     Course Categories
                   </div>
                   {categories.map((cat) => (
@@ -102,10 +103,10 @@ export default function Navbar({
                         setActiveView('catalog');
                         if (onSelectCategory) onSelectCategory(cat === 'All Courses' ? 'All' : cat);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/60 transition-colors flex items-center justify-between cursor-pointer"
+                      className="w-full text-left px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-[#0A7CB3] dark:hover:text-[#38abdc] hover:bg-blue-50/60 dark:hover:bg-blue-950/40 transition-colors flex items-center justify-between cursor-pointer"
                     >
                       <span>{cat}</span>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-300 -rotate-90" />
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-300 dark:text-slate-500 -rotate-90" />
                     </button>
                   ))}
                 </div>
@@ -131,11 +132,11 @@ export default function Navbar({
               onClick={() => setActiveView('degrees')}
               className={'text-xs font-bold transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer hidden sm:flex ' + 
                 (activeView === 'degrees' 
-                  ? 'bg-blue-50 text-[#0A7CB3] border border-blue-200' 
-                  : 'text-slate-700 hover:text-[#0A7CB3] hover:bg-slate-50')}
+                  ? 'bg-blue-50 dark:bg-blue-950/50 text-[#0A7CB3] dark:text-sky-300 border border-blue-200 dark:border-blue-800' 
+                  : 'text-slate-700 dark:text-slate-200 hover:text-[#0A7CB3] dark:hover:text-sky-300 hover:bg-slate-50 dark:hover:bg-slate-800')}
               aria-label="Certificates and Verification Portal"
             >
-              <Award className="w-4 h-4 text-[#0A7CB3]" />
+              <Award className="w-4 h-4 text-[#0A7CB3] dark:text-sky-400" />
               <span className="hidden xl:inline">Certificates & Verification</span>
               <span className="inline xl:hidden">Certificates</span>
             </button>
@@ -147,10 +148,10 @@ export default function Navbar({
                   setActiveView(HOMEPAGE_ROUTE);
                   if (onSelectCategory) onSelectCategory('All');
                 }}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-[#0A7CB3] border border-slate-200 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-[#0A7CB3] dark:hover:text-sky-300 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
                 title="Return to public homepage (login session preserved)"
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3]" />
+                <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3] dark:text-sky-400" />
                 <span className="hidden md:inline">Back to Website</span>
                 <span className="inline md:hidden">Website</span>
               </button>
@@ -193,14 +194,17 @@ export default function Navbar({
               </div>
             )}
 
+            {/* Small Round Toggle to Switch between Dark and Light Theme */}
+            <ThemeToggle />
+
             {/* User Avatar with Profile Dropdown Menu (Desktop) */}
             {currentUser && (
-              <div className="relative flex items-center pl-2 sm:pl-3 border-l border-slate-200">
+              <div className="relative flex items-center pl-2 sm:pl-3 border-l border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                   title="Account menu"
-                  className="flex items-center gap-2 p-1 -m-1 rounded-xl hover:bg-slate-100 transition-all cursor-pointer group text-left border border-transparent hover:border-slate-200/80"
+                  className="flex items-center gap-2 p-1 -m-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group text-left border border-transparent hover:border-slate-200/80 dark:hover:border-slate-700"
                   aria-expanded={isProfileDropdownOpen}
                 >
                   <div className="relative">
@@ -208,15 +212,15 @@ export default function Navbar({
                       src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                       alt={currentUser.full_name}
                       onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0A7CB3]/30 group-hover:ring-[#0A7CB3] group-hover:scale-105 transition-all shrink-0 bg-slate-100"
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#0A7CB3]/30 group-hover:ring-[#0A7CB3] group-hover:scale-105 transition-all shrink-0 bg-slate-100 dark:bg-slate-800"
                     />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
                   </div>
                   <div className="hidden xl:block text-left">
-                    <div className="text-xs font-bold text-slate-900 group-hover:text-[#0A7CB3] transition-colors leading-tight flex items-center gap-1">
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-[#0A7CB3] dark:group-hover:text-sky-300 transition-colors leading-tight flex items-center gap-1">
                       <span>{currentUser.full_name}</span>
                     </div>
-                    <div className="text-[10px] text-slate-500 truncate max-w-[130px]">
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[130px]">
                       {currentUser.title || (isFacultyRole(currentUser.role) ? 'Faculty' : 'Learner')}
                     </div>
                   </div>
@@ -226,12 +230,12 @@ export default function Navbar({
                 {/* Profile Menu Dropdown */}
                 {isProfileDropdownOpen && (
                   <div 
-                    className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-[#0f1b33] rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                     onMouseLeave={() => setIsProfileDropdownOpen(false)}
                   >
-                    <div className="px-4 py-2 border-b border-slate-100">
-                      <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
-                      <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
+                    <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{currentUser.full_name}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{currentUser.email}</div>
                     </div>
                     <div className="py-1">
                       <button
@@ -240,9 +244,9 @@ export default function Navbar({
                           setIsProfileDropdownOpen(false);
                           if (onOpenProfile) onOpenProfile();
                         }}
-                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/60 transition-colors flex items-center gap-2 cursor-pointer"
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-[#0A7CB3] dark:hover:text-sky-300 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 transition-colors flex items-center gap-2 cursor-pointer"
                       >
-                        <Settings className="w-4 h-4 text-[#0A7CB3]" />
+                        <Settings className="w-4 h-4 text-[#0A7CB3] dark:text-sky-400" />
                         <span>Profile & Settings</span>
                       </button>
                       <button
@@ -255,22 +259,22 @@ export default function Navbar({
                             if (el) el.scrollIntoView({ behavior: 'smooth' });
                           }, 100);
                         }}
-                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-[#0A7CB3] hover:bg-blue-50/60 transition-colors flex items-center gap-2 cursor-pointer"
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-[#0A7CB3] dark:hover:text-sky-300 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 transition-colors flex items-center gap-2 cursor-pointer"
                       >
-                        <BookOpen className="w-4 h-4 text-[#0A7CB3]" />
+                        <BookOpen className="w-4 h-4 text-[#0A7CB3] dark:text-sky-400" />
                         <span>My Courses & Learning</span>
                       </button>
                     </div>
-                    <div className="border-t border-slate-100 pt-1">
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-1">
                       <button
                         type="button"
                         onClick={() => {
                           setIsProfileDropdownOpen(false);
                           if (onLogout) onLogout();
                         }}
-                        className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-2 cursor-pointer"
+                        className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors flex items-center gap-2 cursor-pointer"
                       >
-                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <LogOut className="w-4 h-4 text-rose-500 dark:text-rose-400" />
                         <span>Sign Out</span>
                       </button>
                     </div>
@@ -282,7 +286,7 @@ export default function Navbar({
             {/* Mobile Hamburger Toggle Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 lg:hidden transition-colors cursor-pointer"
+              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden transition-colors cursor-pointer"
               aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMobileMenuOpen}
             >
@@ -293,7 +297,7 @@ export default function Navbar({
 
         {/* Mobile Navigation Drawer / Menu (Visible on < lg screens) */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-slate-200 py-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 py-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
             {/* Mobile Search */}
             <div className="relative px-1">
               <TechSearchBar
@@ -310,16 +314,24 @@ export default function Navbar({
 
             {/* Mobile Nav Links */}
             <div className="flex flex-col space-y-1 px-1">
+              {/* Mobile Theme Toggle Row */}
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                <span>Theme Appearance</span>
+                <ThemeToggle size="small" />
+              </div>
+
               <button
                 onClick={() => {
                   setActiveView('degrees');
                   setIsMobileMenuOpen(false);
                 }}
                 className={`text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors ${
-                  activeView === 'degrees' ? 'bg-blue-50 text-[#0A7CB3]' : 'text-slate-700 hover:bg-slate-100'
+                  activeView === 'degrees' 
+                    ? 'bg-blue-50 dark:bg-blue-950/50 text-[#0A7CB3] dark:text-sky-300' 
+                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <Award className="w-4 h-4 text-[#0A7CB3]" />
+                <Award className="w-4 h-4 text-[#0A7CB3] dark:text-sky-400" />
                 <span>Certificates & Verification</span>
               </button>
 
@@ -332,9 +344,9 @@ export default function Navbar({
                       const el = document.getElementById('my-courses-section');
                       if (el) el.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors text-slate-700 hover:bg-slate-100"
+                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
-                    <BookOpen className="w-4 h-4 text-[#0A7CB3]" />
+                    <BookOpen className="w-4 h-4 text-[#0A7CB3] dark:text-sky-400" />
                     <span>My Courses & Cohorts</span>
                   </button>
 
@@ -344,9 +356,9 @@ export default function Navbar({
                       const el = document.getElementById('schedule-section');
                       if (el) el.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors text-slate-700 hover:bg-slate-100"
+                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >
-                    <Video className="w-4 h-4 text-purple-600" />
+                    <Video className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                     <span>Next Class & Schedule</span>
                   </button>
 
@@ -356,9 +368,9 @@ export default function Navbar({
                       if (onSelectCategory) onSelectCategory('All');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors bg-blue-50 text-[#0A7CB3] border border-blue-200"
+                    className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] dark:text-sky-300 border border-blue-200 dark:border-blue-900/60"
                   >
-                    <ArrowLeft className="w-4 h-4 text-[#0A7CB3]" />
+                    <ArrowLeft className="w-4 h-4 text-[#0A7CB3] dark:text-sky-400" />
                     <span>Back to Website</span>
                   </button>
                 </>
@@ -372,10 +384,10 @@ export default function Navbar({
                     setActiveView(targetView);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between bg-blue-50/60 text-[#0A7CB3] hover:bg-blue-50"
+                  className="text-left px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-between bg-blue-50/60 dark:bg-blue-950/40 text-[#0A7CB3] dark:text-sky-300 hover:bg-blue-50 dark:hover:bg-blue-950/60"
                 >
                   <div className="flex items-center gap-2">
-                    <LayoutDashboard className="w-4 h-4 text-[#0A7CB3]" />
+                    <LayoutDashboard className="w-4 h-4 text-[#0A7CB3] dark:text-sky-400" />
                     <span>My Dashboard</span>
                   </div>
                   {currentUser.role === 'student' && stats?.enrolledCount > 0 && (
@@ -393,7 +405,7 @@ export default function Navbar({
             </div>
 
             {/* Mobile Auth Controls */}
-            <div className="pt-2 border-t border-slate-100 px-1">
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 px-1">
               {currentUser ? (
                 <div className="space-y-2">
                   {/* On Public Website: Show "My Dashboard" primary CTA instead of "Log In" */}
@@ -411,31 +423,31 @@ export default function Navbar({
                     </button>
                   )}
 
-                  <div className="flex flex-col space-y-2 p-2.5 bg-slate-50 rounded-2xl border border-slate-200/80">
+                  <div className="flex flex-col space-y-2 p-2.5 bg-slate-50 dark:bg-[#0f1b33] rounded-2xl border border-slate-200/80 dark:border-slate-800">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <img
                         src={currentUser.avatar || '/avatars/3d/memo_13.png'}
                         alt={currentUser.full_name}
                         onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
-                        className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100"
+                        className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-500/30 shrink-0 bg-slate-100 dark:bg-slate-800"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</div>
-                        <div className="text-[10px] text-slate-500 truncate">
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{currentUser.full_name}</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                           {currentUser.title || (isFacultyRole(currentUser.role) ? 'Faculty' : 'Learner')}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 pt-1 border-t border-slate-200">
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
                       <button
                         type="button"
                         onClick={() => {
                           if (onOpenProfile) onOpenProfile();
                           setIsMobileMenuOpen(false);
                         }}
-                        className="flex-1 py-1.5 px-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        className="flex-1 py-1.5 px-2.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >
-                        <Settings className="w-3.5 h-3.5 text-[#0A7CB3]" />
+                        <Settings className="w-3.5 h-3.5 text-[#0A7CB3] dark:text-sky-400" />
                         <span>Profile & Settings</span>
                       </button>
                       <button
@@ -443,7 +455,7 @@ export default function Navbar({
                           onLogout();
                           setIsMobileMenuOpen(false);
                         }}
-                        className="py-1.5 px-3 bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold rounded-xl border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        className="py-1.5 px-3 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-200 hover:text-red-700 dark:hover:text-red-400 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         <span>Sign Out</span>

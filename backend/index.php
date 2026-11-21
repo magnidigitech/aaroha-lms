@@ -594,7 +594,7 @@ try {
         $actor = AuthMiddleware::requireCoordinator();
         $response = AdminPortalController::checkFacultyDeletionEligibility((int)$matches[1]);
     }
-    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/faculty/(\d+)$#', $path, $matches)) {
+    elseif (($requestMethod === 'DELETE' || $requestMethod === 'POST') && preg_match('#^/admin/faculty/(\d+)(?:/delete)?$#', $path, $matches)) {
         $actor = AuthMiddleware::requireAdmin();
         $force = isset($_GET['force']) && ($_GET['force'] === '1' || $_GET['force'] === 'true' || $_GET['force'] === 'yes');
         if (!$force && !empty($inputData['force'])) {
