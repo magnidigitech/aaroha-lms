@@ -40,14 +40,7 @@ function ViewLoadingFallback() {
 }
 
 export default function App() {
-  const [users, setUsers] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aaroha_all_users');
-      return saved ? JSON.parse(saved) : initialUsers;
-    } catch (e) {
-      return initialUsers;
-    }
-  });
+  const [users, setUsers] = useState([]);
 
   // Persist authentication across page refresh with instant hydration
   const [currentUser, setCurrentUser] = useState(() => {
@@ -263,12 +256,12 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Persistent storage synchronizers
+  // Purge any legacy cached mock users immediately on app mount
   useEffect(() => {
     try {
-      localStorage.setItem('aaroha_all_users', JSON.stringify(users));
+      localStorage.removeItem('aaroha_all_users');
     } catch (e) {}
-  }, [users]);
+  }, []);
 
   useEffect(() => {
     try {
@@ -429,16 +422,8 @@ export default function App() {
                 .catch(() => {});
               api.adminGetUsers()
                 .then(usersRes => {
-                  if (usersRes && usersRes.users && usersRes.users.length > 0) {
-                    setUsers(prev => {
-                      const userMap = new Map();
-                      prev.forEach(u => userMap.set(u.email.toLowerCase(), u));
-                      usersRes.users.forEach(u => {
-                        const existing = userMap.get(u.email.toLowerCase());
-                        userMap.set(u.email.toLowerCase(), { ...existing, ...u });
-                      });
-                      return Array.from(userMap.values());
-                    });
+                  if (usersRes && Array.isArray(usersRes.users)) {
+                    setUsers(usersRes.users);
                   }
                 })
                 .catch(() => {});
@@ -646,16 +631,8 @@ export default function App() {
             .catch(() => {});
           api.adminGetUsers()
             .then(usersRes => {
-              if (usersRes && usersRes.users && usersRes.users.length > 0) {
-                setUsers(prev => {
-                  const userMap = new Map();
-                  prev.forEach(u => userMap.set(u.email.toLowerCase(), u));
-                  usersRes.users.forEach(u => {
-                    const existing = userMap.get(u.email.toLowerCase());
-                    userMap.set(u.email.toLowerCase(), { ...existing, ...u });
-                  });
-                  return Array.from(userMap.values());
-                });
+              if (usersRes && Array.isArray(usersRes.users)) {
+                setUsers(usersRes.users);
               }
             })
             .catch(() => {});
@@ -692,26 +669,6 @@ export default function App() {
       }
     }
 
-    // Resilient offline / demo fallback
-    const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (foundUser && foundUser.password === password) {
-      const demoToken = 'aaroha_session_' + foundUser.id + '_' + Date.now();
-      localStorage.setItem('aaroha_token', demoToken);
-      setCurrentUser(foundUser);
-      localStorage.setItem('aaroha_user', JSON.stringify(foundUser));
-      if (isFacultyRole(foundUser.role)) {
-        setActiveView('admin');
-        showToast('Signed in as Faculty: ' + foundUser.full_name);
-      } else {
-        if (authModal.intendedCourse) {
-          executeEnrollment(foundUser.id, authModal.intendedCourse.id);
-        } else {
-          setActiveView('student');
-        }
-        showToast('Welcome back, ' + foundUser.full_name);
-      }
-      return true;
-    }
     showToast('Invalid email or password.');
     return false;
   };
@@ -829,7 +786,9 @@ export default function App() {
   const handleLogout = () => {
     api.logout();
     localStorage.removeItem('aaroha_user');
+    localStorage.removeItem('aaroha_token');
     localStorage.removeItem('aaroha_view');
+    localStorage.removeItem('aaroha_all_users');
     localStorage.removeItem('aaroha_selected_course_id');
     localStorage.removeItem('aaroha_enrollments');
     localStorage.removeItem('aaroha_lesson_progress');
@@ -842,6 +801,7 @@ export default function App() {
       sessionStorage.removeItem('aaroha_active_dashboard_role');
     } catch (e) {}
     setCurrentUser(null);
+    setUsers([]);
     setEnrollments([]);
     setLessonProgress([]);
     setTaskSubmissions([]);

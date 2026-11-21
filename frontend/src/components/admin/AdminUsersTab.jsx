@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   ShieldCheck, UserPlus, Search, CheckCircle2, Lock,
-  AlertTriangle, Shield, User, X
+  AlertTriangle, Shield, User, X, Trash2, RefreshCw
 } from 'lucide-react';
 import { formatDate } from '../../adminUtils';
 
@@ -9,16 +9,21 @@ export default function AdminUsersTab({
   users = [],
   currentUser = null,
   onUpdateUserRole,
-  onCreateUser
+  onDeleteUser,
+  onRefreshUsers,
+  onCreateUser,
+  showToast
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [roleModalUser, setRoleModalUser] = useState(null);
   const [selectedRole, setSelectedRole] = useState('student');
+  const [deleteModalUser, setDeleteModalUser] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = (users || []).filter(u => {
     const matchesSearch = !searchTerm ||
       (u.full_name && u.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -30,7 +35,7 @@ export default function AdminUsersTab({
   const handleCommitRoleChange = async () => {
     if (!roleModalUser) return;
     if (onUpdateUserRole) {
-      await onUpdateUserRole(roleModalUser.id, { role: selectedRole });
+      await onUpdateUserRole(roleModalUser.id, selectedRole);
     }
     setRoleModalUser(null);
   };
@@ -45,6 +50,15 @@ export default function AdminUsersTab({
             Administer institutional RBAC permissions across Super Admin, Admin/Coordinator, Faculty, Placement Officer, and Student.
           </p>
         </div>
+        {onCreateUser && (
+          <button
+            onClick={onCreateUser}
+            className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center gap-1.5 shadow-xs"
+          >
+            <UserPlus size={15} />
+            <span>Onboard Institutional User</span>
+          </button>
+        )}
       </div>
 
       {/* Permissions Matrix Overview Card */}
@@ -90,18 +104,31 @@ export default function AdminUsersTab({
           />
         </div>
 
-        <select
-          value={roleFilter}
-          onChange={e => setRoleFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-xs focus:outline-hidden"
-        >
-          <option value="all">All Roles</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="admin">Admin / Coordinator</option>
-          <option value="placement_officer">Placement Officer</option>
-          <option value="faculty">Faculty Member</option>
-          <option value="student">Student Fellow</option>
-        </select>
+        <div className="flex items-center gap-2">
+          {onRefreshUsers && (
+            <button
+              onClick={onRefreshUsers}
+              className="px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              title="Refresh Users Directory"
+            >
+              <RefreshCw size={14} />
+              <span>Refresh</span>
+            </button>
+          )}
+
+          <select
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-xs focus:outline-hidden"
+          >
+            <option value="all">All Roles</option>
+            <option value="super_admin">Super Admin</option>
+            <option value="admin">Admin / Coordinator</option>
+            <option value="placement_officer">Placement Officer</option>
+            <option value="faculty">Faculty Member</option>
+            <option value="student">Student Fellow</option>
+          </select>
+        </div>
       </div>
 
       {/* Users Table */}
@@ -117,48 +144,68 @@ export default function AdminUsersTab({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {filteredUsers.map(u => (
-              <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="py-3 px-4">
-                  <strong className="text-slate-900 block">{u.full_name}</strong>
-                  <span className="text-[11px] text-slate-500">{u.title || 'Fellow'}</span>
-                </td>
-                <td className="py-3 px-4 font-mono text-slate-700">{u.email}</td>
-                <td className="py-3 px-4">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase font-semibold ${
-                    u.role === 'super_admin'
-                      ? 'bg-sky-50 text-[#086491] border border-sky-200'
-                      : u.role === 'admin' || u.role === 'coordinator'
-                      ? 'bg-blue-100 text-blue-900 border border-blue-200'
-                      : u.role === 'placement_officer'
-                      ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                      : u.role === 'faculty'
-                      ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                      : 'bg-slate-50 text-slate-700'
-                  }`}>
-                    {u.role.replace('_', ' ')}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-slate-500">{formatDate(u.created_at)}</td>
-                <td className="py-3 px-4 text-right">
-                  {isSuperAdmin ? (
-                    <button
-                      onClick={() => {
-                        setRoleModalUser(u);
-                        setSelectedRole(u.role);
-                      }}
-                      className="px-2.5 py-1 rounded bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium"
-                    >
-                      Change Role
-                    </button>
-                  ) : (
-                    <span className="text-slate-600 text-xs flex items-center justify-end gap-1">
-                      <Lock size={12} /> Restricted
-                    </span>
-                  )}
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-slate-400 italic">
+                  No users found matching current filter criteria.
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredUsers.map(u => (
+                <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="py-3 px-4">
+                    <strong className="text-slate-900 block">{u.full_name}</strong>
+                    <span className="text-[11px] text-slate-500">{u.title || 'Fellow'}</span>
+                  </td>
+                  <td className="py-3 px-4 font-mono text-slate-700">{u.email}</td>
+                  <td className="py-3 px-4">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase font-semibold ${
+                      u.role === 'super_admin'
+                        ? 'bg-sky-50 text-[#086491] border border-sky-200'
+                        : u.role === 'admin' || u.role === 'coordinator'
+                        ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                        : u.role === 'placement_officer'
+                        ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                        : u.role === 'faculty'
+                        ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                        : 'bg-slate-50 text-slate-700'
+                    }`}>
+                      {u.role.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-slate-500">{formatDate(u.created_at)}</td>
+                  <td className="py-3 px-4 text-right">
+                    {isSuperAdmin ? (
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            setRoleModalUser(u);
+                            setSelectedRole(u.role);
+                          }}
+                          className="px-2.5 py-1 rounded bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium transition-colors"
+                        >
+                          Change Role
+                        </button>
+                        {u.id !== currentUser?.id && u.id !== 1 && onDeleteUser && (
+                          <button
+                            onClick={() => setDeleteModalUser(u)}
+                            className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-medium flex items-center gap-1 transition-colors"
+                            title="Delete User"
+                          >
+                            <Trash2 size={12} />
+                            <span>Delete</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 text-xs flex items-center justify-end gap-1">
+                        <Lock size={12} /> Restricted
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -216,7 +263,71 @@ export default function AdminUsersTab({
           </div>
         </div>
       )}
+
+      {/* Delete User Confirmation Modal */}
+      {deleteModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md shadow-2xl p-5 space-y-4 text-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertTriangle size={18} />
+                <h2 className="text-base font-bold text-slate-900">Delete User Account</h2>
+              </div>
+              <button onClick={() => setDeleteModalUser(null)} className="text-slate-500 hover:text-slate-900">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 space-y-1">
+              <p className="font-semibold">Are you sure you want to permanently delete this user?</p>
+              <p className="text-[11px] text-red-700">
+                This will revoke all system credentials, enrollment records, and RBAC authorizations for this account.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+              <div>
+                <span className="text-slate-500 block">Name:</span>
+                <strong className="text-slate-900 text-sm">{deleteModalUser.full_name}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Email:</span>
+                <span className="text-slate-700 font-mono text-xs">{deleteModalUser.email}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Assigned Role:</span>
+                <span className="text-slate-700 font-mono text-xs uppercase font-semibold">{deleteModalUser.role}</span>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setDeleteModalUser(null)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!deleteModalUser || !onDeleteUser) return;
+                  setIsDeleting(true);
+                  try {
+                    await onDeleteUser(deleteModalUser.id);
+                    setDeleteModalUser(null);
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={isDeleting}
+                className="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

@@ -113,6 +113,7 @@ export default function AdminPortalView({
   const [materials, setMaterials] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [followups, setFollowups] = useState([]);
+  const [usersList, setUsersList] = useState(users);
   const [placementData, setPlacementData] = useState({ profiles: [], jobs: [], applications: [] });
   const [supportData, setSupportData] = useState({ tickets: [], feedback: [] });
   const [settings, setSettings] = useState({});
@@ -284,6 +285,23 @@ export default function AdminPortalView({
     }
   }, []);
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await api.adminGetUsers();
+      if (res?.success && Array.isArray(res.users)) {
+        setUsersList(res.users);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch users:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Array.isArray(users) && users.length > 0) {
+      setUsersList(users);
+    }
+  }, [users]);
+
   // Initial load
   useEffect(() => {
     setIsLoading(true);
@@ -300,7 +318,8 @@ export default function AdminPortalView({
       fetchSupportData(),
       fetchSettings(),
       fetchAuditLogs(),
-      fetchCertificates()
+      fetchCertificates(),
+      fetchUsers()
     ]).finally(() => {
       setIsLoading(false);
     });
@@ -317,7 +336,8 @@ export default function AdminPortalView({
     fetchSupportData,
     fetchSettings,
     fetchAuditLogs,
-    fetchCertificates
+    fetchCertificates,
+    fetchUsers
   ]);
 
   // Handlers for Student operations
@@ -724,9 +744,23 @@ export default function AdminPortalView({
       if (res?.success) {
         showToast('Placement profile updated');
         await fetchPlacementData();
+        return res;
       }
     } catch (err) {
       showToast('Error updating placement profile', 'error');
+    }
+  };
+
+  const handleSyncPlacementReadiness = async (userId) => {
+    try {
+      const res = await api.adminSyncPlacementReadiness(userId);
+      if (res?.success) {
+        showToast('Placement readiness score synchronized from student progress');
+        await fetchPlacementData();
+        return res;
+      }
+    } catch (err) {
+      showToast('Error syncing placement readiness', 'error');
     }
   };
 
@@ -748,9 +782,26 @@ export default function AdminPortalView({
       const res = await api.adminUpdateUserRole(userId, { role: newRole });
       if (res?.success) {
         showToast(res.message || 'User role updated');
+        await fetchUsers();
+      } else {
+        showToast(res?.error || 'Error updating user role', 'error');
       }
     } catch (err) {
       showToast('Error updating user role', 'error');
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      const res = await api.adminDeleteUser(userId);
+      if (res?.success) {
+        showToast(res.message || 'User account deleted successfully');
+        await Promise.all([fetchUsers(), fetchStudents(), fetchFaculty()]);
+      } else {
+        showToast(res?.error || 'Failed to delete user account', 'error');
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to delete user account', 'error');
     }
   };
 
@@ -1256,6 +1307,8 @@ export default function AdminPortalView({
               courses={courses}
               batches={batches}
               faculty={faculty}
+              placementData={placementData}
+              certificates={certificates}
             />
           )}
 
@@ -1276,7 +1329,10 @@ export default function AdminPortalView({
             <AdminPlacementTab
               placementData={placementData}
               students={students}
+              courses={courses}
+              batches={batches}
               onUpdatePlacementProfile={handleUpdatePlacementProfile}
+              onSyncPlacementReadiness={handleSyncPlacementReadiness}
               onCreateJobOpening={handleCreateJobOpening}
             />
           )}
@@ -1289,10 +1345,13 @@ export default function AdminPortalView({
 
           {activeModule === 'users' && (
             <AdminUsersTab
-              users={users}
+              users={usersList}
               currentUser={currentUser}
               onUpdateUserRole={handleUpdateUserRole}
+              onDeleteUser={handleDeleteUser}
+              onRefreshUsers={fetchUsers}
               onCreateUser={onOnboardUser}
+              showToast={showToast}
             />
           )}
 

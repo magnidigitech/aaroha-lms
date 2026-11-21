@@ -193,6 +193,10 @@ try {
         $admin = AuthMiddleware::requireAdmin();
         $response = AdminPortalController::updateUserRole((int)$matches[1], $inputData, $admin);
     }
+    elseif ($requestMethod === 'DELETE' && preg_match('#^/admin/users/(\d+)$#', $path, $matches)) {
+        $admin = AuthMiddleware::requireAdmin();
+        $response = AdminPortalController::deleteUser((int)$matches[1], $admin);
+    }
 
     // -------------------------------------------------------------
     // COURSE CATALOG & DETAILS (PUBLIC & GUEST)
@@ -715,10 +719,23 @@ try {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
         $response = AdminPortalController::updateFollowup((int)$matches[1], $inputData, $actor);
     }
+    // Institutional Reports & Analytics
+    elseif ($requestMethod === 'GET' && $path === '/admin/reports') {
+        $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator', 'placement_officer', 'faculty']);
+        $response = AdminPortalController::getInstitutionalReports($_GET);
+    }
     // Placement
     elseif ($requestMethod === 'GET' && $path === '/admin/placement') {
         $actor = AuthMiddleware::requirePlacement();
         $response = AdminPortalController::getPlacementData();
+    }
+    elseif ($requestMethod === 'GET' && preg_match('#^/admin/placement/profiles/(\d+)/calculate-readiness$#', $path, $matches)) {
+        $actor = AuthMiddleware::requirePlacement();
+        $response = AdminPortalController::calculateStudentReadiness((int)$matches[1]);
+    }
+    elseif ($requestMethod === 'POST' && preg_match('#^/admin/placement/profiles/(\d+)/sync-readiness$#', $path, $matches)) {
+        $actor = AuthMiddleware::requirePlacement();
+        $response = AdminPortalController::updatePlacementProfile((int)$matches[1], ['auto_calculate' => true], $actor);
     }
     elseif ($requestMethod === 'PUT' && preg_match('#^/admin/placement/profiles/(\d+)$#', $path, $matches)) {
         $actor = AuthMiddleware::requirePlacement();

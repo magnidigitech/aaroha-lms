@@ -3479,6 +3479,85 @@ class AdminPortalController {
         }
     }
 
+    public static function deleteUser(int $userId, array $actor): array {
+        $pdo = Database::getConnection();
+        $actorRole = strtolower(trim($actor['role'] ?? ''));
+        if (!in_array($actorRole, ['admin', 'super_admin'])) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Administrative authority required to delete user accounts.'];
+        }
+
+        if ($userId <= 0) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Invalid user ID.'];
+        }
+
+        if ($userId === (int)($actor['id'] ?? 0)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Cannot delete your own active administrator account.'];
+        }
+
+        if ($userId === 1) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'Cannot delete primary root administrator.'];
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $targetUser = $stmt->fetch();
+        if (!$targetUser) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Target user account not found.'];
+        }
+
+        $pdo->beginTransaction();
+        try {
+            // Cleanup related child records across tables safely
+            $cleanups = [
+                "DELETE FROM fee_plans WHERE user_id = ?",
+                "DELETE FROM placement_profiles WHERE user_id = ?",
+                "DELETE FROM student_followups WHERE user_id = ?",
+                "DELETE FROM password_resets WHERE user_id = ?",
+                "DELETE FROM student_profiles WHERE user_id = ?",
+                "DELETE FROM faculty_profiles WHERE user_id = ?",
+                "DELETE FROM faculty_assignments WHERE faculty_id = ?",
+                "DELETE FROM batch_enrollments WHERE user_id = ?",
+                "DELETE FROM enrollments WHERE user_id = ?",
+                "DELETE FROM session_attendance WHERE student_id = ?",
+                "DELETE FROM task_submissions WHERE user_id = ?",
+                "DELETE FROM lesson_progress WHERE user_id = ?"
+            ];
+            foreach ($cleanups as $query) {
+                try { $pdo->prepare($query)->execute([$userId]); } catch (\Throwable $e) {}
+            }
+
+            try {
+                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
+            } catch (\Throwable $e) {
+                $pdo->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = 'deleted' WHERE id = ?")->execute([$userId]);
+            }
+
+            AuditLogger::log('DELETE_USER', 'user', $userId, [
+                'email' => $targetUser['email'],
+                'full_name' => $targetUser['full_name'],
+                'role' => $targetUser['role']
+            ], $actor);
+
+            $pdo->commit();
+
+            return [
+                'success' => true,
+                'message' => 'User account ' . $targetUser['full_name'] . ' (' . $targetUser['email'] . ') deleted successfully.'
+            ];
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            http_response_code(500);
+            return ['success' => false, 'error' => 'Failed to delete user account: ' . $e->getMessage()];
+        }
+    }
+
     public static function cleanupTestBatches(array $actor): array {
         $pdo = Database::getConnection();
         $actorRole = strtolower(trim($actor['role'] ?? ''));
@@ -3604,15 +3683,636 @@ class AdminPortalController {
 
     public static function updatePlacementProfile(int $userId, array $data, array $actor): array {
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("
-            UPDATE placement_profiles 
-            SET readiness_score = ?, placement_status = ? 
-            WHERE user_id = ?
+
+        // Check if student profile exists, if not initialize
+        $check = $pdo->prepare("SELECT id FROM placement_profiles WHERE user_id = ?");
+        $check->execute([$userId]);
+        $exists = $check->fetch();
+
+        if (!$exists) {
+            $pdo->prepare("
+                INSERT INTO placement_profiles (user_id, target_roles, skills, readiness_score, placement_status)
+                VALUES (?, 'Cloud & Systems Fellow', 'General', 0, 'training')
+            ")->execute([$userId]);
+        }
+
+        if (!empty($data['auto_calculate'])) {
+            $calc = self::calculateStudentReadiness($userId);
+            $data['readiness_score'] = $calc['composite_score'];
+            if (empty($data['placement_status']) || $data['placement_status'] === 'training') {
+                $data['placement_status'] = $calc['suggested_status'];
+            }
+        }
+
+        $readiness = isset($data['readiness_score']) ? (int)$data['readiness_score'] : null;
+        $status = isset($data['placement_status']) ? trim($data['placement_status']) : null;
+        $targetRoles = isset($data['target_roles']) ? trim($data['target_roles']) : null;
+        $skills = isset($data['skills']) ? trim($data['skills']) : null;
+        $resumeUrl = isset($data['resume_url']) ? trim($data['resume_url']) : null;
+        $portfolioUrl = isset($data['portfolio_url']) ? trim($data['portfolio_url']) : null;
+        $githubUrl = isset($data['github_url']) ? trim($data['github_url']) : null;
+        $linkedinUrl = isset($data['linkedin_url']) ? trim($data['linkedin_url']) : null;
+        $resumeReviewStatus = isset($data['resume_review_status']) ? trim($data['resume_review_status']) : null;
+        $placedCompany = isset($data['placed_company']) ? trim($data['placed_company']) : null;
+        $packageOffered = isset($data['package_offered']) ? trim($data['package_offered']) : null;
+
+        $fields = [];
+        $params = [];
+
+        if ($readiness !== null) { $fields[] = "readiness_score = ?"; $params[] = $readiness; }
+        if ($status !== null) { $fields[] = "placement_status = ?"; $params[] = $status; }
+        if ($targetRoles !== null) { $fields[] = "target_roles = ?"; $params[] = $targetRoles; }
+        if ($skills !== null) { $fields[] = "skills = ?"; $params[] = $skills; }
+        if ($resumeUrl !== null) { $fields[] = "resume_url = ?"; $params[] = $resumeUrl; }
+        if ($portfolioUrl !== null) { $fields[] = "portfolio_url = ?"; $params[] = $portfolioUrl; }
+        if ($githubUrl !== null) { $fields[] = "github_url = ?"; $params[] = $githubUrl; }
+        if ($linkedinUrl !== null) { $fields[] = "linkedin_url = ?"; $params[] = $linkedinUrl; }
+        if ($resumeReviewStatus !== null) { $fields[] = "resume_review_status = ?"; $params[] = $resumeReviewStatus; }
+        if ($placedCompany !== null) { $fields[] = "placed_company = ?"; $params[] = $placedCompany; }
+        if ($packageOffered !== null) { $fields[] = "package_offered = ?"; $params[] = $packageOffered; }
+
+        if (!empty($fields)) {
+            $params[] = $userId;
+            $stmt = $pdo->prepare("UPDATE placement_profiles SET " . implode(', ', $fields) . " WHERE user_id = ?");
+            $stmt->execute($params);
+        }
+
+        AuditLogger::log('UPDATE_PLACEMENT_PROFILE', 'placement_profile', $userId, $data, $actor);
+
+        return [
+            'success' => true,
+            'message' => 'Placement profile updated successfully.',
+            'readiness_score' => $readiness,
+            'placement_status' => $status
+        ];
+    }
+
+    public static function calculateStudentReadiness(int $userId): array {
+        $pdo = Database::getConnection();
+
+        // 1. Academic Course Progress (30%)
+        $enrollment = $pdo->prepare("
+            SELECT e.course_id, c.title as course_title
+            FROM enrollments e
+            JOIN courses c ON e.course_id = c.id
+            WHERE e.user_id = ? AND e.status = 'active'
+            LIMIT 1
         ");
-        $readiness = (int)($data['readiness_score'] ?? 80);
-        $status = trim($data['placement_status'] ?? 'training');
-        $stmt->execute([$readiness, $status, $userId]);
-        return ['success' => true, 'message' => 'Placement profile updated'];
+        $enrollment->execute([$userId]);
+        $enr = $enrollment->fetch();
+        $courseId = $enr ? (int)$enr['course_id'] : null;
+
+        $totalLessons = 0;
+        $completedLessons = 0;
+        $courseProgressPct = 0.0;
+
+        if ($courseId) {
+            $lStmt = $pdo->prepare("
+                SELECT COUNT(l.id) FROM lessons l
+                JOIN modules m ON l.module_id = m.id
+                WHERE m.course_id = ?
+            ");
+            $lStmt->execute([$courseId]);
+            $totalLessons = (int)$lStmt->fetchColumn();
+
+            $pStmt = $pdo->prepare("
+                SELECT COUNT(DISTINCT lp.lesson_id) FROM lesson_progress lp
+                JOIN enrollments e ON lp.enrollment_id = e.id
+                WHERE e.user_id = ? AND e.course_id = ? AND lp.is_completed = 1
+            ");
+            $pStmt->execute([$userId, $courseId]);
+            $completedLessons = (int)$pStmt->fetchColumn();
+
+            if ($totalLessons > 0) {
+                $courseProgressPct = round(($completedLessons * 100.0) / $totalLessons, 1);
+            }
+        }
+        $academicPoints = (int)round(($courseProgressPct * 30.0) / 100.0);
+
+        // 2. Practical Assessments (25%)
+        $taskSubmissionsStmt = $pdo->prepare("
+            SELECT COUNT(ts.id) as sub_count,
+                   AVG(CASE WHEN t.max_score > 0 THEN (ts.score * 100.0 / t.max_score) ELSE NULL END) as avg_score
+            FROM task_submissions ts
+            JOIN enrollments e ON ts.enrollment_id = e.id
+            JOIN tasks t ON ts.task_id = t.id
+            WHERE e.user_id = ? AND ts.status IN ('graded', 'evaluated')
+        ");
+        $taskSubmissionsStmt->execute([$userId]);
+        $taskRow = $taskSubmissionsStmt->fetch();
+        $subCount = (int)($taskRow['sub_count'] ?? 0);
+        $avgScore = ($subCount > 0 && $taskRow['avg_score'] !== null) ? (float)$taskRow['avg_score'] : 0.0;
+        $assessmentPoints = (int)round(($avgScore * 25.0) / 100.0);
+
+        // 3. Attendance Discipline (20%)
+        $totalSessionsStmt = $pdo->prepare("
+            SELECT COUNT(cs.id) FROM class_sessions cs
+            JOIN batch_enrollments be ON cs.batch_id = be.batch_id
+            WHERE be.user_id = ? AND be.status = 'active'
+              AND cs.start_time <= CURRENT_TIMESTAMP
+              AND cs.status != 'cancelled'
+        ");
+        $totalSessionsStmt->execute([$userId]);
+        $totalSessions = (int)$totalSessionsStmt->fetchColumn();
+
+        $attendedSessionsStmt = $pdo->prepare("
+            SELECT COUNT(ar.id) FROM attendance_records ar
+            WHERE ar.user_id = ? AND ar.status IN ('present', 'late')
+        ");
+        $attendedSessionsStmt->execute([$userId]);
+        $attendedSessions = (int)$attendedSessionsStmt->fetchColumn();
+
+        $attendancePct = $totalSessions > 0 ? round(($attendedSessions * 100.0) / $totalSessions, 1) : 100.0;
+        $attendancePoints = (int)round(($attendancePct * 20.0) / 100.0);
+
+        // 4. Portfolio Assets (15%)
+        $ppStmt = $pdo->prepare("SELECT * FROM placement_profiles WHERE user_id = ? LIMIT 1");
+        $ppStmt->execute([$userId]);
+        $pp = $ppStmt->fetch() ?: [];
+
+        $portfolioPoints = 0;
+        if (!empty($pp['resume_url'])) {
+            $portfolioPoints += (($pp['resume_review_status'] ?? '') === 'approved') ? 8 : 5;
+        }
+        if (!empty($pp['github_url'])) {
+            $portfolioPoints += 4;
+        }
+        if (!empty($pp['portfolio_url']) || !empty($pp['linkedin_url'])) {
+            $portfolioPoints += 3;
+        }
+
+        // 5. Mock Interview / Clearance (10%)
+        $interviewPoints = 0;
+        $mockJson = (string)($pp['mock_interview_feedback_json'] ?? '');
+        if (!empty($mockJson) && (stripos($mockJson, 'cleared') !== false || stripos($mockJson, 'passed') !== false || stripos($mockJson, 'recommended') !== false)) {
+            $interviewPoints = 10;
+        } elseif (!empty($mockJson) && stripos($mockJson, 'scheduled') !== false) {
+            $interviewPoints = 5;
+        }
+
+        $compositeScore = min(100, max(0, $academicPoints + $assessmentPoints + $attendancePoints + $portfolioPoints + $interviewPoints));
+
+        $suggestedStatus = 'training';
+        if (($pp['placement_status'] ?? '') === 'placed' || !empty($pp['placed_company'])) {
+            $suggestedStatus = 'placed';
+        } elseif ($compositeScore >= 75) {
+            $suggestedStatus = 'ready_for_interviews';
+        }
+
+        return [
+            'success' => true,
+            'user_id' => $userId,
+            'composite_score' => $compositeScore,
+            'suggested_status' => $suggestedStatus,
+            'breakdown' => [
+                'course_progress_pct' => $courseProgressPct,
+                'academic_points' => $academicPoints,
+                'total_lessons' => $totalLessons,
+                'completed_lessons' => $completedLessons,
+                'assessment_avg_score' => round($avgScore, 1),
+                'assessment_points' => $assessmentPoints,
+                'submitted_evaluations' => $subCount,
+                'attendance_pct' => $attendancePct,
+                'attendance_points' => $attendancePoints,
+                'total_sessions' => $totalSessions,
+                'attended_sessions' => $attendedSessions,
+                'portfolio_points' => $portfolioPoints,
+                'has_resume' => !empty($pp['resume_url']),
+                'has_github' => !empty($pp['github_url']),
+                'has_portfolio' => !empty($pp['portfolio_url']) || !empty($pp['linkedin_url']),
+                'interview_points' => $interviewPoints
+            ]
+        ];
+    }
+
+    public static function getInstitutionalReports(array $queryParams = []): array {
+        $pdo = Database::getConnection();
+
+        $reportType = trim($queryParams['type'] ?? 'admissions');
+        $courseId = !empty($queryParams['course_id']) && $queryParams['course_id'] !== 'all' ? (int)$queryParams['course_id'] : null;
+        $batchId = !empty($queryParams['batch_id']) && $queryParams['batch_id'] !== 'all' ? (int)$queryParams['batch_id'] : null;
+        $search = trim($queryParams['search'] ?? '');
+
+        $records = [];
+
+        if ($reportType === 'admissions') {
+            $sql = "
+                SELECT u.id as user_id, u.full_name, u.email,
+                       sp.student_id_code, sp.mobile, sp.admission_date, sp.account_status, sp.admission_status,
+                       c.id as course_id, c.title as course_title,
+                       b.id as batch_id, b.batch_code
+                FROM users u
+                JOIN student_profiles sp ON u.id = sp.user_id
+                LEFT JOIN enrollments e ON u.id = e.user_id AND e.status = 'active'
+                LEFT JOIN courses c ON e.course_id = c.id
+                LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                LEFT JOIN batches b ON be.batch_id = b.id
+                WHERE 1=1
+            ";
+            $params = [];
+            if ($courseId) { $sql .= " AND c.id = ?"; $params[] = $courseId; }
+            if ($batchId) { $sql .= " AND b.id = ?"; $params[] = $batchId; }
+            if ($search) {
+                $sql .= " AND (u.full_name LIKE ? OR sp.student_id_code LIKE ? OR u.email LIKE ?)";
+                $sParam = "%{$search}%";
+                $params[] = $sParam; $params[] = $sParam; $params[] = $sParam;
+            }
+            $sql .= " ORDER BY sp.student_id_code ASC";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll();
+
+            foreach ($rows as $r) {
+                $records[] = [
+                    'identifier' => $r['student_id_code'] ?: ('USR-' . $r['user_id']),
+                    'name' => $r['full_name'],
+                    'email' => $r['email'],
+                    'mobile' => $r['mobile'] ?: '-',
+                    'course' => $r['course_title'] ?: 'Unassigned',
+                    'batch' => $r['batch_code'] ?: 'Unassigned',
+                    'status' => strtoupper($r['account_status'] ?: 'ACTIVE'),
+                    'metric' => $r['admission_status'] ?: 'Enrolled',
+                    'clearance_grade' => ($r['account_status'] === 'active' || $r['account_status'] === 'completed') ? 'Active Cleared' : 'Pending Verification',
+                    'raw_date' => $r['admission_date']
+                ];
+            }
+        } elseif ($reportType === 'attendance') {
+            $sql = "
+                SELECT u.id as user_id, u.full_name, u.email,
+                       sp.student_id_code,
+                       c.id as course_id, c.title as course_title,
+                       b.id as batch_id, b.batch_code
+                FROM users u
+                JOIN student_profiles sp ON u.id = sp.user_id
+                LEFT JOIN enrollments e ON u.id = e.user_id AND e.status = 'active'
+                LEFT JOIN courses c ON e.course_id = c.id
+                LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                LEFT JOIN batches b ON be.batch_id = b.id
+                WHERE 1=1
+            ";
+            $params = [];
+            if ($courseId) { $sql .= " AND c.id = ?"; $params[] = $courseId; }
+            if ($batchId) { $sql .= " AND b.id = ?"; $params[] = $batchId; }
+            if ($search) {
+                $sql .= " AND (u.full_name LIKE ? OR sp.student_id_code LIKE ?)";
+                $sParam = "%{$search}%";
+                $params[] = $sParam; $params[] = $sParam;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $students = $stmt->fetchAll();
+
+            foreach ($students as $s) {
+                $uid = (int)$s['user_id'];
+                $bid = $s['batch_id'] ? (int)$s['batch_id'] : null;
+
+                $totalSessions = 0;
+                if ($bid) {
+                    $totStmt = $pdo->prepare("
+                        SELECT COUNT(id) FROM class_sessions 
+                        WHERE batch_id = ? AND start_time <= CURRENT_TIMESTAMP AND status != 'cancelled'
+                    ");
+                    $totStmt->execute([$bid]);
+                    $totalSessions = (int)$totStmt->fetchColumn();
+                }
+
+                $attStmt = $pdo->prepare("
+                    SELECT 
+                        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_cnt,
+                        SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_cnt,
+                        SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_cnt
+                    FROM attendance_records
+                    WHERE user_id = ?
+                ");
+                $attStmt->execute([$uid]);
+                $attRow = $attStmt->fetch();
+                $presentCnt = (int)($attRow['present_cnt'] ?? 0);
+                $lateCnt = (int)($attRow['late_cnt'] ?? 0);
+                $absentCnt = (int)($attRow['absent_cnt'] ?? 0);
+                $attended = $presentCnt + $lateCnt;
+
+                $rate = $totalSessions > 0 ? round(($attended * 100.0) / $totalSessions, 1) : 100.0;
+                $isQualified = $rate >= 75.0;
+
+                $records[] = [
+                    'identifier' => $s['student_id_code'] ?: ('USR-' . $uid),
+                    'name' => $s['full_name'],
+                    'course' => $s['course_title'] ?: 'General',
+                    'batch' => $s['batch_code'] ?: 'General',
+                    'total_sessions' => $totalSessions,
+                    'attended_sessions' => $attended,
+                    'absent_sessions' => $absentCnt,
+                    'attendance_rate' => $rate . '%',
+                    'status' => $isQualified ? 'QUALIFIED' : 'LOW ATTENDANCE',
+                    'clearance_grade' => $rate . '% (' . ($isQualified ? 'Cleared' : 'Warning') . ')',
+                    'metric' => "{$attended}/{$totalSessions} Sessions"
+                ];
+            }
+        } elseif ($reportType === 'progress') {
+            $sql = "
+                SELECT u.id as user_id, u.full_name,
+                       sp.student_id_code,
+                       c.id as course_id, c.title as course_title,
+                       b.batch_code, e.id as enrollment_id
+                FROM users u
+                JOIN student_profiles sp ON u.id = sp.user_id
+                LEFT JOIN enrollments e ON u.id = e.user_id AND e.status = 'active'
+                LEFT JOIN courses c ON e.course_id = c.id
+                LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                LEFT JOIN batches b ON be.batch_id = b.id
+                WHERE 1=1
+            ";
+            $params = [];
+            if ($courseId) { $sql .= " AND c.id = ?"; $params[] = $courseId; }
+            if ($batchId) { $sql .= " AND b.id = ?"; $params[] = $batchId; }
+            if ($search) {
+                $sql .= " AND (u.full_name LIKE ? OR sp.student_id_code LIKE ?)";
+                $sParam = "%{$search}%";
+                $params[] = $sParam; $params[] = $sParam;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $students = $stmt->fetchAll();
+
+            foreach ($students as $s) {
+                $uid = (int)$s['user_id'];
+                $cid = $s['course_id'] ? (int)$s['course_id'] : null;
+
+                $totalLessons = 0;
+                $completedLessons = 0;
+                if ($cid) {
+                    $totL = $pdo->prepare("
+                        SELECT COUNT(l.id) FROM lessons l 
+                        JOIN modules m ON l.module_id = m.id 
+                        WHERE m.course_id = ?
+                    ");
+                    $totL->execute([$cid]);
+                    $totalLessons = (int)$totL->fetchColumn();
+
+                    $compL = $pdo->prepare("
+                        SELECT COUNT(DISTINCT lp.lesson_id) FROM lesson_progress lp
+                        JOIN enrollments e ON lp.enrollment_id = e.id
+                        WHERE e.user_id = ? AND e.course_id = ? AND lp.is_completed = 1
+                    ");
+                    $compL->execute([$uid, $cid]);
+                    $completedLessons = (int)$compL->fetchColumn();
+                }
+
+                $pct = $totalLessons > 0 ? round(($completedLessons * 100.0) / $totalLessons, 1) : 0.0;
+                $status = $pct >= 100.0 ? 'COMPLETED' : ($pct >= 50.0 ? 'IN PROGRESS' : ($pct > 0 ? 'STARTED' : 'NOT STARTED'));
+
+                $records[] = [
+                    'identifier' => $s['student_id_code'] ?: ('USR-' . $uid),
+                    'name' => $s['full_name'],
+                    'course' => $s['course_title'] ?: 'General',
+                    'batch' => $s['batch_code'] ?: 'General',
+                    'total_lessons' => $totalLessons,
+                    'completed_lessons' => $completedLessons,
+                    'progress_pct' => $pct . '%',
+                    'status' => $status,
+                    'metric' => "{$completedLessons}/{$totalLessons} Lessons",
+                    'clearance_grade' => $pct . '% Completed'
+                ];
+            }
+        } elseif ($reportType === 'assessments') {
+            $sql = "
+                SELECT u.id as user_id, u.full_name,
+                       sp.student_id_code,
+                       c.id as course_id, c.title as course_title,
+                       b.batch_code
+                FROM users u
+                JOIN student_profiles sp ON u.id = sp.user_id
+                LEFT JOIN enrollments e ON u.id = e.user_id AND e.status = 'active'
+                LEFT JOIN courses c ON e.course_id = c.id
+                LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                LEFT JOIN batches b ON be.batch_id = b.id
+                WHERE 1=1
+            ";
+            $params = [];
+            if ($courseId) { $sql .= " AND c.id = ?"; $params[] = $courseId; }
+            if ($batchId) { $sql .= " AND b.id = ?"; $params[] = $batchId; }
+            if ($search) {
+                $sql .= " AND (u.full_name LIKE ? OR sp.student_id_code LIKE ?)";
+                $sParam = "%{$search}%";
+                $params[] = $sParam; $params[] = $sParam;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $students = $stmt->fetchAll();
+
+            foreach ($students as $s) {
+                $uid = (int)$s['user_id'];
+                $cid = $s['course_id'] ? (int)$s['course_id'] : null;
+
+                $totalTasks = 0;
+                if ($cid) {
+                    $tStmt = $pdo->prepare("
+                        SELECT COUNT(t.id) FROM tasks t
+                        JOIN modules m ON t.module_id = m.id
+                        WHERE m.course_id = ? AND (t.is_deleted IS NULL OR t.is_deleted = 0)
+                    ");
+                    $tStmt->execute([$cid]);
+                    $totalTasks = (int)$tStmt->fetchColumn();
+                }
+
+                $subStmt = $pdo->prepare("
+                    SELECT COUNT(ts.id) as total_subs,
+                           SUM(CASE WHEN ts.status IN ('graded', 'evaluated') THEN 1 ELSE 0 END) as eval_cnt,
+                           AVG(CASE WHEN ts.status IN ('graded', 'evaluated') AND t.max_score > 0 THEN (ts.score * 100.0 / t.max_score) ELSE NULL END) as avg_pct
+                    FROM task_submissions ts
+                    JOIN enrollments e ON ts.enrollment_id = e.id
+                    JOIN tasks t ON ts.task_id = t.id
+                    WHERE e.user_id = ?
+                ");
+                $subStmt->execute([$uid]);
+                $sub = $subStmt->fetch();
+                $totalSubs = (int)($sub['total_subs'] ?? 0);
+                $evalCnt = (int)($sub['eval_cnt'] ?? 0);
+                $avgPct = ($evalCnt > 0 && $sub['avg_pct'] !== null) ? round((float)$sub['avg_pct'], 1) : null;
+
+                $standing = 'Pending Review';
+                if ($avgPct !== null) {
+                    if ($avgPct >= 85.0) $standing = 'Distinction';
+                    elseif ($avgPct >= 70.0) $standing = 'First Class';
+                    elseif ($avgPct >= 50.0) $standing = 'Pass';
+                    else $standing = 'Needs Improvement';
+                }
+
+                $records[] = [
+                    'identifier' => $s['student_id_code'] ?: ('USR-' . $uid),
+                    'name' => $s['full_name'],
+                    'course' => $s['course_title'] ?: 'General',
+                    'batch' => $s['batch_code'] ?: 'General',
+                    'total_tasks' => $totalTasks,
+                    'submitted_tasks' => $totalSubs,
+                    'evaluated_tasks' => $evalCnt,
+                    'avg_score' => $avgPct !== null ? ($avgPct . '%') : 'N/A',
+                    'status' => strtoupper($standing),
+                    'metric' => "{$totalSubs}/{$totalTasks} Submitted",
+                    'clearance_grade' => $avgPct !== null ? ($avgPct . '% (' . $standing . ')') : 'No Evaluated Tasks'
+                ];
+            }
+        } elseif ($reportType === 'workload') {
+            $sql = "
+                SELECT u.id as user_id, u.full_name, u.email, u.status as account_status,
+                       fp.faculty_id_code, fp.expertise
+                FROM users u
+                JOIN faculty_profiles fp ON u.id = fp.user_id
+                WHERE 1=1
+            ";
+            $params = [];
+            if ($search) {
+                $sql .= " AND (u.full_name LIKE ? OR fp.faculty_id_code LIKE ? OR u.email LIKE ?)";
+                $sParam = "%{$search}%";
+                $params[] = $sParam; $params[] = $sParam; $params[] = $sParam;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $facList = $stmt->fetchAll();
+
+            foreach ($facList as $f) {
+                $fid = (int)$f['user_id'];
+
+                $bStmt = $pdo->prepare("SELECT COUNT(DISTINCT batch_id) FROM faculty_batch_assignments WHERE faculty_id = ?");
+                $bStmt->execute([$fid]);
+                $bCount = (int)$bStmt->fetchColumn();
+
+                $sStmt = $pdo->prepare("SELECT COUNT(id) FROM class_sessions WHERE faculty_id = ?");
+                $sStmt->execute([$fid]);
+                $sCount = (int)$sStmt->fetchColumn();
+
+                $upStmt = $pdo->prepare("SELECT COUNT(id) FROM class_sessions WHERE faculty_id = ? AND start_time > CURRENT_TIMESTAMP");
+                $upStmt->execute([$fid]);
+                $upCount = (int)$upStmt->fetchColumn();
+
+                $records[] = [
+                    'identifier' => $f['faculty_id_code'] ?: ('FAC-' . $fid),
+                    'name' => $f['full_name'],
+                    'email' => $f['email'],
+                    'title' => $f['expertise'] ?: 'Faculty Fellow',
+                    'assigned_batches' => $bCount,
+                    'total_sessions' => $sCount,
+                    'upcoming_sessions' => $upCount,
+                    'status' => strtoupper($f['account_status'] ?: 'ACTIVE'),
+                    'metric' => "{$bCount} Batches | {$sCount} Sessions",
+                    'clearance_grade' => $upCount > 0 ? "{$upCount} Upcoming" : 'Schedule Cleared'
+                ];
+            }
+        } elseif ($reportType === 'certificates') {
+            $sql = "
+                SELECT u.id as user_id, u.full_name,
+                       sp.student_id_code,
+                       c.id as course_id, c.title as course_title,
+                       b.id as batch_id, b.batch_code,
+                       cert.certificate_code, cert.issued_at, cert.status as cert_status
+                FROM users u
+                JOIN student_profiles sp ON u.id = sp.user_id
+                LEFT JOIN enrollments e ON u.id = e.user_id AND e.status = 'active'
+                LEFT JOIN courses c ON e.course_id = c.id
+                LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                LEFT JOIN batches b ON be.batch_id = b.id
+                LEFT JOIN certificates cert ON u.id = cert.user_id AND c.id = cert.course_id
+                WHERE 1=1
+            ";
+            $params = [];
+            if ($courseId) { $sql .= " AND c.id = ?"; $params[] = $courseId; }
+            if ($batchId) { $sql .= " AND b.id = ?"; $params[] = $batchId; }
+            if ($search) {
+                $sql .= " AND (u.full_name LIKE ? OR sp.student_id_code LIKE ?)";
+                $sParam = "%{$search}%";
+                $params[] = $sParam; $params[] = $sParam;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $students = $stmt->fetchAll();
+
+            foreach ($students as $s) {
+                $uid = (int)$s['user_id'];
+                $cid = $s['course_id'] ? (int)$s['course_id'] : null;
+
+                $progressPct = 0.0;
+                if ($cid) {
+                    $totLStmt = $pdo->prepare("SELECT COUNT(l.id) FROM lessons l JOIN modules m ON l.module_id = m.id WHERE m.course_id = ?");
+                    $totLStmt->execute([$cid]);
+                    $totL = (int)$totLStmt->fetchColumn();
+
+                    $compLStmt = $pdo->prepare("SELECT COUNT(DISTINCT lp.lesson_id) FROM lesson_progress lp JOIN enrollments e ON lp.enrollment_id = e.id WHERE e.user_id = ? AND e.course_id = ? AND lp.is_completed = 1");
+                    $compLStmt->execute([$uid, $cid]);
+                    $compL = (int)$compLStmt->fetchColumn();
+
+                    if ($totL > 0) $progressPct = round(($compL * 100.0) / $totL, 1);
+                }
+
+                $isIssued = !empty($s['certificate_code']);
+                $isEligible = $progressPct >= 80.0;
+
+                $status = $isIssued ? 'ISSUED' : ($isEligible ? 'ELIGIBLE' : 'IN PROGRESS');
+                $grade = $isIssued ? "Issued: {$s['certificate_code']}" : ($isEligible ? '100% Criteria Met' : "{$progressPct}% / 80% Required");
+
+                $records[] = [
+                    'identifier' => $s['student_id_code'] ?: ('USR-' . $uid),
+                    'name' => $s['full_name'],
+                    'course' => $s['course_title'] ?: 'General',
+                    'batch' => $s['batch_code'] ?: 'General',
+                    'progress_pct' => $progressPct . '%',
+                    'certificate_code' => $s['certificate_code'] ?: 'Not Issued',
+                    'status' => $status,
+                    'metric' => $isIssued ? 'Issued' : ($isEligible ? 'Ready to Issue' : 'Criteria Pending'),
+                    'clearance_grade' => $grade
+                ];
+            }
+        } elseif ($reportType === 'placements') {
+            $sql = "
+                SELECT u.id as user_id, u.full_name,
+                       sp.student_id_code,
+                       c.title as course_title, b.batch_code,
+                       pp.target_roles, pp.skills, pp.readiness_score, pp.placement_status,
+                       pp.placed_company, pp.package_offered
+                FROM users u
+                JOIN student_profiles sp ON u.id = sp.user_id
+                LEFT JOIN placement_profiles pp ON u.id = pp.user_id
+                LEFT JOIN enrollments e ON u.id = e.user_id AND e.status = 'active'
+                LEFT JOIN courses c ON e.course_id = c.id
+                LEFT JOIN batch_enrollments be ON e.id = be.enrollment_id AND be.status = 'active'
+                LEFT JOIN batches b ON be.batch_id = b.id
+                WHERE 1=1
+            ";
+            $params = [];
+            if ($courseId) { $sql .= " AND c.id = ?"; $params[] = $courseId; }
+            if ($batchId) { $sql .= " AND b.id = ?"; $params[] = $batchId; }
+            if ($search) {
+                $sql .= " AND (u.full_name LIKE ? OR sp.student_id_code LIKE ?)";
+                $sParam = "%{$search}%";
+                $params[] = $sParam; $params[] = $sParam;
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll();
+
+            foreach ($rows as $r) {
+                $score = (int)($r['readiness_score'] ?? 0);
+                $status = strtoupper(str_replace('_', ' ', $r['placement_status'] ?: 'training'));
+                $records[] = [
+                    'identifier' => $r['student_id_code'] ?: ('USR-' . $r['user_id']),
+                    'name' => $r['full_name'],
+                    'course' => $r['course_title'] ?: 'General',
+                    'target_roles' => $r['target_roles'] ?: 'Systems Fellow',
+                    'readiness_score' => $score . '%',
+                    'status' => $status,
+                    'placed_company' => $r['placed_company'] ?: '-',
+                    'package_offered' => $r['package_offered'] ?: '-',
+                    'metric' => "Readiness: {$score}%",
+                    'clearance_grade' => $score >= 75 ? "{$score}% (Interview Ready)" : "{$score}% (In Training)"
+                ];
+            }
+        }
+
+        return [
+            'success' => true,
+            'report_type' => $reportType,
+            'count' => count($records),
+            'records' => $records
+        ];
     }
 
     public static function createJobOpening(array $data, array $actor): array {

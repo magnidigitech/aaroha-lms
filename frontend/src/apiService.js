@@ -255,6 +255,9 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(userData)
   }),
+  adminDeleteUser: (userId) => request(`/admin/users/${userId}`, {
+    method: 'DELETE'
+  }),
   adminResendInvitation: (userId) => request('/admin/invitations/resend', {
     method: 'POST',
     body: JSON.stringify({ user_id: userId })
@@ -828,6 +831,17 @@ export const api = {
     method: 'PUT',
     body: JSON.stringify(data)
   }),
+
+  adminCalculatePlacementReadiness: (userId) => request(`/admin/placement/profiles/${userId}/calculate-readiness`),
+
+  adminSyncPlacementReadiness: (userId) => request(`/admin/placement/profiles/${userId}/sync-readiness`, {
+    method: 'POST'
+  }),
+
+  adminGetInstitutionalReports: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return request(`/admin/reports?${q}`);
+  },
 
   adminCreateJobOpening: (data) => request('/admin/placement/jobs', {
     method: 'POST',
