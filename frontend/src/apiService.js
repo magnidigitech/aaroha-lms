@@ -946,9 +946,10 @@ export const api = {
   uploadFile: (file, category = 'material_document', onProgress = null, signal = null) => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE_URL}/upload`);
+      const token = localStorage.getItem('aaroha_token') || '';
+      const query = token ? `?token=${encodeURIComponent(token)}` : '';
+      xhr.open('POST', `${API_BASE_URL}/upload${query}`);
       
-      const token = localStorage.getItem('aaroha_token');
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       
       if (signal) {
@@ -984,6 +985,7 @@ export const api = {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('category', category);
+      if (token) formData.append('token', token);
       xhr.send(formData);
     });
   },

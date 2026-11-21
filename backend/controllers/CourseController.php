@@ -572,7 +572,7 @@ class CourseController {
             }
         }
         $description = isset($data['description']) && trim($data['description']) !== '' ? trim($data['description']) : $existing['description'];
-        $thumbnailUrl = isset($data['thumbnail_url']) && trim($data['thumbnail_url']) !== '' ? trim($data['thumbnail_url']) : $existing['thumbnail_url'];
+        $thumbnailUrl = array_key_exists('thumbnail_url', $data) ? trim((string)$data['thumbnail_url']) : $existing['thumbnail_url'];
         $skills = isset($data['skills']) ? (is_array($data['skills']) ? json_encode($data['skills']) : (is_string($data['skills']) ? $data['skills'] : json_encode([]))) : $existing['skills'];
         $whatYouWillLearn = isset($data['what_you_will_learn']) ? (is_array($data['what_you_will_learn']) ? json_encode($data['what_you_will_learn']) : (is_string($data['what_you_will_learn']) ? $data['what_you_will_learn'] : json_encode([]))) : $existing['what_you_will_learn'];
         $prerequisites = array_key_exists('prerequisites', $data) ? trim((string)$data['prerequisites']) : ($existing['prerequisites'] ?? '');

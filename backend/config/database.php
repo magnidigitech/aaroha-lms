@@ -86,6 +86,8 @@ class Database {
                 // Self-healing schema migrations for lifecycle columns
                 try { @self::$pdo->exec("ALTER TABLE users ADD COLUMN deactivated_at DATETIME NULL"); } catch (Exception $e) {}
                 try { @self::$pdo->exec("ALTER TABLE users ADD COLUMN deactivation_reason TEXT NULL"); } catch (Exception $e) {}
+                try { @self::$pdo->exec("ALTER TABLE uploaded_files MODIFY uploaded_by INT UNSIGNED NULL DEFAULT NULL"); } catch (Exception $e) {}
+                try { @self::$pdo->exec("ALTER TABLE uploaded_files MODIFY uploader_user_id INT UNSIGNED NULL DEFAULT NULL"); } catch (Exception $e) {}
 
                 // Auto-provision MySQL schema & seeds for missing tables
                 try {

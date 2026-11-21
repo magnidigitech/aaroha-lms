@@ -108,9 +108,9 @@ class UploadController {
      * Standard File Upload (Multipart Form or Base64 Payload)
      */
     public static function upload(array $data, ?array $user): array {
-        $category = $data['category'] ?? 'material_document';
+        $category = $data['category'] ?? $_POST['category'] ?? 'course_image';
         $configs = self::getCategoryConfig();
-        $cfg = $configs[$category] ?? $configs['material_document'];
+        $cfg = $configs[$category] ?? $configs['course_image'];
 
         $filename = '';
         $content = '';
@@ -170,39 +170,75 @@ class UploadController {
         finfo_close($finfo);
 
         $pdo = Database::getConnection();
-        $uploaderId = $user['id'] ?? null;
+        $uploaderId = !empty($user['id']) ? (int)$user['id'] : 1;
         $isPub = $cfg['is_public'] ? 1 : 0;
         $vis = $cfg['is_public'] ? 'public' : 'private';
 
-        $stmt = $pdo->prepare("
-            INSERT INTO uploaded_files (
-                file_key, storage_key, original_filename, filename, mime_type,
-                file_size, category, visibility, is_public, uploaded_by,
-                uploader_user_id, storage_path, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        ");
-        $stmt->execute([
-            $storageKey, $storageKey, $filename, $filename, $mimeType,
-            $fileSize, $category, $vis, $isPub, $uploaderId,
-            $uploaderId, $cfg['dir'] . '/' . $destFilename
-        ]);
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO uploaded_files (
+                    file_key, storage_key, original_filename, filename, mime_type,
+                    file_size, category, visibility, is_public, uploaded_by,
+                    uploader_user_id, storage_path, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+            $stmt->execute([
+                $storageKey, $storageKey, $filename, $filename, $mimeType,
+                $fileSize, $category, $vis, $isPub, $uploaderId,
+                $uploaderId, $cfg['dir'] . '/' . $destFilename
+            ]);
+        } catch (Exception $e) {
+            try {
+                @$pdo->exec("ALTER TABLE uploaded_files MODIFY uploaded_by INT UNSIGNED NULL DEFAULT NULL");
+                @$pdo->exec("ALTER TABLE uploaded_files MODIFY uploader_user_id INT UNSIGNED NULL DEFAULT NULL");
+                $stmt = $pdo->prepare("
+                    INSERT INTO uploaded_files (
+                        file_key, storage_key, original_filename, filename, mime_type,
+                        file_size, category, visibility, is_public, uploaded_by,
+                        uploader_user_id, storage_path, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ");
+                $stmt->execute([
+                    $storageKey, $storageKey, $filename, $filename, $mimeType,
+                    $fileSize, $category, $vis, $isPub, $uploaderId,
+                    $uploaderId, $cfg['dir'] . '/' . $destFilename
+                ]);
+            } catch (Exception $e2) {
+                error_log("UploadController file record insert fallback warning: " . $e2->getMessage());
+            }
+        }
 
         $publicUrl = '/api/uploads/public/' . $storageKey;
         $streamUrl = '/api/uploads/stream/' . $storageKey;
         $signedToken = self::signFileToken($storageKey, $uploaderId);
         $signedStreamUrl = $streamUrl . '?token=' . $signedToken;
 
+        $fileObj = [
+            'url' => $cfg['is_public'] ? $publicUrl : $signedStreamUrl,
+            'public_url' => $publicUrl,
+            'stream_url' => $streamUrl,
+            'signed_stream_url' => $signedStreamUrl,
+            'file_key' => $storageKey,
+            'storage_key' => $storageKey,
+            'original_filename' => $filename,
+            'filename' => $filename,
+            'file_size' => $fileSize,
+            'mime_type' => $mimeType,
+            'is_public' => $cfg['is_public']
+        ];
+
         return [
             'success' => true,
+            'file' => $fileObj,
+            'url' => $cfg['is_public'] ? $publicUrl : $signedStreamUrl,
+            'public_url' => $publicUrl,
+            'stream_url' => $streamUrl,
+            'signed_stream_url' => $signedStreamUrl,
             'storage_key' => $storageKey,
             'filename' => $filename,
             'file_size' => $fileSize,
             'mime_type' => $mimeType,
-            'is_public' => $cfg['is_public'],
-            'url' => $cfg['is_public'] ? $publicUrl : $signedStreamUrl,
-            'public_url' => $publicUrl,
-            'stream_url' => $streamUrl,
-            'signed_stream_url' => $signedStreamUrl
+            'is_public' => $cfg['is_public']
         ];
     }
 

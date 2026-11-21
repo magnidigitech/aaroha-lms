@@ -149,23 +149,25 @@ export default function MediaSourceInput({
         }, abortController.signal);
       }
 
-      if (result && result.success && result.file) {
+      if (result && result.success && (result.file || result.url)) {
+        const fileObj = result.file || result;
         const fileInfo = {
-          url: result.file.url,
-          name: result.file.original_filename,
-          size: result.file.file_size,
-          file_key: result.file.file_key,
-          mime_type: result.file.mime_type
+          url: fileObj.url || fileObj.public_url || fileObj.signed_stream_url,
+          name: fileObj.original_filename || fileObj.filename || file.name,
+          size: fileObj.file_size || file.size,
+          file_key: fileObj.file_key || fileObj.storage_key,
+          mime_type: fileObj.mime_type || file.type
         };
         setUploadedFile(fileInfo);
         setUploadProgress(100);
+        setUploadError('');
         if (onChange) {
-          onChange(result.file.url, {
+          onChange(fileInfo.url, {
             source_type: 'upload',
-            storage_key: result.file.file_key,
-            file_name: result.file.original_filename,
-            file_size: result.file.file_size,
-            mime_type: result.file.mime_type
+            storage_key: fileInfo.file_key,
+            file_name: fileInfo.name,
+            file_size: fileInfo.size,
+            mime_type: fileInfo.mime_type
           });
         }
       } else {
@@ -207,10 +209,11 @@ export default function MediaSourceInput({
   };
 
   const handleUrlChange = (newUrl) => {
+    const trimmed = typeof newUrl === 'string' ? newUrl.trim() : '';
     setUrlInput(newUrl);
     setUploadError('');
     if (onChange) {
-      onChange(newUrl, {
+      onChange(trimmed, {
         source_type: 'url',
         storage_key: null,
         file_name: null,
@@ -232,7 +235,10 @@ export default function MediaSourceInput({
         <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200">
           <button
             type="button"
-            onClick={() => setSourceMode('upload')}
+            onClick={() => {
+              setSourceMode('upload');
+              setUploadError('');
+            }}
             className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
               sourceMode === 'upload'
                 ? 'bg-white text-[#0A7CB3] shadow-xs'
@@ -244,7 +250,10 @@ export default function MediaSourceInput({
           </button>
           <button
             type="button"
-            onClick={() => setSourceMode('url')}
+            onClick={() => {
+              setSourceMode('url');
+              setUploadError('');
+            }}
             className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
               sourceMode === 'url'
                 ? 'bg-white text-[#0A7CB3] shadow-xs'
@@ -448,7 +457,7 @@ export default function MediaSourceInput({
 
       {/* 2. EXTERNAL URL MODE */}
       {sourceMode === 'url' && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="relative flex items-center">
             <Link2 className="absolute left-3 w-4 h-4 text-slate-400 pointer-events-none" />
             <input
@@ -457,23 +466,57 @@ export default function MediaSourceInput({
               onChange={(e) => handleUrlChange(e.target.value)}
               placeholder={placeholderUrl}
               required={required && sourceMode === 'url'}
-              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:outline-hidden focus:border-[#0A7CB3] transition-all text-xs"
+              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:outline-hidden focus:border-[#0A7CB3] transition-all text-xs"
             />
+            {urlInput && (
+              <button
+                type="button"
+                onClick={() => handleUrlChange('')}
+                className="absolute right-2.5 p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 cursor-pointer"
+                title="Clear URL"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-            <span>Supports direct HTTP/HTTPS URLs, Bunny Stream, YouTube, Vimeo, and CDN endpoints.</span>
+            <span>Supports direct HTTP/HTTPS URLs (PNG, JPG, WEBP, SVG), Bunny Stream, and CDN endpoints.</span>
             {urlInput && (
               <a
                 href={urlInput}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#0A7CB3] hover:underline flex items-center gap-0.5"
+                className="text-[#0A7CB3] hover:underline flex items-center gap-0.5 font-semibold"
               >
                 <span>Test Link</span>
                 <Eye className="w-3 h-3" />
               </a>
             )}
           </div>
+
+          {/* Live Preview for External Image */}
+          {urlInput && category === 'course_image' && (
+            <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900/5 p-2">
+              <div className="text-[11px] font-semibold text-slate-600 mb-1.5 flex items-center justify-between">
+                <span>External Image Preview</span>
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  URL Loaded
+                </span>
+              </div>
+              <img
+                src={urlInput}
+                alt="Thumbnail Preview"
+                className="w-full h-32 object-cover rounded-lg border border-slate-200"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  setUploadError('Unable to render image from the specified URL. Please ensure it is a direct, publicly accessible image URL.');
+                }}
+                onLoad={() => {
+                  setUploadError('');
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 

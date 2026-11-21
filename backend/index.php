@@ -108,9 +108,12 @@ if (preg_match('#(^\.|\/\.|\.env|env\.php|database\.php|jwt\.php|\.(sql|sqlite|s
     exit;
 }
 
-// 3. Parse JSON Body
+// 3. Parse JSON Body & Multipart Form Data
 $rawInput = file_get_contents('php://input');
 $inputData = json_decode($rawInput, true) ?: [];
+if (!empty($_POST)) {
+    $inputData = array_merge($inputData, $_POST);
+}
 
 // Router Dispatch Table
 $response = null;
