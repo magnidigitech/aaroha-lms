@@ -962,7 +962,7 @@ export default function CourseClassroomView({
               <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-[#071322] border border-slate-300/80 dark:border-[#1b3d63] overflow-hidden">
                 <div 
                   className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${Math.max(progressPct, isEnrolled ? 4 : 0)}%` }}
+                  style={{ width: `${progressPct}%` }}
                 />
               </div>
             </div>
@@ -1010,7 +1010,12 @@ export default function CourseClassroomView({
 
                     {/* Lesson Timeline (When Expanded) */}
                     {isOpen && (
-                      <div className="relative pl-6 space-y-2.5 before:absolute before:left-[17px] before:top-2 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-[#1b3d63]">
+                      <div className="relative space-y-2.5 pt-1 pb-1">
+                        {/* Timeline continuous vertical track aligned with module icon at x=22px */}
+                        {modLessonsCount > 1 && (
+                          <div className="absolute left-[21px] top-4 bottom-4 w-0.5 bg-slate-200 dark:bg-[#1b3d63] pointer-events-none" />
+                        )}
+
                         {modLessons.map((lesson) => {
                           const isCurrent = activeLesson?.id === lesson.id;
                           const completed = isLessonCompleted(lesson.id);
@@ -1020,74 +1025,79 @@ export default function CourseClassroomView({
                           return (
                             <div
                               key={lesson.id}
-                              onClick={() => {
-                                const full = allLessons.find(l => l.id === lesson.id) || {
-                                  ...lesson,
-                                  video_url: lessonMedia,
-                                  media_url: lessonMedia
-                                };
-                                setActiveLesson(full);
-                              }}
-                              className={`relative group rounded-xl p-2 flex items-center gap-3 transition-all cursor-pointer select-none ${
-                                isCurrent
-                                  ? 'bg-blue-50/90 dark:bg-[#132d4e] border-2 border-[#0A7CB3] shadow-xs dark:shadow-md'
-                                  : 'bg-slate-50/80 dark:bg-[#0F223A]/80 hover:bg-slate-100 dark:hover:bg-[#153154] border border-slate-200 dark:border-[#1b3d63]'
-                              }`}
+                              className="relative flex items-center group"
                             >
-                              {/* Timeline Node on the Left Vertical Line */}
-                              <div className="absolute -left-[19px] flex items-center justify-center">
+                              {/* Timeline Node - Centered precisely on the vertical track at x=22px */}
+                              <div className="absolute left-[10px] w-6 h-6 flex items-center justify-center z-10 pointer-events-none">
                                 {completed ? (
-                                  <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
                                     <Check className="w-3 h-3 stroke-[3]" />
                                   </div>
                                 ) : isCurrent ? (
-                                  <div className="w-5 h-5 rounded-full bg-blue-600 ring-4 ring-blue-200 dark:ring-blue-900/60 flex items-center justify-center shadow-xs">
-                                    <Play className="w-2.5 h-2.5 text-white fill-current" />
+                                  <div className="w-5 h-5 rounded-full bg-[#0A7CB3] ring-4 ring-blue-100 dark:ring-blue-900/60 text-white flex items-center justify-center shadow-xs">
+                                    <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
                                   </div>
                                 ) : (
-                                  <div className="w-4 h-4 rounded-full bg-white dark:bg-[#0B1A2F] border-2 border-slate-300 dark:border-slate-600"></div>
+                                  <div className="w-3.5 h-3.5 rounded-full bg-white dark:bg-[#0B1A2F] border-2 border-slate-300 dark:border-slate-600 group-hover:border-[#0A7CB3] transition-colors" />
                                 )}
                               </div>
 
-                              {/* 16:9 Thumbnail Preview */}
-                              <div className="relative w-16 h-10 sm:w-20 sm:h-11 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-[#1b3d63] flex-shrink-0">
-                                <LessonThumbnailItem
-                                  lesson={lesson}
-                                  courseThumbnail={course?.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80'}
-                                />
-                                
-                                {locked && (
-                                  <div className="absolute inset-0 bg-slate-950/75 flex items-center justify-center text-amber-300">
-                                    <Lock className="w-3.5 h-3.5" />
-                                  </div>
-                                )}
-
-                                {/* Duration Badge in Thumbnail */}
-                                <div className="absolute bottom-0.5 right-0.5 bg-black/80 text-[9px] font-bold px-1 py-0.2 rounded text-white">
-                                  {lesson.duration || '5m'}
-                                </div>
-                              </div>
-
-                              {/* Lesson Title & Status */}
-                              <div className="flex-1 min-w-0 space-y-0.5">
-                                <h4 className={`text-xs font-bold line-clamp-2 leading-snug transition-colors ${
-                                  isCurrent ? 'text-[#0A7CB3] dark:text-[#38bdf8]' : 'text-slate-800 dark:text-slate-200 group-hover:text-[#0A7CB3] dark:group-hover:text-white'
-                                }`}>
-                                  {lesson.title}
-                                </h4>
-
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  {Boolean(lesson.is_free_preview) ? (
-                                    <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
-                                      Free Preview
-                                    </span>
-                                  ) : null}
-
+                              {/* Lesson Card - Safe separation without overlapping */}
+                              <div
+                                onClick={() => {
+                                  const full = allLessons.find(l => l.id === lesson.id) || {
+                                    ...lesson,
+                                    video_url: lessonMedia,
+                                    media_url: lessonMedia
+                                  };
+                                  setActiveLesson(full);
+                                }}
+                                className={`ml-11 flex-1 rounded-xl p-2.5 flex items-center gap-3 transition-all cursor-pointer select-none ${
+                                  isCurrent
+                                    ? 'bg-blue-50/90 dark:bg-[#132d4e] border-2 border-[#0A7CB3] shadow-xs dark:shadow-md'
+                                    : 'bg-slate-50/80 dark:bg-[#0F223A]/80 hover:bg-slate-100 dark:hover:bg-[#153154] border border-slate-200 dark:border-[#1b3d63]'
+                                }`}
+                              >
+                                {/* 16:9 Thumbnail Preview */}
+                                <div className="relative w-16 h-10 sm:w-20 sm:h-11 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-[#1b3d63] flex-shrink-0">
+                                  <LessonThumbnailItem
+                                    lesson={lesson}
+                                    courseThumbnail={course?.thumbnail_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80'}
+                                  />
+                                  
                                   {locked && (
-                                    <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                      <Lock className="w-2.5 h-2.5 text-slate-400" /> Enrolled Only
-                                    </span>
+                                    <div className="absolute inset-0 bg-slate-950/75 flex items-center justify-center text-amber-300">
+                                      <Lock className="w-3.5 h-3.5" />
+                                    </div>
                                   )}
+
+                                  {/* Duration Badge in Thumbnail */}
+                                  <div className="absolute bottom-0.5 right-0.5 bg-black/80 text-[9px] font-bold px-1 py-0.2 rounded text-white">
+                                    {lesson.duration || '5m'}
+                                  </div>
+                                </div>
+
+                                {/* Lesson Title & Status */}
+                                <div className="flex-1 min-w-0 space-y-0.5">
+                                  <h4 className={`text-xs font-bold line-clamp-2 leading-snug transition-colors ${
+                                    isCurrent ? 'text-[#0A7CB3] dark:text-[#38bdf8]' : 'text-slate-800 dark:text-slate-200 group-hover:text-[#0A7CB3] dark:group-hover:text-white'
+                                  }`}>
+                                    {lesson.title}
+                                  </h4>
+
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {Boolean(lesson.is_free_preview) ? (
+                                      <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
+                                        Free Preview
+                                      </span>
+                                    ) : null}
+
+                                    {locked && (
+                                      <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                        <Lock className="w-2.5 h-2.5 text-slate-400" /> Enrolled Only
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
