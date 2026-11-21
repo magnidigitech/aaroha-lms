@@ -56,6 +56,16 @@ class LeaderboardController {
                 ");
             }
 
+            // Seed initial rankings if table is currently empty
+            try {
+                $count = (int)$pdo->query("SELECT COUNT(*) FROM student_rankings")->fetchColumn();
+                if ($count === 0) {
+                    self::seedInitialRankings($pdo);
+                }
+            } catch (Exception $seedEx) {
+                error_log('Leaderboard seed error: ' . $seedEx->getMessage());
+            }
+
             $initialized = true;
         } catch (Exception $e) {
             // Log or ignore non-critical migration exceptions
@@ -295,7 +305,8 @@ class LeaderboardController {
         }
 
         // Check if current user is student and missing from rankings; dynamically add them
-        if ($currentUserId > 0 && !array_filter($formatted, fn($r) => $r['is_current_user'])) {
+        $isStudentRole = strtolower($currentUser['role'] ?? '') === 'student';
+        if ($currentUserId > 0 && $isStudentRole && !array_filter($formatted, fn($r) => $r['is_current_user'])) {
             $userStmt = $pdo->prepare("SELECT id, full_name, email, title, avatar FROM users WHERE id = ?");
             $userStmt->execute([$currentUserId]);
             $u = $userStmt->fetch();
@@ -369,6 +380,14 @@ class LeaderboardController {
     }
 
     /**
+     * Check if user has administrative or faculty staff role.
+     */
+    public static function isStaff(array $user): bool {
+        $role = strtolower($user['role'] ?? '');
+        return in_array($role, ['super_admin', 'admin', 'coordinator', 'faculty', 'instructor', 'placement_officer']);
+    }
+
+    /**
      * Faculty / Admin: Update an existing student's leaderboard ranking and performance metrics.
      *
      * @param int $rankingId
@@ -378,12 +397,11 @@ class LeaderboardController {
      */
     public static function updateRanking(int $rankingId, array $data, array $adminUser): array {
         // Enforce faculty or admin role
-        $role = strtolower($adminUser['role'] ?? '');
-        if ($role !== 'admin' && $role !== 'faculty' && $role !== 'instructor') {
+        if (!self::isStaff($adminUser)) {
             http_response_code(403);
             return [
                 'success' => false,
-                'error' => 'Faculty or administrative privileges required to update leaderboard standings'
+                'error' => 'Administrative or faculty privileges required to update leaderboard standings'
             ];
         }
 
@@ -488,12 +506,11 @@ class LeaderboardController {
      * @return array
      */
     public static function createRanking(array $data, array $adminUser): array {
-        $role = strtolower($adminUser['role'] ?? '');
-        if ($role !== 'admin' && $role !== 'faculty' && $role !== 'instructor') {
+        if (!self::isStaff($adminUser)) {
             http_response_code(403);
             return [
                 'success' => false,
-                'error' => 'Faculty or administrative privileges required to create leaderboard standings'
+                'error' => 'Administrative or faculty privileges required to create leaderboard standings'
             ];
         }
 
@@ -568,12 +585,11 @@ class LeaderboardController {
      * Faculty / Admin: Delete a student ranking from the leaderboard.
      */
     public static function deleteRanking(int $rankingId, array $adminUser): array {
-        $role = strtolower($adminUser['role'] ?? '');
-        if ($role !== 'admin' && $role !== 'faculty' && $role !== 'instructor') {
+        if (!self::isStaff($adminUser)) {
             http_response_code(403);
             return [
                 'success' => false,
-                'error' => 'Faculty or administrative privileges required to delete leaderboard standings'
+                'error' => 'Administrative or faculty privileges required to delete leaderboard standings'
             ];
         }
 
@@ -586,6 +602,174 @@ class LeaderboardController {
         return [
             'success' => true,
             'message' => 'Student ranking removed from leaderboard'
+        ];
+    }
+
+    /**
+     * Administrative / Faculty: Recalculate and synchronize academic leaderboard rankings
+     * for all active enrolled students based on real curriculum completion, submissions, grades, and attendance.
+     */
+    public static function recalculateRankings(?int $courseId, array $adminUser): array {
+        if (!self::isStaff($adminUser)) {
+            http_response_code(403);
+            return [
+                'success' => false,
+                'error' => 'Administrative or faculty privileges required to recalculate leaderboard rankings'
+            ];
+        }
+
+        $pdo = Database::getConnection();
+        self::initTable($pdo);
+
+        $whereSql = "WHERE u.role = 'student' AND (u.status = 'active' OR u.status IS NULL) AND (u.is_archived = 0 OR u.is_archived IS NULL)";
+        $params = [];
+        if ($courseId !== null && $courseId > 0) {
+            $whereSql .= " AND u.id IN (SELECT user_id FROM enrollments WHERE course_id = ? AND status = 'active')";
+            $params[] = $courseId;
+        }
+
+        $students = $pdo->prepare("SELECT u.id, u.full_name, u.email, u.title, u.avatar FROM users u {$whereSql}");
+        $students->execute($params);
+        $studentList = $students->fetchAll();
+
+        $calculated = [];
+        foreach ($studentList as $st) {
+            $userId = (int)$st['id'];
+
+            // 1. Lessons completed
+            $lesParams = [$userId];
+            $lesCourseFilter = "";
+            if ($courseId) {
+                $lesCourseFilter = " AND e.course_id = ?";
+                $lesParams[] = $courseId;
+            }
+            $lesStmt = $pdo->prepare("
+                SELECT COUNT(DISTINCT lp.lesson_id) 
+                FROM lesson_progress lp
+                JOIN enrollments e ON lp.enrollment_id = e.id
+                WHERE e.user_id = ? AND lp.is_completed = 1{$lesCourseFilter}
+            ");
+            $lesStmt->execute($lesParams);
+            $lessonsCompleted = (int)$lesStmt->fetchColumn();
+
+            // 2. Tasks completed & average score
+            $taskSql = "
+                SELECT COUNT(ts.id) as passed_tasks, COALESCE(AVG(ts.score), 0) as avg_score, COALESCE(AVG(t.max_score), 100) as avg_max
+                FROM task_submissions ts
+                JOIN tasks t ON ts.task_id = t.id
+                JOIN enrollments e ON ts.enrollment_id = e.id
+                WHERE e.user_id = ? AND ts.status = 'passed'{$lesCourseFilter}
+            ";
+            $taskStmt = $pdo->prepare($taskSql);
+            $taskStmt->execute($lesParams);
+            $taskData = $taskStmt->fetch();
+            $tasksCompleted = (int)($taskData['passed_tasks'] ?? 0);
+            $avgScore = (float)($taskData['avg_score'] ?? 0);
+            $avgMax = (float)($taskData['avg_max'] ?? 100);
+            $scorePct = $avgMax > 0 ? min(100.0, ($avgScore / $avgMax) * 100.0) : 0.0;
+
+            // 3. Attendance records
+            $attStmt = $pdo->prepare("
+                SELECT COUNT(sa.id) as present_sessions
+                FROM attendance_records sa
+                WHERE sa.user_id = ? AND sa.status = 'present'
+            ");
+            $attStmt->execute([$userId]);
+            $presentCount = (int)$attStmt->fetchColumn();
+
+            // Composite points & academic grade percentage
+            $points = ($lessonsCompleted * 40) + ($tasksCompleted * 100) + ($presentCount * 25) + (int)round($scorePct * 3);
+            $gradePct = min(100.0, max(65.0, round(($lessonsCompleted * 2.0) + ($tasksCompleted * 5.0) + ($scorePct * 0.5) + ($presentCount * 1.5), 1)));
+
+            $badge = 'Active Contender';
+            if ($points >= 800 || $gradePct >= 90) {
+                $badge = 'Distinction Honors';
+            } elseif ($points >= 600 || $gradePct >= 80) {
+                $badge = 'Executive Fellow';
+            } elseif ($points >= 400 || $gradePct >= 70) {
+                $badge = 'Rising Scholar';
+            }
+
+            $calculated[] = [
+                'user_id' => $userId,
+                'points' => $points,
+                'grade_pct' => $gradePct,
+                'badge' => $badge,
+                'lessons' => $lessonsCompleted,
+                'tasks' => $tasksCompleted,
+                'notes' => 'Recalculated based on verified submissions, module completions, and attendance.'
+            ];
+        }
+
+        // Sort by points descending
+        usort($calculated, fn($a, $b) => $b['points'] <=> $a['points']);
+
+        // Update or insert into student_rankings
+        $rankPos = 1;
+        $now = date('Y-m-d H:i:s');
+        foreach ($calculated as $c) {
+            $chkSql = "SELECT id FROM student_rankings WHERE user_id = ?" . ($courseId ? " AND course_id = ?" : "");
+            $chkParams = [$c['user_id']];
+            if ($courseId) $chkParams[] = $courseId;
+            $existing = $pdo->prepare($chkSql);
+            $existing->execute($chkParams);
+            $existId = $existing->fetchColumn();
+
+            if ($existId) {
+                $upd = $pdo->prepare("
+                    UPDATE student_rankings SET
+                        rank_position = ?,
+                        points = ?,
+                        grade_pct = ?,
+                        badge_text = ?,
+                        faculty_notes = ?,
+                        lessons_completed = ?,
+                        tasks_completed = ?,
+                        updated_by = ?,
+                        updated_at = ?
+                    WHERE id = ?
+                ");
+                $upd->execute([
+                    $rankPos,
+                    $c['points'],
+                    $c['grade_pct'],
+                    $c['badge'],
+                    $c['notes'],
+                    $c['lessons'],
+                    $c['tasks'],
+                    (int)$adminUser['id'],
+                    $now,
+                    $existId
+                ]);
+            } else {
+                $ins = $pdo->prepare("
+                    INSERT INTO student_rankings (
+                        user_id, course_id, rank_position, points, grade_pct,
+                        badge_text, faculty_notes, lessons_completed, tasks_completed,
+                        updated_by, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $ins->execute([
+                    $c['user_id'],
+                    $courseId,
+                    $rankPos,
+                    $c['points'],
+                    $c['grade_pct'],
+                    $c['badge'],
+                    $c['notes'],
+                    $c['lessons'],
+                    $c['tasks'],
+                    (int)$adminUser['id'],
+                    $now
+                ]);
+            }
+            $rankPos++;
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Leaderboard rankings successfully recalculated across ' . count($calculated) . ' students',
+            'students_ranked' => count($calculated)
         ];
     }
 }

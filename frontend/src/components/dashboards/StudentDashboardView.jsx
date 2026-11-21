@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BookOpen, CheckCircle2, Clock, Calendar, Award, 
   Briefcase, Video, FileText, ChevronRight, AlertCircle, AlertTriangle, Lock, ArrowRight,
-  ExternalLink, Download, Search, Filter, HelpCircle, UserCheck, Play
+  ExternalLink, Download, Search, Filter, HelpCircle, UserCheck, Play, MessageSquare, PlusCircle
 } from 'lucide-react';
 import { formatDateTime, formatDate } from '../../adminUtils';
+import api from '../../apiService';
 
 export default function StudentDashboardView({
   dashboardData = {},
@@ -25,6 +26,17 @@ export default function StudentDashboardView({
   };
   const [courseFilter, setCourseFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [studentTickets, setStudentTickets] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.studentGetMySupportTickets().then(res => {
+      if (isMounted && res && res.success && Array.isArray(res.tickets)) {
+        setStudentTickets(res.tickets);
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   const summary = dashboardData.summary_cards || {};
   const myCourses = dashboardData.my_courses || [];
@@ -258,8 +270,13 @@ export default function StudentDashboardView({
             onClick={() => onOpenTicketModal && onOpenTicketModal('my_tickets')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
-            <HelpCircle size={13} />
-            Support & Helpdesk
+            <HelpCircle size={13} className="text-[#0A7CB3]" />
+            <span>Support & Helpdesk</span>
+            {studentTickets.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#0A7CB3] text-white">
+                {studentTickets.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -314,6 +331,7 @@ export default function StudentDashboardView({
           { id: 'performance', label: 'Academic Performance' },
           { id: 'certificates', label: 'Digital Certificates (' + certificates.length + ')' },
           { id: 'placement', label: 'Placement Readiness' },
+          { id: 'support', label: 'Support & Helpdesk' + (studentTickets.length > 0 ? ` (${studentTickets.length})` : '') },
           { id: 'expired', label: 'Expired Courses (' + expiredCourses.length + ')' }
         ].map(tab => (
           <button
@@ -867,7 +885,7 @@ export default function StudentDashboardView({
       )}
 
       {/* SECTION 5: PLACEMENT READINESS */}
-      {(activeTab === 'all' || activeTab === 'placement') && placementProfile && (
+      {(activeTab === 'all' || activeTab === 'placement') && (
         <div className="space-y-4">
           <div className="border-t border-slate-200 pt-6">
             <h2 className="text-lg font-black text-slate-900 tracking-tight">Placement & Career Readiness</h2>
@@ -879,19 +897,22 @@ export default function StudentDashboardView({
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Readiness Score</span>
                 <div className="text-3xl font-black text-slate-900 mt-0.5">
-                  {placementProfile.readiness_score || 0} / 100
+                  {(placementProfile?.readiness_score) ?? 0} / 100
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Target Roles: <strong className="text-slate-700">{placementProfile?.target_roles || 'Cloud & Systems Fellow'}</strong>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className={'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ' + 
-                  (placementProfile.resume_review_status === 'approved' 
+                  ((placementProfile?.resume_review_status === 'approved')
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                     : 'bg-amber-50 text-amber-700 border border-amber-200')}
                 >
-                  Resume: {placementProfile.resume_review_status || 'Pending Review'}
+                  Resume: {placementProfile?.resume_review_status || 'Pending Review'}
                 </span>
                 <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-[#0A7CB3] border border-blue-200">
-                  Status: {placementProfile.placement_status || 'Training'}
+                  Status: {placementProfile?.placement_status || 'Training'}
                 </span>
               </div>
             </div>
@@ -919,6 +940,108 @@ export default function StudentDashboardView({
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 6: ACADEMIC HELPDESK & SUPPORT TICKETS */}
+      {(activeTab === 'all' || activeTab === 'support') && (
+        <div id="support-helpdesk-section" className="space-y-4 scroll-mt-24">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800 pt-6">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <HelpCircle className="text-[#0A7CB3] w-5 h-5" />
+                Academic Helpdesk & Support Tickets
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Track and review submitted inquiries, faculty responses, and milestone questions.</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onOpenTicketModal && onOpenTicketModal('create')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold shadow-xs transition-all cursor-pointer self-start sm:self-auto"
+            >
+              <PlusCircle size={14} />
+              Raise New Ticket
+            </button>
+          </div>
+
+          <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-7 space-y-4">
+            {studentTickets.length === 0 ? (
+              <div className="text-center py-8 space-y-3 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-6">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] flex items-center justify-center mx-auto">
+                  <HelpCircle size={24} />
+                </div>
+                <div className="text-sm font-bold text-slate-800 dark:text-slate-200">No Support Tickets Raised</div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Have questions regarding your curriculum, live classes, course milestones, or technical access? Raise a ticket and your academic coordinators will assist you.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onOpenTicketModal && onOpenTicketModal('create')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  <PlusCircle size={14} />
+                  Raise Support Ticket
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Active Tickets ({studentTickets.length})
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {studentTickets.map(ticket => (
+                    <div 
+                      key={ticket.id} 
+                      className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#0A7CB3]/40 transition-all"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-[#0A7CB3]">{ticket.ticket_number}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            ticket.status === 'open' ? 'bg-amber-100 text-amber-800' :
+                            ticket.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                            ticket.status === 'resolved' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {ticket.status?.replace('_', ' ')}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-200/70 text-slate-700">
+                            {ticket.priority} priority
+                          </span>
+                        </div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white">{ticket.subject}</div>
+                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                          <span className="uppercase text-[10px] font-bold text-slate-400">{ticket.category}</span>
+                          <span>•</span>
+                          <span>Opened {formatDate(ticket.created_at)}</span>
+                          {Number(ticket.message_count || 0) > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="flex items-center gap-1 text-[#0A7CB3]">
+                                <MessageSquare size={12} />
+                                {ticket.message_count} {ticket.message_count === 1 ? 'message' : 'messages'}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenTicketModal && onOpenTicketModal('my_tickets', ticket.id)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#0A7CB3] hover:bg-[#0A7CB3] hover:text-white text-xs font-bold transition-all shadow-2xs cursor-pointer self-start sm:self-auto shrink-0"
+                      >
+                        <MessageSquare size={13} />
+                        View Ticket & Thread
+                        <ChevronRight size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

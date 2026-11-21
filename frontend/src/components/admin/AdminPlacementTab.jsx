@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Briefcase, CheckCircle2, Clock, ExternalLink, GitBranch,
   Globe, Award, PlusCircle, Search, Building, UserCheck, X,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { formatDate } from '../../adminUtils';
 import { api } from '../../apiService';
+import { getRouteParam, setRouteParam } from '../../routes';
 
 export default function AdminPlacementTab({
   placementData = { profiles: [], jobs: [], applications: [] },
@@ -16,7 +17,15 @@ export default function AdminPlacementTab({
   onSyncPlacementReadiness,
   onCreateJobOpening
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('profiles'); // 'profiles' | 'jobs' | 'applications'
+  const [activeSubTab, setActiveSubTab] = useState(() => {
+    return getRouteParam('subtab') || 'profiles';
+  }); // 'profiles' | 'jobs' | 'applications'
+
+  useEffect(() => {
+    if (activeSubTab) {
+      setRouteParam('subtab', activeSubTab);
+    }
+  }, [activeSubTab]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

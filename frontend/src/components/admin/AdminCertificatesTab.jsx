@@ -8,6 +8,7 @@ import {
 import { formatDate } from '../../adminUtils';
 import api from '../../apiService';
 import CertificateDocument from '../CertificateDocument';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../../routes';
 
 export default function AdminCertificatesTab({
   certificates = [],
@@ -24,7 +25,26 @@ export default function AdminCertificatesTab({
   const [statusFilter, setStatusFilter] = useState('all');
 
   // Inspection / Document Viewer Modal State
-  const [inspectModalCert, setInspectModalCert] = useState(null);
+  const [inspectModalCert, setInspectModalCert] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('aaroha_admin_inspect_cert');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (inspectModalCert) {
+        sessionStorage.setItem('aaroha_admin_inspect_cert', JSON.stringify(inspectModalCert));
+        setRouteParam('cert', inspectModalCert.id || inspectModalCert.certificate_code);
+      } else {
+        sessionStorage.removeItem('aaroha_admin_inspect_cert');
+        removeRouteParam('cert');
+      }
+    } catch (e) {}
+  }, [inspectModalCert]);
 
   // Revocation Modal State
   const [revokeModalCert, setRevokeModalCert] = useState(null);

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, GraduationCap, BookOpen, Layers, Calendar,
   CheckCircle2, FileText, ListTodo, Bell, BarChart3, Award, Briefcase,
   HelpCircle, ShieldCheck, Settings, History, ChevronLeft, ChevronRight,
-  ChevronDown, X, UserCheck, Globe
+  ChevronDown, X, UserCheck, Globe, Trophy
 } from 'lucide-react';
 import aarohaLogo from '../../assets/aaroha_logo.webp';
 import { canAccessModule } from '../../adminUtils';
@@ -50,7 +50,8 @@ export const NAVIGATION_GROUPS = [
     items: [
       { id: 'certificates', label: 'Certificates', icon: Award },
       { id: 'placement', label: 'Placement', icon: Briefcase },
-      { id: 'reports', label: 'Reports', icon: BarChart3 }
+      { id: 'reports', label: 'Reports', icon: BarChart3 },
+      { id: 'leaderboard', label: 'Academic Leaderboard', icon: Trophy }
     ]
   },
   {

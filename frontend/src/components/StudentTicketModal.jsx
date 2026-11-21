@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   X, HelpCircle, Send, AlertCircle, CheckCircle2, Clock,
   ShieldCheck, Loader2, ArrowLeft, MessageSquare, ChevronRight,
-  User, RefreshCw, PlusCircle
+  User, RefreshCw, PlusCircle, Trash2, CheckCheck
 } from 'lucide-react';
 import api from '../apiService';
 import { formatDate } from '../adminUtils';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../routes';
 
 const CATEGORIES = [
   { value: 'academic', label: 'Academic Curriculum & Course Guidance', desc: 'Questions on syllabus, module lessons, or project deliverables' },
@@ -28,7 +29,8 @@ export default function StudentTicketModal({
   onClose,
   currentUser,
   onSuccess,
-  initialTab = 'my_tickets'
+  initialTab = 'my_tickets',
+  initialTicketId = null
 }) {
   const [activeTab, setActiveTab] = useState(initialTab); // 'my_tickets' | 'create'
   const [tickets, setTickets] = useState([]);
@@ -45,34 +47,18 @@ export default function StudentTicketModal({
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isActionInProgress, setIsActionInProgress] = useState(false);
   const [error, setError] = useState('');
   const [replyError, setReplyError] = useState('');
-
-  // Fetch student's tickets
-  const fetchMyTickets = useCallback(async () => {
-    setIsLoadingTickets(true);
-    try {
-      const res = await api.studentGetMySupportTickets();
-      if (res && res.success && Array.isArray(res.tickets)) {
-        setTickets(res.tickets);
-        // If initial tab was not explicitly set to create and tickets exist, show tickets
-        if (initialTab !== 'create' && res.tickets.length > 0) {
-          setActiveTab('my_tickets');
-        } else if (res.tickets.length === 0) {
-          setActiveTab('create');
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to load student tickets:', err);
-    } finally {
-      setIsLoadingTickets(false);
-    }
-  }, [initialTab]);
 
   // Fetch thread messages for a selected ticket
   const fetchThread = useCallback(async (ticketId) => {
     setIsLoadingThread(true);
     setReplyError('');
+    try {
+      setRouteParam('ticket', ticketId);
+      sessionStorage.setItem('aaroha_student_selected_ticket_id', String(ticketId));
+    } catch (e) {}
     try {
       const res = await api.studentGetTicketThread(ticketId);
       if (res && res.success) {
@@ -86,11 +72,52 @@ export default function StudentTicketModal({
     }
   }, []);
 
+  const handleBackToTicketsList = useCallback(() => {
+    setSelectedTicket(null);
+    try {
+      removeRouteParam('ticket');
+      sessionStorage.removeItem('aaroha_student_selected_ticket_id');
+    } catch (e) {}
+  }, []);
+
+  // Fetch student's tickets
+  const fetchMyTickets = useCallback(async () => {
+    setIsLoadingTickets(true);
+    try {
+      const res = await api.studentGetMySupportTickets();
+      if (res && res.success && Array.isArray(res.tickets)) {
+        setTickets(res.tickets);
+        const targetTicketId = initialTicketId || getRouteParam('ticket') || sessionStorage.getItem('aaroha_student_selected_ticket_id');
+        if (targetTicketId) {
+          const match = res.tickets.find(t => String(t.id) === String(targetTicketId) || t.ticket_number === targetTicketId);
+          if (match) {
+            setActiveTab('my_tickets');
+            fetchThread(match.id);
+            return;
+          }
+        }
+        // If initial tab was not explicitly set to create and tickets exist, show tickets
+        if (initialTab !== 'create' && res.tickets.length > 0) {
+          setActiveTab('my_tickets');
+        } else if (res.tickets.length === 0) {
+          setActiveTab('create');
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load student tickets:', err);
+    } finally {
+      setIsLoadingTickets(false);
+    }
+  }, [initialTab, initialTicketId, fetchThread]);
+
   useEffect(() => {
     if (isOpen) {
       setError('');
       setReplyError('');
-      setSelectedTicket(null);
+      const targetTicketId = initialTicketId || getRouteParam('ticket') || sessionStorage.getItem('aaroha_student_selected_ticket_id');
+      if (!targetTicketId) {
+        setSelectedTicket(null);
+      }
       setReplyText('');
       setCategory('academic');
       setPriority('medium');
@@ -186,6 +213,77 @@ export default function StudentTicketModal({
     }
   };
 
+  // Close a specific ticket
+  const handleCloseTicket = async (ticketId, ticketNum) => {
+    if (!ticketId) return;
+    if (!window.confirm(`Are you sure you want to close ticket ${ticketNum || ''}?`)) return;
+    
+    setIsActionInProgress(true);
+    try {
+      const res = await api.studentCloseTicket(ticketId);
+      if (res && res.success) {
+        if (onSuccess) onSuccess(`Ticket ${ticketNum || ''} closed successfully.`);
+        if (selectedTicket && selectedTicket.id === ticketId) {
+          setSelectedTicket(prev => prev ? ({ ...prev, status: 'closed' }) : null);
+          await fetchThread(ticketId);
+        }
+        await fetchMyTickets();
+      } else {
+        alert(res?.error || 'Failed to close ticket.');
+      }
+    } catch (err) {
+      alert(err.message || 'Error closing ticket.');
+    } finally {
+      setIsActionInProgress(false);
+    }
+  };
+
+  // Clear / delete a specific ticket from history
+  const handleClearTicket = async (ticketId, ticketNum) => {
+    if (!ticketId) return;
+    if (!window.confirm(`Are you sure you want to permanently clear ticket ${ticketNum || ''} from your helpdesk history? This cannot be undone.`)) return;
+
+    setIsActionInProgress(true);
+    try {
+      const res = await api.studentClearTicket(ticketId);
+      if (res && res.success) {
+        if (onSuccess) onSuccess(`Ticket ${ticketNum || ''} cleared from history.`);
+        if (selectedTicket && selectedTicket.id === ticketId) {
+          handleBackToTicketsList();
+        }
+        await fetchMyTickets();
+      } else {
+        alert(res?.error || 'Failed to clear ticket.');
+      }
+    } catch (err) {
+      alert(err.message || 'Error clearing ticket.');
+    } finally {
+      setIsActionInProgress(false);
+    }
+  };
+
+  // Clear all tickets (or only closed ones)
+  const handleClearAllTickets = async (statusFilter = null) => {
+    const scopeLabel = statusFilter ? 'all closed tickets' : 'ALL your support tickets';
+    if (!window.confirm(`Are you sure you want to permanently clear ${scopeLabel}? This will remove them from your helpdesk history.`)) return;
+
+    setIsActionInProgress(true);
+    try {
+      const res = await api.studentClearAllTickets(statusFilter ? { status: statusFilter } : {});
+      if (res && res.success) {
+        if (onSuccess) onSuccess(res.message || 'Tickets cleared successfully.');
+        setSelectedTicket(null);
+        await fetchMyTickets();
+      } else {
+        alert(res?.error || 'Failed to clear tickets.');
+      }
+    } catch (err) {
+      alert(err.message || 'Error clearing tickets.');
+    } finally {
+      setIsActionInProgress(false);
+    }
+  };
+
   const getStatusBadge = (status) => {
     const s = (status || 'open').toLowerCase();
     switch (s) {
@@ -255,7 +353,7 @@ export default function StudentTicketModal({
             <button
               onClick={() => {
                 setActiveTab('my_tickets');
-                setSelectedTicket(null);
+                handleBackToTicketsList();
               }}
               className={`pb-2.5 px-3.5 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
                 activeTab === 'my_tickets'
@@ -275,7 +373,7 @@ export default function StudentTicketModal({
             <button
               onClick={() => {
                 setActiveTab('create');
-                setSelectedTicket(null);
+                handleBackToTicketsList();
               }}
               className={`pb-2.5 px-3.5 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
                 activeTab === 'create'
@@ -297,16 +395,40 @@ export default function StudentTicketModal({
               {/* Top back navigation */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                 <button
-                  onClick={() => setSelectedTicket(null)}
+                  onClick={handleBackToTicketsList}
                   className="flex items-center gap-1.5 text-xs font-semibold text-[#0A7CB3] hover:text-[#086491] cursor-pointer transition-colors"
                 >
                   <ArrowLeft size={14} />
                   <span>Back to My Tickets</span>
                 </button>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {getStatusBadge(selectedTicket.status)}
                   {getPriorityBadge(selectedTicket.priority)}
+
+                  {selectedTicket.status !== 'closed' && (
+                    <button
+                      type="button"
+                      onClick={() => handleCloseTicket(selectedTicket.id, selectedTicket.ticket_number)}
+                      disabled={isActionInProgress}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="Close this support inquiry"
+                    >
+                      <CheckCircle2 size={13} className="text-emerald-600" />
+                      <span>Close Ticket</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleClearTicket(selectedTicket.id, selectedTicket.ticket_number)}
+                    disabled={isActionInProgress}
+                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    title="Clear this ticket from your helpdesk history"
+                  >
+                    <Trash2 size={13} className="text-rose-600" />
+                    <span>Clear Ticket</span>
+                  </button>
                 </div>
               </div>
 
@@ -438,21 +560,51 @@ export default function StudentTicketModal({
           ) : activeTab === 'my_tickets' ? (
             /* VIEW 2: LIST OF RAISED TICKETS */
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-1">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Your Institutional Tickets</h3>
-                  <p className="text-xs text-slate-500">Track current status and coordinator responses</p>
+                  <p className="text-xs text-slate-500">Track status, close resolved inquiries, or clear tickets</p>
                 </div>
 
-                <button
-                  onClick={fetchMyTickets}
-                  disabled={isLoadingTickets}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Refresh tickets"
-                >
-                  <RefreshCw size={12} className={isLoadingTickets ? 'animate-spin' : ''} />
-                  <span>Refresh</span>
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {tickets.length > 0 && (
+                    <>
+                      {tickets.some(t => t.status === 'closed' || t.status === 'resolved') && (
+                        <button
+                          type="button"
+                          onClick={() => handleClearAllTickets('closed')}
+                          disabled={isLoadingTickets || isActionInProgress}
+                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                          title="Clear closed tickets from your list"
+                        >
+                          <CheckCheck size={13} className="text-emerald-600" />
+                          <span>Clear Closed</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleClearAllTickets(null)}
+                        disabled={isLoadingTickets || isActionInProgress}
+                        className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                        title="Clear all tickets from your helpdesk history"
+                      >
+                        <Trash2 size={13} className="text-rose-600" />
+                        <span>Clear All Tickets</span>
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    onClick={fetchMyTickets}
+                    disabled={isLoadingTickets}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                    title="Refresh tickets"
+                  >
+                    <RefreshCw size={12} className={isLoadingTickets ? 'animate-spin' : ''} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
               </div>
 
               {isLoadingTickets ? (
@@ -511,11 +663,44 @@ export default function StudentTicketModal({
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400">
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400 gap-2 flex-wrap">
                         <span>Logged: {formatDate(t.created_at)}</span>
-                        <div className="flex items-center gap-1 text-[#0A7CB3] font-semibold">
-                          <span>View Thread</span>
-                          <ChevronRight size={13} />
+                        
+                        <div className="flex items-center gap-2">
+                          {t.status !== 'closed' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCloseTicket(t.id, t.ticket_number);
+                              }}
+                              disabled={isActionInProgress}
+                              className="px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Close this ticket"
+                            >
+                              <CheckCircle2 size={11} />
+                              <span>Close</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleClearTicket(t.id, t.ticket_number);
+                            }}
+                            disabled={isActionInProgress}
+                            className="px-2 py-0.5 rounded text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Clear this ticket from history"
+                          >
+                            <Trash2 size={11} />
+                            <span>Clear</span>
+                          </button>
+
+                          <div className="flex items-center gap-1 text-[#0A7CB3] font-semibold ml-1">
+                            <span>View Thread</span>
+                            <ChevronRight size={13} />
+                          </div>
                         </div>
                       </div>
                     </div>

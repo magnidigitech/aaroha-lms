@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { formatDate, getAccessWindowInfo } from '../../adminUtils';
 import api from '../../apiService';
+import { getRouteParam, setRouteParam, removeRouteParam, setRouteParams } from '../../routes';
 
 export default function AdminBatchesTab({
   batches = [],
@@ -17,7 +18,9 @@ export default function AdminBatchesTab({
   onUpdateBatch,
   showToast
 }) {
-  const [rosterView, setRosterView] = useState('active'); // 'active' | 'archived'
+  const [rosterView, setRosterView] = useState(() => {
+    return getRouteParam('subtab') || 'active';
+  }); // 'active' | 'archived'
   const [archivedBatches, setArchivedBatches] = useState([]);
   const [isArchivedLoading, setIsArchivedLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +29,12 @@ export default function AdminBatchesTab({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (rosterView) {
+      setRouteParam('subtab', rosterView);
+    }
+  }, [rosterView]);
 
   // Consolidate all qualified instructors (Faculty, Instructors, Academic Directors, Coordinators)
   const availableFaculty = useMemo(() => {
@@ -327,7 +336,7 @@ export default function AdminBatchesTab({
         lead_faculty_id: editingBatch.lead_faculty_id || null
       });
       if (onUpdateBatch) await onUpdateBatch();
-      setEditingBatch(null);
+      handleCloseEditBatch();
     } catch (err) {
       if (err.isUnauthorized || (err.message && err.message.toLowerCase().includes('token'))) {
         setFormError('Authentication session expired. Please sign in again to continue.');
@@ -354,6 +363,11 @@ export default function AdminBatchesTab({
   // Open Roster & Load Enrolled Students
   const handleOpenRoster = async (batch) => {
     setRosterBatch(batch);
+    try {
+      setRouteParams({ batch: batch.id, drawer: 'roster' });
+      sessionStorage.setItem('aaroha_admin_selected_batch_id', String(batch.id));
+      sessionStorage.setItem('aaroha_admin_selected_batch_drawer', 'roster');
+    } catch (e) {}
     setIsRosterLoading(true);
     try {
       const [rosterRes, studentsRes] = await Promise.all([
@@ -372,6 +386,51 @@ export default function AdminBatchesTab({
       setIsRosterLoading(false);
     }
   };
+
+  const handleCloseRoster = () => {
+    setRosterBatch(null);
+    try {
+      removeRouteParam('batch');
+      removeRouteParam('drawer');
+      sessionStorage.removeItem('aaroha_admin_selected_batch_id');
+      sessionStorage.removeItem('aaroha_admin_selected_batch_drawer');
+    } catch (e) {}
+  };
+
+  const handleOpenEditBatch = (batch) => {
+    setEditingBatch({ ...batch });
+    try {
+      setRouteParams({ batch: batch.id, drawer: 'edit' });
+      sessionStorage.setItem('aaroha_admin_selected_batch_id', String(batch.id));
+      sessionStorage.setItem('aaroha_admin_selected_batch_drawer', 'edit');
+    } catch (e) {}
+  };
+
+  const handleCloseEditBatch = () => {
+    setEditingBatch(null);
+    try {
+      removeRouteParam('batch');
+      removeRouteParam('drawer');
+      sessionStorage.removeItem('aaroha_admin_selected_batch_id');
+      sessionStorage.removeItem('aaroha_admin_selected_batch_drawer');
+    } catch (e) {}
+  };
+
+  // Restore active batch drawer (roster or edit) across page refresh
+  useEffect(() => {
+    const savedBatchId = getRouteParam('batch') || sessionStorage.getItem('aaroha_admin_selected_batch_id');
+    const savedDrawer = getRouteParam('drawer') || sessionStorage.getItem('aaroha_admin_selected_batch_drawer');
+    if (savedBatchId && batches.length > 0) {
+      const match = batches.find(b => String(b.id) === String(savedBatchId));
+      if (match) {
+        if (savedDrawer === 'roster' && !rosterBatch) {
+          handleOpenRoster(match);
+        } else if (savedDrawer === 'edit' && !editingBatch) {
+          handleOpenEditBatch(match);
+        }
+      }
+    }
+  }, [batches]);
 
   const handleEnrollStudentInBatch = async () => {
     if (!selectedStudentToEnroll || !rosterBatch) return;
@@ -649,7 +708,7 @@ export default function AdminBatchesTab({
                       type="button"
                       onClick={() => {
                         setFormError('');
-                        setEditingBatch({ ...b });
+                        handleOpenEditBatch(b);
                       }}
                       className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                       title="Edit cohort dates, capacity, or delivery mode"
@@ -872,7 +931,7 @@ export default function AdminBatchesTab({
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl p-5 space-y-4 text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <h2 className="text-base font-bold text-slate-900">Edit Cohort Batch: {editingBatch.batch_code}</h2>
-              <button onClick={() => setEditingBatch(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button onClick={handleCloseEditBatch} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -991,7 +1050,7 @@ export default function AdminBatchesTab({
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => setEditingBatch(null)}
+                  onClick={handleCloseEditBatch}
                   className="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
                 >
                   Cancel
@@ -1027,7 +1086,7 @@ export default function AdminBatchesTab({
                   {rosterBatch.title} • {rosterStudents.length} / {rosterBatch.capacity} enrolled students
                 </p>
               </div>
-              <button onClick={() => setRosterBatch(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button onClick={handleCloseRoster} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -1140,7 +1199,7 @@ export default function AdminBatchesTab({
             <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
               <button
                 type="button"
-                onClick={() => setRosterBatch(null)}
+                onClick={handleCloseRoster}
                 className="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold cursor-pointer"
               >
                 Close Roster

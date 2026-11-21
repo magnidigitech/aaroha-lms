@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar, Clock, Video, MapPin, PlusCircle, AlertTriangle,
   RotateCcw, XCircle, CheckCircle2, Search, Link as LinkIcon, X, Trash2
 } from 'lucide-react';
 import api from '../../apiService';
 import { formatDateTime } from '../../adminUtils';
+import { getRouteParam, setRouteParam } from '../../routes';
 
 export default function AdminScheduleTab({
   sessions = [],
@@ -16,7 +17,15 @@ export default function AdminScheduleTab({
   onDeleteSession,
   onMarkAttendance
 }) {
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+  const [viewMode, setViewMode] = useState(() => {
+    return getRouteParam('subtab') || 'list';
+  }); // 'list' | 'calendar'
+
+  useEffect(() => {
+    if (viewMode) {
+      setRouteParam('subtab', viewMode);
+    }
+  }, [viewMode]);
   const [batchFilter, setBatchFilter] = useState('all');
   const [facultyFilter, setFacultyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');

@@ -1174,6 +1174,11 @@ class AdminPortalController {
             FROM users u
             LEFT JOIN faculty_profiles fp ON u.id = fp.user_id
             WHERE (u.role IN ('faculty', 'instructor') OR u.authorized_roles_json LIKE '%\"faculty\"%' OR (fp.id IS NOT NULL AND u.role NOT IN ('super_admin', 'admin', 'coordinator', 'placement_officer', 'student')))
+              AND u.role NOT IN ('super_admin', 'admin', 'coordinator', 'student')
+              AND u.email NOT IN ('admin@aaroha-inc.com', 'coordinator@aaroha-inc.com', 'student@aaroha-inc.com', 'priya.sharma@aaroha-inc.com', 'faculty@aaroha-inc.com', 'faculty_test@aaroha-inc.com')
+              AND u.full_name NOT LIKE '%Aris Thorne%'
+              AND u.full_name NOT LIKE '%Priya Sharma%'
+              AND u.full_name NOT LIKE '%Faculty Chair%'
         ";
 
         $params = [];
@@ -3186,6 +3191,147 @@ class AdminPortalController {
 
         AuditLogger::log('ASSIGN_SUPPORT_TICKET', 'support_ticket', $ticketId, ['assigned_to' => $assignedTo], $actor);
         return ['success' => true, 'message' => 'Ticket assigned successfully.'];
+    }
+
+    public static function closeTicket($ticketId, $actor) {
+        $pdo = Database::getConnection();
+        $ticketId = (int)$ticketId;
+
+        $checkStmt = $pdo->prepare("SELECT id, user_id, status, ticket_number FROM support_tickets WHERE id = ?");
+        $checkStmt->execute([$ticketId]);
+        $ticket = $checkStmt->fetch();
+
+        if (!$ticket) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Support ticket not found.'];
+        }
+
+        $userRole = strtolower($actor['role'] ?? '');
+        $isStaff = in_array($userRole, ['super_admin', 'admin', 'coordinator', 'faculty']);
+        $isOwner = ((int)$ticket['user_id'] === (int)$actor['id']);
+
+        if (!$isStaff && !$isOwner) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'You are not authorized to close this ticket.'];
+        }
+
+        $stmt = $pdo->prepare("UPDATE support_tickets SET status = 'closed', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute([$ticketId]);
+
+        // Add closure event to messages thread
+        try {
+            $msgStmt = $pdo->prepare("
+                INSERT INTO ticket_messages (ticket_id, sender_id, message, is_internal_note, created_at)
+                VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
+            ");
+            $closedByLabel = $isOwner ? "Ticket was closed by student." : "Ticket was closed by academic coordinator.";
+            $msgStmt->execute([$ticketId, (int)$actor['id'], $closedByLabel]);
+        } catch (\Throwable $ex) {}
+
+        AuditLogger::log('CLOSE_SUPPORT_TICKET', 'support_ticket', $ticketId, ['ticket_number' => $ticket['ticket_number']], $actor);
+
+        return [
+            'success' => true,
+            'message' => "Ticket {$ticket['ticket_number']} has been closed successfully.",
+            'ticket_id' => $ticketId,
+            'status' => 'closed'
+        ];
+    }
+
+    public static function deleteTicket($ticketId, $actor) {
+        $pdo = Database::getConnection();
+        $ticketId = (int)$ticketId;
+
+        $checkStmt = $pdo->prepare("SELECT id, user_id, status, ticket_number FROM support_tickets WHERE id = ?");
+        $checkStmt->execute([$ticketId]);
+        $ticket = $checkStmt->fetch();
+
+        if (!$ticket) {
+            http_response_code(404);
+            return ['success' => false, 'error' => 'Support ticket not found.'];
+        }
+
+        $userRole = strtolower($actor['role'] ?? '');
+        $isStaff = in_array($userRole, ['super_admin', 'admin', 'coordinator']);
+        $isOwner = ((int)$ticket['user_id'] === (int)$actor['id']);
+
+        if (!$isStaff && !$isOwner) {
+            http_response_code(403);
+            return ['success' => false, 'error' => 'You are not authorized to clear this ticket.'];
+        }
+
+        // Delete associated messages
+        $pdo->prepare("DELETE FROM ticket_messages WHERE ticket_id = ?")->execute([$ticketId]);
+
+        // Delete ticket
+        $pdo->prepare("DELETE FROM support_tickets WHERE id = ?")->execute([$ticketId]);
+
+        AuditLogger::log('DELETE_SUPPORT_TICKET', 'support_ticket', $ticketId, ['ticket_number' => $ticket['ticket_number']], $actor);
+
+        return [
+            'success' => true,
+            'message' => "Ticket {$ticket['ticket_number']} has been cleared successfully.",
+            'ticket_id' => $ticketId
+        ];
+    }
+
+    public static function clearAllTickets($actor, $params = []) {
+        $pdo = Database::getConnection();
+        $userRole = strtolower($actor['role'] ?? '');
+        $isStaff = in_array($userRole, ['super_admin', 'admin', 'coordinator']);
+        $userId = (int)$actor['id'];
+
+        $statusFilter = !empty($params['status']) ? trim($params['status']) : null;
+        $scope = !empty($params['scope']) ? trim($params['scope']) : ($isStaff ? 'all' : 'mine');
+
+        if (!$isStaff || $scope === 'mine') {
+            // Student clearing their own tickets
+            if ($statusFilter) {
+                $sel = $pdo->prepare("SELECT id FROM support_tickets WHERE user_id = ? AND status = ?");
+                $sel->execute([$userId, $statusFilter]);
+            } else {
+                $sel = $pdo->prepare("SELECT id FROM support_tickets WHERE user_id = ?");
+                $sel->execute([$userId]);
+            }
+            $ticketIds = $sel->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+            if (!empty($ticketIds)) {
+                $inQuery = implode(',', array_fill(0, count($ticketIds), '?'));
+                $pdo->prepare("DELETE FROM ticket_messages WHERE ticket_id IN ({$inQuery})")->execute($ticketIds);
+                $pdo->prepare("DELETE FROM support_tickets WHERE id IN ({$inQuery})")->execute($ticketIds);
+            }
+
+            AuditLogger::log('CLEAR_MY_SUPPORT_TICKETS', 'support_tickets', null, ['cleared_count' => count($ticketIds)], $actor);
+
+            return [
+                'success' => true,
+                'message' => count($ticketIds) . ' ticket(s) have been cleared from your history.',
+                'cleared_count' => count($ticketIds)
+            ];
+        }
+
+        // Staff clearing tickets across system
+        if ($statusFilter) {
+            $sel = $pdo->prepare("SELECT id FROM support_tickets WHERE status = ?");
+            $sel->execute([$statusFilter]);
+        } else {
+            $sel = $pdo->query("SELECT id FROM support_tickets");
+        }
+        $ticketIds = $sel->fetchAll(PDO::FETCH_COLUMN) ?: [];
+
+        if (!empty($ticketIds)) {
+            $inQuery = implode(',', array_fill(0, count($ticketIds), '?'));
+            $pdo->prepare("DELETE FROM ticket_messages WHERE ticket_id IN ({$inQuery})")->execute($ticketIds);
+            $pdo->prepare("DELETE FROM support_tickets WHERE id IN ({$inQuery})")->execute($ticketIds);
+        }
+
+        AuditLogger::log('CLEAR_ALL_SUPPORT_TICKETS', 'support_tickets', null, ['cleared_count' => count($ticketIds), 'status_filter' => $statusFilter], $actor);
+
+        return [
+            'success' => true,
+            'message' => count($ticketIds) . ' support ticket(s) cleared successfully.',
+            'cleared_count' => count($ticketIds)
+        ];
     }
 
 

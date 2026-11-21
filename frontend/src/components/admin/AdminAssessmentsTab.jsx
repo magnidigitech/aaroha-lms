@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ListTodo, CheckCircle2, Clock, AlertCircle, FileText,
   ExternalLink, GitBranch, Award, Check, X, Search, RotateCcw
 } from 'lucide-react';
 import { formatDateTime } from '../../adminUtils';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../../routes';
 
 export default function AdminAssessmentsTab({
   taskSubmissions = [],
@@ -31,10 +32,33 @@ export default function AdminAssessmentsTab({
 
   const handleOpenGradeModal = (sub) => {
     setGradingSubmission(sub);
+    try {
+      setRouteParam('submission', sub.id);
+      sessionStorage.setItem('aaroha_admin_grading_submission_id', String(sub.id));
+    } catch (e) {}
     setGradeScore(sub.score !== null && sub.score !== undefined ? String(sub.score) : '85');
     setGradeStatus(sub.status === 'under_review' ? 'passed' : sub.status);
     setGradeFeedback(sub.feedback || 'Deliverable satisfies architectural specification requirements.');
   };
+
+  const handleCloseGradeModal = () => {
+    setGradingSubmission(null);
+    try {
+      removeRouteParam('submission');
+      sessionStorage.removeItem('aaroha_admin_grading_submission_id');
+    } catch (e) {}
+  };
+
+  // Restore open grading modal across refresh
+  useEffect(() => {
+    const savedSubId = getRouteParam('submission') || sessionStorage.getItem('aaroha_admin_grading_submission_id');
+    if (savedSubId && !gradingSubmission && taskSubmissions.length > 0) {
+      const match = taskSubmissions.find(s => String(s.id) === String(savedSubId));
+      if (match) {
+        handleOpenGradeModal(match);
+      }
+    }
+  }, [taskSubmissions]);
 
   const handleCommitGrade = async () => {
     if (!gradingSubmission) return;
@@ -43,7 +67,7 @@ export default function AdminAssessmentsTab({
       status: gradeStatus,
       feedback: gradeFeedback
     });
-    setGradingSubmission(null);
+    handleCloseGradeModal();
   };
 
   return (
@@ -241,7 +265,7 @@ export default function AdminAssessmentsTab({
 
             <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
               <button
-                onClick={() => setGradingSubmission(null)}
+                onClick={handleCloseGradeModal}
                 className="px-3.5 py-1.5 rounded-lg bg-slate-100 text-slate-700"
               >
                 Cancel

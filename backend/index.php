@@ -398,6 +398,11 @@ try {
         $courseId = isset($_GET['course_id']) ? (int)$_GET['course_id'] : null;
         $response = LeaderboardController::getLeaderboard($courseId, $user);
     }
+    elseif ($requestMethod === 'POST' && $path === '/leaderboard/recalculate') {
+        $admin = AuthMiddleware::requireAdmin();
+        $courseId = isset($inputData['course_id']) ? (int)$inputData['course_id'] : (isset($_GET['course_id']) ? (int)$_GET['course_id'] : null);
+        $response = LeaderboardController::recalculateRankings($courseId, $admin);
+    }
     elseif ($requestMethod === 'POST' && $path === '/leaderboard') {
         $admin = AuthMiddleware::requireAdmin();
         $response = LeaderboardController::createRanking($inputData, $admin);
@@ -762,6 +767,18 @@ try {
     elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/support/tickets/(\d+)/status$#', $path, $matches)) {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);
         $response = AdminPortalController::updateTicketStatus((int)$matches[1], $inputData, $actor);
+    }
+    elseif ($requestMethod === 'POST' && (preg_match('#^/admin/support/tickets/(\d+)/close$#', $path, $matches) || preg_match('#^/student/support/tickets/(\d+)/close$#', $path, $matches) || preg_match('#^/support/tickets/(\d+)/close$#', $path, $matches))) {
+        $actor = AuthMiddleware::requireAuth();
+        $response = AdminPortalController::closeTicket((int)$matches[1], $actor);
+    }
+    elseif ($requestMethod === 'DELETE' && (in_array($path, ['/student/support/tickets/clear-all', '/support/tickets/clear-all', '/admin/support/tickets/clear-all']))) {
+        $actor = AuthMiddleware::requireAuth();
+        $response = AdminPortalController::clearAllTickets($actor, array_merge($_GET, $inputData));
+    }
+    elseif ($requestMethod === 'DELETE' && (preg_match('#^/admin/support/tickets/(\d+)$#', $path, $matches) || preg_match('#^/student/support/tickets/(\d+)$#', $path, $matches) || preg_match('#^/support/tickets/(\d+)$#', $path, $matches))) {
+        $actor = AuthMiddleware::requireAuth();
+        $response = AdminPortalController::deleteTicket((int)$matches[1], $actor);
     }
     elseif (($requestMethod === 'PUT' || $requestMethod === 'POST') && preg_match('#^/admin/support/tickets/(\d+)/assign$#', $path, $matches)) {
         $actor = AuthMiddleware::requireRole(['super_admin', 'admin', 'coordinator']);

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatDate } from '../../adminUtils';
 import api from '../../apiService';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../../routes';
 
 export default function AdminFacultyTab({
   faculty = [],
@@ -29,10 +30,18 @@ export default function AdminFacultyTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Roster View: Active Faculty vs Archived Faculty
-  const [rosterView, setRosterView] = useState('active'); // 'active' | 'archived'
+  const [rosterView, setRosterView] = useState(() => {
+    return getRouteParam('subtab') || 'active';
+  }); // 'active' | 'archived'
   const [archivedFaculty, setArchivedFaculty] = useState([]);
   const [isArchivedLoading, setIsArchivedLoading] = useState(false);
   const [actionMenuState, setActionMenuState] = useState(null); // { id, faculty, rect }
+
+  useEffect(() => {
+    if (rosterView) {
+      setRouteParam('subtab', rosterView);
+    }
+  }, [rosterView]);
 
   const handleToggleActionMenu = (e, fac) => {
     e.stopPropagation();
@@ -337,7 +346,7 @@ export default function AdminFacultyTab({
       setArchivedFaculty(prev => prev.filter(item => (item.user_id || item.id) !== facultyId));
       setDeleteModal({ isOpen: false, faculty: null, isChecking: false, eligibility: null, confirmText: '', forceOverride: false, isSubmitting: false, error: '' });
       if (selectedFaculty && (selectedFaculty.user_id === facultyId || selectedFaculty.id === facultyId)) {
-        setSelectedFaculty(null);
+        handleCloseFacultyDrawer();
       }
       if (onUpdateFaculty) await onUpdateFaculty();
       if (onDeleteFaculty) await onDeleteFaculty();
@@ -427,8 +436,31 @@ export default function AdminFacultyTab({
   const handleOpenFacultyDrawer = async (f, tab = 'assignments') => {
     setSelectedFaculty(f);
     setFacultyDrawerTab(tab);
+    try {
+      setRouteParam('faculty', f.id || f.user_id);
+      sessionStorage.setItem('aaroha_admin_selected_faculty_id', String(f.id || f.user_id));
+    } catch (e) {}
     await fetchTeachingAssignments(f.user_id);
   };
+
+  const handleCloseFacultyDrawer = () => {
+    setSelectedFaculty(null);
+    try {
+      removeRouteParam('faculty');
+      sessionStorage.removeItem('aaroha_admin_selected_faculty_id');
+    } catch (e) {}
+  };
+
+  // Restore open faculty detail / workload drawer across refresh
+  useEffect(() => {
+    const savedId = getRouteParam('faculty') || sessionStorage.getItem('aaroha_admin_selected_faculty_id');
+    if (savedId && !selectedFaculty && currentFacultyList.length > 0) {
+      const match = currentFacultyList.find(f => String(f.id) === String(savedId) || String(f.user_id) === String(savedId));
+      if (match) {
+        handleOpenFacultyDrawer(match);
+      }
+    }
+  }, [currentFacultyList]);
 
   const handleCreateFaculty = async (e) => {
     e.preventDefault();
@@ -823,7 +855,7 @@ export default function AdminFacultyTab({
                   </p>
                 </div>
               </div>
-              <button onClick={() => setSelectedFaculty(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+              <button onClick={handleCloseFacultyDrawer} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <X size={20} />
               </button>
             </div>

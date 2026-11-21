@@ -426,6 +426,11 @@ export const api = {
     method: 'DELETE'
   }),
 
+  recalculateLeaderboard: (courseId = null) => request('/leaderboard/recalculate', {
+    method: 'POST',
+    body: JSON.stringify({ course_id: courseId })
+  }),
+
   // Accredited Degree Programs (Faculty Authority)
   getDegrees: () => request('/degrees'),
 
@@ -716,6 +721,38 @@ export const api = {
   studentReplyTicket: (ticketId, data) => request(`/student/support/tickets/${ticketId}/reply`, {
     method: 'POST',
     body: JSON.stringify(data)
+  }),
+  studentCloseTicket: (ticketId) => request(`/student/support/tickets/${ticketId}/close`, {
+    method: 'POST'
+  }),
+  studentClearTicket: (ticketId) => request(`/student/support/tickets/${ticketId}`, {
+    method: 'DELETE'
+  }),
+  studentClearAllTickets: (params = {}) => request('/student/support/tickets/clear-all', {
+    method: 'DELETE',
+    body: JSON.stringify(params)
+  }),
+
+  // Support Ticket Actions (Universal / Admin)
+  closeSupportTicket: (ticketId) => request(`/support/tickets/${ticketId}/close`, {
+    method: 'POST'
+  }),
+  deleteSupportTicket: (ticketId) => request(`/support/tickets/${ticketId}`, {
+    method: 'DELETE'
+  }),
+  clearAllSupportTickets: (params = {}) => request('/support/tickets/clear-all', {
+    method: 'DELETE',
+    body: JSON.stringify(params)
+  }),
+  adminCloseTicket: (ticketId) => request(`/admin/support/tickets/${ticketId}/close`, {
+    method: 'POST'
+  }),
+  adminDeleteTicket: (ticketId) => request(`/admin/support/tickets/${ticketId}`, {
+    method: 'DELETE'
+  }),
+  adminClearAllTickets: (params = {}) => request('/admin/support/tickets/clear-all', {
+    method: 'DELETE',
+    body: JSON.stringify(params)
   }),
 
   // Course Archive & Restore

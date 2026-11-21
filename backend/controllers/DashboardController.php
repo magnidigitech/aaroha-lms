@@ -193,7 +193,7 @@ class DashboardController {
             JOIN courses c ON m.course_id = c.id
             JOIN enrollments e ON c.id = e.course_id
             LEFT JOIN task_submissions ts ON t.id = ts.task_id AND ts.enrollment_id = e.id
-            WHERE e.user_id = ? AND e.status = 'active' AND t.is_deleted = 0
+            WHERE e.user_id = ? AND e.status = 'active' AND t.is_deleted = 0 AND (c.is_deleted = 0 OR c.is_deleted IS NULL) AND (m.is_deleted = 0 OR m.is_deleted IS NULL)
             ORDER BY t.id ASC
         ");
         $tasksStmt->execute([$studentId]);
@@ -338,6 +338,24 @@ class DashboardController {
         $placeStmt->execute([$studentId]);
         $placementProfile = $placeStmt->fetch();
 
+        if (!$placementProfile) {
+            require_once __DIR__ . '/AdminPortalController.php';
+            $calc = AdminPortalController::calculateStudentReadiness($studentId);
+            $placementProfile = [
+                'resume_url' => null,
+                'portfolio_url' => null,
+                'github_url' => null,
+                'resume_review_status' => 'pending',
+                'readiness_score' => $calc['composite_score'] ?? 0,
+                'readiness_checklist_json' => json_encode($calc['breakdown'] ?? []),
+                'mock_interview_feedback_json' => null,
+                'placement_status' => $calc['suggested_status'] ?? 'training',
+                'placed_company' => null,
+                'package_offered' => null,
+                'target_roles' => 'Cloud & Systems Fellow'
+            ];
+        }
+
         $jobAppsStmt = $pdo->prepare("
             SELECT ja.status, ja.application_date, ja.interview_scheduled_at,
                    jo.company_name, jo.job_title, jo.location
@@ -349,27 +367,23 @@ class DashboardController {
         $jobAppsStmt->execute([$studentId]);
         $jobApplications = $jobAppsStmt->fetchAll();
 
-        // 1.8 Recent Learning Materials & Recordings (Strict Audience & Publishing Destination Enforced)
+        // 1.8 Recent Learning Materials & Recordings
         $matStmt = $pdo->prepare("
-            SELECT lm.id, lm.title, lm.material_type, lm.file_url, lm.created_at, lm.destination, c.title as course_title
+            SELECT lm.id, lm.title, lm.material_type, lm.file_url, lm.created_at, c.title as course_title
             FROM learning_materials lm
             JOIN courses c ON lm.course_id = c.id
             JOIN enrollments e ON c.id = e.course_id
             WHERE e.user_id = ?
-              AND lm.destination IN ('private_lms', 'both')
-              AND lm.status = 'published'
-              AND lm.approval_status = 'approved'
+              AND (lm.is_published = 1 OR lm.is_published IS NULL)
               AND (lm.scheduled_release_at IS NULL OR lm.scheduled_release_at <= ?)
               AND (
-                  (lm.audience_type = 'all_students') OR
-                  (lm.audience_type = 'course_enrolled' AND lm.audience_id = c.id) OR
-                  (lm.audience_type = 'batch_enrolled' AND lm.audience_id IN (SELECT batch_id FROM batch_enrollments WHERE user_id = ? AND status = 'active')) OR
-                  (lm.audience_type = 'individual' AND lm.audience_id = ?)
+                  lm.batch_id IS NULL OR
+                  lm.batch_id IN (SELECT batch_id FROM batch_enrollments WHERE user_id = ? AND status = 'active')
               )
             ORDER BY lm.created_at DESC
             LIMIT 5
         ");
-        $matStmt->execute([$studentId, $now, $studentId, $studentId]);
+        $matStmt->execute([$studentId, $now, $studentId]);
         $recentMaterials = $matStmt->fetchAll();
 
         // 1.9 Announcements & Notifications (Audience Scoped & Decoupled Delivery)
@@ -377,10 +391,9 @@ class DashboardController {
             SELECT a.id, a.title, a.content, a.priority, a.created_at, u.full_name as author_name
             FROM announcements a
             JOIN users u ON a.author_id = u.id
-            WHERE a.status = 'published'
-              AND a.approval_status = 'approved'
+            WHERE (a.status = 'published' OR a.status IS NULL)
               AND (
-                  (a.target_type = 'all_students') OR
+                  (a.target_type = 'all_students' OR a.target_type IS NULL) OR
                   (a.target_type = 'course' AND a.target_id IN (SELECT course_id FROM enrollments WHERE user_id = ? AND status = 'active')) OR
                   (a.target_type = 'batch' AND a.target_id IN (SELECT batch_id FROM batch_enrollments WHERE user_id = ? AND status = 'active')) OR
                   (a.target_type = 'individual' AND a.target_id = ?)

@@ -5,6 +5,7 @@ import {
   Plus, BookOpen, ArrowRight, GraduationCap, X
 } from 'lucide-react';
 import { exportToCsv, formatDateTime } from '../../adminUtils';
+import { getRouteParam, setRouteParam } from '../../routes';
 
 export default function AdminAttendanceTab({
   sessions = [],
@@ -18,12 +19,23 @@ export default function AdminAttendanceTab({
   onNavigateToSchedule,
   onNavigateToBatches
 }) {
-  const [activeSessionId, setActiveSessionId] = useState(selectedSessionId || '');
+  const [activeSessionId, setActiveSessionId] = useState(() => {
+    return getRouteParam('session') || sessionStorage.getItem('aaroha_admin_active_session_id') || selectedSessionId || '';
+  });
   const [sessionData, setSessionData] = useState(null);
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [batchFilter, setBatchFilter] = useState('all');
+
+  useEffect(() => {
+    if (activeSessionId) {
+      setRouteParam('session', activeSessionId);
+      try {
+        sessionStorage.setItem('aaroha_admin_active_session_id', String(activeSessionId));
+      } catch (e) {}
+    }
+  }, [activeSessionId]);
 
   // Correction Modal
   const [correctionRecord, setCorrectionRecord] = useState(null);

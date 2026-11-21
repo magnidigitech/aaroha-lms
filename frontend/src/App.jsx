@@ -25,7 +25,11 @@ import {
   getAuthorizedDashboardView,
   isFacultyRole,
   getViewFromUrl,
-  updateViewUrl
+  updateViewUrl,
+  getRouteParam,
+  setRouteParam,
+  removeRouteParam,
+  setRouteParams
 } from './routes';
 
 function ViewLoadingFallback() {
@@ -80,6 +84,9 @@ export default function App() {
         if (urlView === ROUTES.STUDENT && !user && !localStorage.getItem('aaroha_token')) {
           return HOMEPAGE_ROUTE;
         }
+        if (urlView === ROUTES.CLASSROOM && !user && !localStorage.getItem('aaroha_token')) {
+          return HOMEPAGE_ROUTE;
+        }
         return urlView;
       }
 
@@ -88,6 +95,8 @@ export default function App() {
       if (sessionView && user) {
         if (sessionView === ROUTES.ADMIN && isFacultyRole(user.role)) return ROUTES.ADMIN;
         if (sessionView === ROUTES.STUDENT) return ROUTES.STUDENT;
+        if (sessionView === ROUTES.CLASSROOM) return ROUTES.CLASSROOM;
+        if (sessionView === ROUTES.BROCHURE) return ROUTES.BROCHURE;
         if (sessionView === ROUTES.DEGREES) return ROUTES.DEGREES;
         if (sessionView === ROUTES.CATALOG) return ROUTES.CATALOG;
       }
@@ -125,7 +134,26 @@ export default function App() {
     }
   }, [activeView]);
 
-  const [viewingCertificate, setViewingCertificate] = useState(null);
+  const [viewingCertificate, setViewingCertificate] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('aaroha_viewing_certificate');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (viewingCertificate) {
+        sessionStorage.setItem('aaroha_viewing_certificate', JSON.stringify(viewingCertificate));
+        setRouteParam('cert', viewingCertificate.id || viewingCertificate.certificate_code);
+      } else {
+        sessionStorage.removeItem('aaroha_viewing_certificate');
+        removeRouteParam('cert');
+      }
+    } catch (e) {}
+  }, [viewingCertificate]);
   
   const [authModal, setAuthModal] = useState(() => {
     try {
@@ -184,7 +212,26 @@ export default function App() {
       return false;
     }
   });
-  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('leaderboard') === 'open' || sessionStorage.getItem('aaroha_leaderboard_open') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (isLeaderboardOpen) {
+        sessionStorage.setItem('aaroha_leaderboard_open', 'true');
+        setRouteParam('leaderboard', 'open');
+      } else {
+        sessionStorage.removeItem('aaroha_leaderboard_open');
+        removeRouteParam('leaderboard');
+      }
+    } catch (e) {}
+  }, [isLeaderboardOpen]);
 
   const [deletedCourseIds, setDeletedCourseIds] = useState(() => {
     try {
@@ -216,11 +263,12 @@ export default function App() {
   
   const [selectedCourse, setSelectedCourse] = useState(() => {
     try {
-      const savedCourseId = sessionStorage.getItem('aaroha_selected_course_id');
+      const urlCourse = getRouteParam('course');
+      const savedCourseId = urlCourse || sessionStorage.getItem('aaroha_selected_course_id');
       const cachedCourses = localStorage.getItem('aaroha_courses');
-      const pool = cachedCourses ? JSON.parse(cachedCourses) : [];
+      const pool = cachedCourses ? JSON.parse(cachedCourses) : initialCourses;
       if (savedCourseId) {
-        const found = pool.find(c => c.id === parseInt(savedCourseId));
+        const found = pool.find(c => String(c.id) === String(savedCourseId) || c.slug === savedCourseId);
         if (found) {
           return found;
         }
@@ -230,7 +278,13 @@ export default function App() {
       return null;
     }
   });
-  const [targetClassroomLessonId, setTargetClassroomLessonId] = useState(null);
+  const [targetClassroomLessonId, setTargetClassroomLessonId] = useState(() => {
+    try {
+      return getRouteParam('lesson') || sessionStorage.getItem('aaroha_active_lesson_id') || null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [returnView, setReturnView] = useState('catalog');
   const [toastMessage, setToastMessage] = useState(null);
   const [isBackendLive, setIsBackendLive] = useState(false);
@@ -305,9 +359,13 @@ export default function App() {
       try {
         sessionStorage.setItem('aaroha_view', activeView);
         updateViewUrl(activeView);
+        if ((activeView === ROUTES.CLASSROOM || activeView === ROUTES.BROCHURE) && selectedCourse?.id) {
+          setRouteParam('course', selectedCourse.id);
+          sessionStorage.setItem('aaroha_selected_course_id', String(selectedCourse.id));
+        }
       } catch (e) {}
     }
-  }, [activeView]);
+  }, [activeView, selectedCourse?.id]);
 
   // Support browser Back and Forward navigation buttons
   useEffect(() => {
@@ -496,12 +554,16 @@ export default function App() {
           });
 
           setSelectedCourse(prevSel => {
-            if (!prevSel) return prevSel;
             const rawDeleted = JSON.parse(localStorage.getItem('aaroha_deleted_course_ids') || '[]');
             const deletedSet = new Set(rawDeleted.map(id => String(id)));
             const activeServerCourses = res.courses.filter(c => !deletedSet.has(String(c.id)));
-            const serverUpdated = activeServerCourses.find(c => String(c.id) === String(prevSel.id));
-            return serverUpdated || prevSel;
+            const urlCourse = getRouteParam('course');
+            const targetCourseId = urlCourse || sessionStorage.getItem('aaroha_selected_course_id') || prevSel?.id;
+            if (targetCourseId) {
+              const serverUpdated = activeServerCourses.find(c => String(c.id) === String(targetCourseId) || c.slug === targetCourseId);
+              if (serverUpdated) return serverUpdated;
+            }
+            return prevSel || activeServerCourses.find(c => !c.is_deleted) || activeServerCourses[0] || null;
           });
 
           setIsBackendLive(true);
@@ -1795,6 +1857,7 @@ export default function App() {
               setActiveView('catalog');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
+            onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             onLogout={handleLogout}
           />
         )}
@@ -1859,8 +1922,8 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      {/* Student Ranking Leaderboard Toggle on Right Edge (Student Workspace Only) */}
-      {activeView === 'student' && (
+      {/* Academic Leaderboard Toggle & Slide-out Drawer (Accessible across Student & Admin Roles) */}
+      {(activeView === 'student' || activeView === 'admin' || currentUser) && (
         <>
           <LeaderboardToggle 
             isOpen={isLeaderboardOpen} 

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { exportToCsv, formatDate, formatDateTime, calculateAccessExpiry, getAccessWindowInfo } from '../../adminUtils';
 import api from '../../apiService';
+import { getRouteParam, setRouteParam } from '../../routes';
 
 export default function AdminStudentsTab({
   students = [],
@@ -53,10 +54,18 @@ export default function AdminStudentsTab({
   };
 
   // Roster View: Active Students vs Archived Students
-  const [rosterView, setRosterView] = useState('active'); // 'active' | 'archived'
+  const [rosterView, setRosterView] = useState(() => {
+    return getRouteParam('subtab') || 'active';
+  }); // 'active' | 'archived'
   const [archivedStudents, setArchivedStudents] = useState([]);
   const [isArchivedLoading, setIsArchivedLoading] = useState(false);
   const [actionMenuState, setActionMenuState] = useState(null); // { id, student, rect }
+
+  useEffect(() => {
+    if (rosterView) {
+      setRouteParam('subtab', rosterView);
+    }
+  }, [rosterView]);
 
   const handleToggleActionMenu = (e, student) => {
     e.stopPropagation();

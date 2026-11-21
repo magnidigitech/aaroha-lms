@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { exportToCsv, formatDate } from '../../adminUtils';
 import { api } from '../../apiService';
+import { getRouteParam, setRouteParam } from '../../routes';
 
 export default function AdminReportsTab({
   students = [],
@@ -15,12 +16,23 @@ export default function AdminReportsTab({
   placementData = { profiles: [] },
   certificates = []
 }) {
-  const [selectedReport, setSelectedReport] = useState('admissions');
+  const [selectedReport, setSelectedReport] = useState(() => {
+    return getRouteParam('report') || sessionStorage.getItem('aaroha_admin_report_type') || 'admissions';
+  });
   const [courseFilter, setCourseFilter] = useState('all');
   const [batchFilter, setBatchFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [backendRecords, setBackendRecords] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (selectedReport) {
+      setRouteParam('report', selectedReport);
+      try {
+        sessionStorage.setItem('aaroha_admin_report_type', selectedReport);
+      } catch (e) {}
+    }
+  }, [selectedReport]);
 
   const reportTypes = [
     { id: 'admissions', label: 'Admissions & Enrolments', icon: Users, desc: 'Lifecycle verification, onboarding timestamps, and enrollment clearance.' },

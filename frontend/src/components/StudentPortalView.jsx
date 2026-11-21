@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import RoleBasedDashboardView from './dashboards/RoleBasedDashboardView';
 import CertificateModal from './CertificateModal';
 import StudentTicketModal from './StudentTicketModal';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../routes';
 
 export default function StudentPortalView({
   courses = [],
@@ -17,7 +18,38 @@ export default function StudentPortalView({
   showToast
 }) {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
-  const [ticketModalConfig, setTicketModalConfig] = useState({ isOpen: false, initialTab: 'my_tickets' });
+  const [ticketModalConfig, setTicketModalConfig] = useState(() => {
+    try {
+      const isSupportOpen = getRouteParam('support') === 'open' || Boolean(getRouteParam('ticket')) || sessionStorage.getItem('aaroha_student_support_open') === 'true';
+      const initialTab = getRouteParam('support') === 'create' ? 'create' : 'my_tickets';
+      const initialTicketId = getRouteParam('ticket') || sessionStorage.getItem('aaroha_student_selected_ticket_id') || null;
+      return { isOpen: Boolean(isSupportOpen), initialTab, initialTicketId };
+    } catch (e) {
+      return { isOpen: false, initialTab: 'my_tickets', initialTicketId: null };
+    }
+  });
+
+  const handleOpenTicketModal = (tab = 'my_tickets', ticketId = null) => {
+    setTicketModalConfig({ isOpen: true, initialTab: tab || 'my_tickets', initialTicketId: ticketId || null });
+    try {
+      setRouteParam('support', tab === 'create' ? 'create' : 'open');
+      if (ticketId) {
+        setRouteParam('ticket', ticketId);
+        sessionStorage.setItem('aaroha_student_selected_ticket_id', String(ticketId));
+      }
+      sessionStorage.setItem('aaroha_student_support_open', 'true');
+    } catch (e) {}
+  };
+
+  const handleCloseTicketModal = () => {
+    setTicketModalConfig(prev => ({ ...prev, isOpen: false, initialTicketId: null }));
+    try {
+      removeRouteParam('support');
+      removeRouteParam('ticket');
+      sessionStorage.removeItem('aaroha_student_support_open');
+      sessionStorage.removeItem('aaroha_student_selected_ticket_id');
+    } catch (e) {}
+  };
 
   return (
     <div className="pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,7 +60,7 @@ export default function StudentPortalView({
         onContinueLearning={onOpenCourse}
         onOpenClassroom={onOpenCourse}
         onOpenProfile={onOpenProfile}
-        onOpenTicketModal={(tab) => setTicketModalConfig({ isOpen: true, initialTab: tab || 'my_tickets' })}
+        onOpenTicketModal={handleOpenTicketModal}
         onExploreCatalog={onExploreCatalog}
         onViewWebsite={onViewWebsite || onExploreCatalog}
       />
@@ -36,9 +68,10 @@ export default function StudentPortalView({
       {/* Support & Academic Ticket Modal */}
       <StudentTicketModal
         isOpen={ticketModalConfig.isOpen}
-        onClose={() => setTicketModalConfig(prev => ({ ...prev, isOpen: false }))}
+        onClose={handleCloseTicketModal}
         currentUser={currentUser}
         initialTab={ticketModalConfig.initialTab}
+        initialTicketId={ticketModalConfig.initialTicketId}
         onSuccess={(msg) => {
           if (showToast) showToast(msg);
         }}

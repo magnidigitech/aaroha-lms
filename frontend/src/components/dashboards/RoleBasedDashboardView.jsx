@@ -4,6 +4,7 @@ import StudentDashboardView from './StudentDashboardView';
 import { api } from '../../apiService';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import ErrorBoundary from '../ErrorBoundary';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../../routes';
 
 // Lazy-load heavier administrative dashboards to optimize initial bundle size
 const FacultyDashboardView = React.lazy(() => import('./FacultyDashboardView'));
@@ -35,7 +36,21 @@ export default function RoleBasedDashboardView({
   });
 
   const [dashboardData, setDashboardData] = useState({});
-  const [studentTab, setStudentTab] = useState('all');
+  const [studentTab, setStudentTab] = useState(() => {
+    return getRouteParam('tab') || sessionStorage.getItem('aaroha_student_tab') || 'all';
+  });
+
+  const handleStudentTabChange = (newTab) => {
+    setStudentTab(newTab);
+    try {
+      if (newTab === 'all') {
+        removeRouteParam('tab');
+      } else {
+        setRouteParam('tab', newTab);
+      }
+      sessionStorage.setItem('aaroha_student_tab', newTab);
+    } catch (e) {}
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -107,9 +122,10 @@ export default function RoleBasedDashboardView({
         onOpenProfile={onOpenProfile}
         onViewWebsite={onViewWebsite || onExploreCatalog}
         isRefreshing={isRefreshing}
-        onNavigateTab={setStudentTab}
+        onNavigateTab={handleStudentTabChange}
         enrolledCoursesCount={dashboardData.my_courses?.length || 0}
         nextClass={dashboardData.today_and_upcoming?.next_live_class || null}
+        onOpenTicketModal={onOpenTicketModal}
       />
 
       {/* Loading State */}
@@ -154,7 +170,7 @@ export default function RoleBasedDashboardView({
                   onOpenTicketModal={onOpenTicketModal}
                   onExploreCatalog={onExploreCatalog}
                   activeTab={studentTab}
-                  onTabChange={setStudentTab}
+                  onTabChange={handleStudentTabChange}
                 />
               )}
 

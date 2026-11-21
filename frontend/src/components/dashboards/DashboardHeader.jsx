@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   User, Shield, GraduationCap, Briefcase, Layers, 
   RefreshCw, Settings, ChevronDown, Check, Clock, Globe, Bell,
-  BookOpen, Video
+  BookOpen, Video, HelpCircle
 } from 'lucide-react';
 
 export const ROLE_LABELS = {
@@ -38,7 +38,8 @@ export default function DashboardHeader({
   notificationCount = 0,
   onNavigateTab,
   enrolledCoursesCount = 0,
-  nextClass = null
+  nextClass = null,
+  onOpenTicketModal = null
 }) {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
@@ -145,6 +146,17 @@ export default function DashboardHeader({
             <span className="truncate max-w-[150px] font-semibold text-purple-800 dark:text-purple-300">
               {hasRealLink ? (nextClass.topic || 'Upcoming Session') : 'Schedule'}
             </span>
+          </button>
+
+          {/* Dedicated Support & Helpdesk Shortcut */}
+          <button
+            type="button"
+            onClick={() => onOpenTicketModal ? onOpenTicketModal('my_tickets') : (onNavigateTab && onNavigateTab('support'))}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-[#0A7CB3] dark:hover:text-sky-300 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer group"
+            title="Academic Support & Helpdesk Tickets"
+          >
+            <HelpCircle size={14} className="text-[#0A7CB3] dark:text-sky-400" />
+            <span>Support & Helpdesk</span>
           </button>
           
           {/* Multi-Role Switcher (Visible when user has multiple authorised roles) */}

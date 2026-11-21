@@ -10,7 +10,7 @@ import BunnyStreamPlayer from './BunnyStreamPlayer';
 import { api } from '../apiService';
 import MediaSourceInput from './common/MediaSourceInput';
 import { formatDate } from '../adminUtils';
-import { isFacultyRole } from '../routes';
+import { isFacultyRole, getRouteParam, setRouteParam, removeRouteParam } from '../routes';
 import ThemeToggle from './ThemeToggle';
 
 /**
@@ -81,8 +81,9 @@ export default function CourseClassroomView({
   // Pick initial lesson: first incomplete if enrolled, or first free preview
   const [activeLesson, setActiveLesson] = useState(() => {
     if (allLessons.length === 0) return null;
-    if (initialLessonId) {
-      const match = allLessons.find(l => l.id === initialLessonId);
+    const targetId = getRouteParam('lesson') || sessionStorage.getItem('aaroha_active_lesson_id') || initialLessonId;
+    if (targetId) {
+      const match = allLessons.find(l => String(l.id) === String(targetId));
       if (match) return match;
     }
     if (hasAccess) {
@@ -96,6 +97,15 @@ export default function CourseClassroomView({
     const firstPreview = allLessons.find(l => l.is_free_preview);
     return firstPreview || allLessons[0] || null;
   });
+
+  useEffect(() => {
+    if (activeLesson?.id) {
+      try {
+        setRouteParam('lesson', activeLesson.id);
+        sessionStorage.setItem('aaroha_active_lesson_id', String(activeLesson.id));
+      } catch (e) {}
+    }
+  }, [activeLesson?.id]);
 
   // Track expanded state of module accordion
   const [expandedModules, setExpandedModules] = useState(() => {
@@ -306,8 +316,8 @@ export default function CourseClassroomView({
       setTimeout(() => {
         if (onCourseComplete) {
           onCourseComplete(course);
-        } else if (onBack) {
-          onBack();
+        } else {
+          handleBack();
         }
       }, 800);
       return;
@@ -343,6 +353,14 @@ export default function CourseClassroomView({
     setTimeout(() => setSubmitSuccess(false), 4000);
   };
 
+  const handleBack = () => {
+    try {
+      removeRouteParam('lesson');
+      sessionStorage.removeItem('aaroha_active_lesson_id');
+    } catch (e) {}
+    if (onBack) onBack();
+  };
+
   const currentMedia = activeLesson?.media_url || activeLesson?.video_url || activeLesson?.bunny_video_id || '';
 
   if (!course) {
@@ -351,7 +369,7 @@ export default function CourseClassroomView({
         <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
         <p className="text-xs text-slate-500 dark:text-slate-300">Retrieving curriculum specifications...</p>
         <button
-          onClick={onBack}
+          onClick={handleBack}
           className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-[#132A4A] dark:hover:bg-[#1A3860] border border-slate-300 dark:border-[#23456F] text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -367,7 +385,7 @@ export default function CourseClassroomView({
       <header className="bg-white dark:bg-[#0B192C] border-b border-slate-200 dark:border-[#1b3d63] px-4 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-40 shadow-xs dark:shadow-lg transition-colors duration-200">
         {/* Left: Back to Dashboard Button */}
         <button
-          onClick={onBack}
+          onClick={handleBack}
           className="bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border-slate-200 dark:bg-[#132A4A] dark:hover:bg-[#1A3860] dark:text-slate-200 dark:hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border dark:border-[#23456F] flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-97"
         >
           <ArrowLeft className="w-4 h-4 text-slate-500 dark:text-slate-300" />
@@ -376,7 +394,7 @@ export default function CourseClassroomView({
 
         {/* Center: Official Aaroha Logo on Clean White Badge */}
         <div 
-          onClick={onBack}
+          onClick={handleBack}
           className="cursor-pointer select-none group"
           title="Return to Catalog"
         >
@@ -471,7 +489,7 @@ export default function CourseClassroomView({
             {/* Breadcrumb Navigation: Course Name > Lesson Title */}
             <div className="flex items-center gap-2 text-xs font-medium flex-wrap">
               <span 
-                onClick={onBack}
+                onClick={handleBack}
                 className="text-[#0A7CB3] dark:text-emerald-400 font-bold hover:underline cursor-pointer transition-colors"
               >
                 {course.title}
@@ -494,7 +512,7 @@ export default function CourseClassroomView({
                     Curriculum lectures and modules are being retrieved for this program.
                   </p>
                   <button
-                    onClick={onBack}
+                    onClick={handleBack}
                     className="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-[#132A4A] dark:hover:bg-[#1A3860] border border-slate-300 dark:border-[#23456F] text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
@@ -640,7 +658,7 @@ export default function CourseClassroomView({
                   </div>
                   {isAccessExpired ? (
                     <button
-                      onClick={onBack}
+                      onClick={handleBack}
                       className="bg-[#132A4A] hover:bg-[#1A3860] border border-[#23456F] text-slate-200 text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-97 cursor-pointer"
                     >
                       <ArrowLeft className="w-4 h-4" />
@@ -696,7 +714,7 @@ export default function CourseClassroomView({
 
                 {completedCount >= totalLessonsCount && totalLessonsCount > 0 && (
                   <button
-                    onClick={() => (onCourseComplete ? onCourseComplete(course) : onBack())}
+                    onClick={() => (onCourseComplete ? onCourseComplete(course) : handleBack())}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                     title="All modules completed. Return to student dashboard."
                   >

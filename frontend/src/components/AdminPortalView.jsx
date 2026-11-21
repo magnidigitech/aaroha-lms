@@ -32,6 +32,7 @@ import AdminFollowupsTab from './admin/AdminFollowupsTab';
 import api from '../apiService';
 import { canAccessModule } from '../adminUtils';
 import ThemeToggle from './ThemeToggle';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../routes';
 
 const BREADCRUMB_MAP = {
   dashboard: { group: 'Overview', label: 'Dashboard' },
@@ -48,6 +49,7 @@ const BREADCRUMB_MAP = {
   certificates: { group: 'Outcomes', label: 'Certificates' },
   placement: { group: 'Outcomes', label: 'Placement' },
   reports: { group: 'Outcomes', label: 'Reports' },
+  leaderboard: { group: 'Outcomes', label: 'Academic Leaderboard' },
   users: { group: 'Administration', label: 'Users & Permissions' },
   settings: { group: 'Administration', label: 'Settings' },
   audit: { group: 'Administration', label: 'Audit Log' },
@@ -78,15 +80,15 @@ export default function AdminPortalView({
   currentUser,
   enrolledStudents = [],
   onViewWebsite,
-  onLogout
+  onLogout,
+  onOpenLeaderboard
 }) {
   const userRole = (currentUser?.role || 'super_admin').toLowerCase();
 
   // Determine initial module based on permissions and optional URL parameters
   const [activeModule, setActiveModule] = useState(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab') || params.get('module');
+      const tabParam = getRouteParam('tab') || getRouteParam('module') || sessionStorage.getItem('aaroha_admin_module');
       if (tabParam && canAccessModule(userRole, tabParam)) return tabParam;
     } catch (e) {}
     if (canAccessModule(userRole, 'dashboard')) return 'dashboard';
@@ -95,6 +97,15 @@ export default function AdminPortalView({
     if (canAccessModule(userRole, 'courses')) return 'courses';
     return 'dashboard';
   });
+
+  useEffect(() => {
+    if (activeModule) {
+      try {
+        sessionStorage.setItem('aaroha_admin_module', activeModule);
+        setRouteParam('tab', activeModule);
+      } catch (e) {}
+    }
+  }, [activeModule]);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -503,11 +514,31 @@ export default function AdminPortalView({
       const res = await api.adminGetStudentDetail(userId);
       if (res?.success) {
         setSelectedStudentDetail(res);
+        try {
+          setRouteParam('student', userId);
+          sessionStorage.setItem('aaroha_selected_student_id', String(userId));
+        } catch (e) {}
       }
     } catch (err) {
       showToast('Could not load student profile', 'error');
     }
   };
+
+  const handleCloseStudentDetail = () => {
+    setSelectedStudentDetail(null);
+    try {
+      removeRouteParam('student');
+      sessionStorage.removeItem('aaroha_selected_student_id');
+    } catch (e) {}
+  };
+
+  // Restore selected student detail drawer across refresh
+  useEffect(() => {
+    const studentParam = getRouteParam('student') || sessionStorage.getItem('aaroha_selected_student_id');
+    if (studentParam && !selectedStudentDetail) {
+      handleViewStudentDetail(studentParam);
+    }
+  }, []);
 
   // Faculty Handlers
   const handleAddFaculty = async (facultyData) => {
@@ -885,6 +916,30 @@ export default function AdminPortalView({
       <AdminSidebar
         activeModule={activeModule}
         onSelectModule={(id) => {
+          if (id === 'leaderboard') {
+            if (onOpenLeaderboard) onOpenLeaderboard();
+            setIsMobileSidebarOpen(false);
+            return;
+          }
+          if (id !== 'students') {
+            removeRouteParam('student');
+            sessionStorage.removeItem('aaroha_selected_student_id');
+            setSelectedStudentDetail(null);
+          }
+          if (id !== 'support') {
+            removeRouteParam('ticket');
+            sessionStorage.removeItem('aaroha_admin_selected_ticket_id');
+          }
+          if (id !== 'faculty') {
+            removeRouteParam('faculty');
+            sessionStorage.removeItem('aaroha_admin_selected_faculty_id');
+          }
+          if (id !== 'batches') {
+            removeRouteParam('batch');
+            removeRouteParam('drawer');
+            sessionStorage.removeItem('aaroha_admin_selected_batch_id');
+            sessionStorage.removeItem('aaroha_admin_selected_batch_drawer');
+          }
           setActiveModule(id);
           setIsMobileSidebarOpen(false);
         }}
@@ -945,6 +1000,18 @@ export default function AdminPortalView({
             >
               <ArrowLeft size={14} className="text-[#0a7cb3] dark:text-sky-400" />
               <span className="hidden sm:inline">Back to Website</span>
+            </button>
+
+            {/* Academic Leaderboard Quick Trigger for Admin / Staff */}
+            <button
+              type="button"
+              onClick={onOpenLeaderboard}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-700/60 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Open Academic Leaderboard & Student Standings"
+              aria-label="Academic Leaderboard"
+            >
+              <Award size={14} className="text-amber-600 dark:text-amber-400" />
+              <span className="hidden sm:inline">Leaderboard</span>
             </button>
 
             {/* Small Round Theme Toggle in Admin Header */}
@@ -1197,7 +1264,7 @@ export default function AdminPortalView({
               onRevokeInvite={handleRevokeInvite}
               onViewStudentDetail={handleViewStudentDetail}
               selectedStudentDetail={selectedStudentDetail}
-              onCloseStudentDetail={() => setSelectedStudentDetail(null)}
+              onCloseStudentDetail={handleCloseStudentDetail}
             />
           )}
 

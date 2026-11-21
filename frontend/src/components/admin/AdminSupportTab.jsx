@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
   HelpCircle, MessageSquare, AlertCircle, CheckCircle2,
-  Clock, Star, Send, ShieldAlert, Search, X, UserCheck, RefreshCw
+  Clock, Star, Send, ShieldAlert, Search, X, UserCheck, RefreshCw,
+  Trash2, CheckCheck
 } from 'lucide-react';
 import { formatDateTime } from '../../adminUtils';
 import api from '../../apiService';
+import { getRouteParam, setRouteParam, removeRouteParam } from '../../routes';
 
 export default function AdminSupportTab({
   supportData = { tickets: [], feedback: [] },
   onRefreshSupport
 }) {
-  const [activeTab, setActiveTab] = useState('tickets'); // 'tickets' | 'feedback'
+  const [activeTab, setActiveTab] = useState(() => {
+    return getRouteParam('subtab') || 'tickets';
+  }); // 'tickets' | 'feedback'
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -20,6 +24,12 @@ export default function AdminSupportTab({
   const [isInternalNote, setIsInternalNote] = useState(false);
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+
+  useEffect(() => {
+    if (activeTab) {
+      setRouteParam('subtab', activeTab);
+    }
+  }, [activeTab]);
 
   const tickets = supportData.tickets || [];
   const feedback = supportData.feedback || [];
@@ -36,6 +46,10 @@ export default function AdminSupportTab({
 
   const handleOpenTicket = async (ticket) => {
     setSelectedTicket(ticket);
+    try {
+      setRouteParam('ticket', ticket.id);
+      sessionStorage.setItem('aaroha_admin_selected_ticket_id', String(ticket.id));
+    } catch (e) {}
     setReplyText('');
     setIsInternalNote(false);
     setIsLoadingThread(true);
@@ -53,6 +67,25 @@ export default function AdminSupportTab({
       setIsLoadingThread(false);
     }
   };
+
+  const handleCloseDrawer = () => {
+    setSelectedTicket(null);
+    try {
+      removeRouteParam('ticket');
+      sessionStorage.removeItem('aaroha_admin_selected_ticket_id');
+    } catch (e) {}
+  };
+
+  // Restore open ticket thread on refresh
+  useEffect(() => {
+    const savedTicketId = getRouteParam('ticket') || sessionStorage.getItem('aaroha_admin_selected_ticket_id');
+    if (savedTicketId && !selectedTicket && tickets.length > 0) {
+      const match = tickets.find(t => String(t.id) === String(savedTicketId) || t.ticket_number === savedTicketId);
+      if (match) {
+        handleOpenTicket(match);
+      }
+    }
+  }, [tickets]);
 
   const handleSendReply = async () => {
     if (!replyText.trim() || !selectedTicket) return;
@@ -86,6 +119,56 @@ export default function AdminSupportTab({
       if (onRefreshSupport) onRefreshSupport();
     } catch (err) {
       alert('Failed to update ticket status: ' + (err.message || 'Server error'));
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleCloseTicket = async (ticketId, ticketNum) => {
+    if (!ticketId) return;
+    if (!window.confirm(`Are you sure you want to close ticket ${ticketNum || ''}?`)) return;
+    setStatusUpdating(true);
+    try {
+      await api.adminCloseTicket(ticketId);
+      if (selectedTicket && selectedTicket.id === ticketId) {
+        setSelectedTicket(prev => prev ? ({ ...prev, status: 'closed' }) : null);
+      }
+      if (onRefreshSupport) onRefreshSupport();
+    } catch (err) {
+      alert('Failed to close ticket: ' + (err.message || 'Server error'));
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleDeleteTicket = async (ticketId, ticketNum) => {
+    if (!ticketId) return;
+    if (!window.confirm(`Are you sure you want to permanently delete ticket ${ticketNum || ''}? This cannot be undone.`)) return;
+    setStatusUpdating(true);
+    try {
+      await api.adminDeleteTicket(ticketId);
+      if (selectedTicket && selectedTicket.id === ticketId) {
+        handleCloseDrawer();
+      }
+      if (onRefreshSupport) onRefreshSupport();
+    } catch (err) {
+      alert('Failed to delete ticket: ' + (err.message || 'Server error'));
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleClearAllTickets = async (statusFilter = null) => {
+    const scopeDesc = statusFilter ? 'all resolved and closed tickets' : 'ALL support tickets';
+    if (!window.confirm(`Are you sure you want to permanently clear ${scopeDesc}? This action cannot be undone.`)) return;
+    setStatusUpdating(true);
+    try {
+      const res = await api.adminClearAllTickets(statusFilter ? { status: statusFilter } : {});
+      setSelectedTicket(null);
+      if (onRefreshSupport) onRefreshSupport();
+      alert(res?.message || 'Support tickets cleared successfully.');
+    } catch (err) {
+      alert('Failed to clear tickets: ' + (err.message || 'Server error'));
     } finally {
       setStatusUpdating(false);
     }
@@ -139,7 +222,7 @@ export default function AdminSupportTab({
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
@@ -151,6 +234,34 @@ export default function AdminSupportTab({
                 <option value="resolved">Resolved</option>
                 <option value="closed">Closed</option>
               </select>
+
+              {tickets.length > 0 && (
+                <>
+                  {tickets.some(t => t.status === 'closed' || t.status === 'resolved') && (
+                    <button
+                      type="button"
+                      onClick={() => handleClearAllTickets('closed')}
+                      disabled={statusUpdating}
+                      className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                      title="Clear all resolved and closed tickets"
+                    >
+                      <CheckCheck size={13} className="text-emerald-600" />
+                      <span>Clear Resolved</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleClearAllTickets(null)}
+                    disabled={statusUpdating}
+                    className="px-2.5 py-2 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+                    title="Clear all support tickets"
+                  >
+                    <Trash2 size={13} className="text-rose-600" />
+                    <span>Clear All Tickets</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -211,13 +322,35 @@ export default function AdminSupportTab({
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenTicket(t)}
-                          className="px-2.5 py-1 rounded bg-[#0a7cb3] hover:bg-[#086491] text-white text-xs font-semibold cursor-pointer"
-                        >
-                          Open Thread
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {t.status !== 'closed' && (
+                            <button
+                              type="button"
+                              onClick={() => handleCloseTicket(t.id, t.ticket_number)}
+                              disabled={statusUpdating}
+                              className="px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+                              title="Close ticket"
+                            >
+                              Close
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTicket(t.id, t.ticket_number)}
+                            disabled={statusUpdating}
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer transition-colors"
+                            title="Clear ticket"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTicket(t)}
+                            className="px-2.5 py-1 rounded bg-[#0a7cb3] hover:bg-[#086491] text-white text-xs font-semibold cursor-pointer transition-colors"
+                          >
+                            Open Thread
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -280,25 +413,50 @@ export default function AdminSupportTab({
                 <span className="font-mono text-[#0A7CB3] font-bold text-xs">{selectedTicket.ticket_number}</span>
                 <h2 className="text-base font-bold text-slate-900">{selectedTicket.subject}</h2>
               </div>
-              <button onClick={() => setSelectedTicket(null)} className="text-slate-500 hover:text-slate-900 cursor-pointer">
+              <button onClick={handleCloseDrawer} className="text-slate-500 hover:text-slate-900 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Status Transition Control in Drawer Header */}
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
-              <span className="text-slate-600 font-medium">Ticket Lifecycle Status:</span>
-              <select
+            {/* Status Transition & Action Controls in Drawer Header */}
+            <div className="flex flex-wrap items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-600 font-medium">Status:</span>
+                <select
+                  disabled={statusUpdating}
+                  value={selectedTicket.status}
+                  onChange={e => handleStatusChange(e.target.value)}
+                  className="px-2.5 py-1 rounded bg-white border border-slate-200 text-slate-800 text-xs font-semibold focus:border-blue-500 cursor-pointer"
+                >
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+
+                {selectedTicket.status !== 'closed' && (
+                  <button
+                    type="button"
+                    onClick={() => handleCloseTicket(selectedTicket.id, selectedTicket.ticket_number)}
+                    disabled={statusUpdating}
+                    className="px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={12} className="text-emerald-600" />
+                    <span>Close Ticket</span>
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleDeleteTicket(selectedTicket.id, selectedTicket.ticket_number)}
                 disabled={statusUpdating}
-                value={selectedTicket.status}
-                onChange={e => handleStatusChange(e.target.value)}
-                className="px-2.5 py-1 rounded bg-white border border-slate-200 text-slate-800 text-xs font-semibold focus:border-blue-500 cursor-pointer"
+                className="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                title="Permanently clear this ticket"
               >
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
+                <Trash2 size={12} className="text-rose-600" />
+                <span>Clear Ticket</span>
+              </button>
             </div>
 
             {/* Messages Thread Container */}

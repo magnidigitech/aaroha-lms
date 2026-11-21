@@ -176,27 +176,27 @@ export const ROLE_MODULE_PERMISSIONS = {
   super_admin: [
     'dashboard', 'students', 'faculty', 'courses', 'batches', 'schedule',
     'attendance', 'materials', 'assessments', 'announcements',
-    'reports', 'certificates', 'placement', 'support', 'users', 'settings', 'audit', 'followups'
+    'reports', 'certificates', 'placement', 'support', 'users', 'settings', 'audit', 'followups', 'leaderboard'
   ],
   admin: [
     'dashboard', 'students', 'faculty', 'courses', 'batches', 'schedule',
     'attendance', 'materials', 'assessments', 'announcements',
-    'reports', 'certificates', 'placement', 'support', 'users', 'settings', 'audit', 'followups'
+    'reports', 'certificates', 'placement', 'support', 'users', 'settings', 'audit', 'followups', 'leaderboard'
   ],
   coordinator: [
     'dashboard', 'students', 'faculty', 'courses', 'batches', 'schedule',
     'attendance', 'materials', 'assessments', 'announcements', 'reports',
-    'certificates', 'support', 'followups'
+    'certificates', 'support', 'followups', 'leaderboard'
   ],
   placement_officer: [
-    'dashboard', 'students', 'placement', 'reports'
+    'dashboard', 'students', 'placement', 'reports', 'leaderboard'
   ],
   faculty: [
     'dashboard', 'batches', 'schedule', 'attendance', 'materials',
-    'assessments', 'support'
+    'assessments', 'support', 'leaderboard'
   ],
   student: [
-    'dashboard'
+    'dashboard', 'leaderboard'
   ]
 };
 

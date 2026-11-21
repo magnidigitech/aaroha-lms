@@ -105,16 +105,117 @@ export function updateViewUrl(view, replace = false) {
       params.set(VIEW_PARAM_KEY, view);
     }
 
+    // When navigating away from admin, prune admin-specific subparams
+    if (currentView === ROUTES.ADMIN && view !== ROUTES.ADMIN) {
+      params.delete('tab');
+      params.delete('module');
+      params.delete('student');
+      params.delete('faculty');
+      params.delete('batch');
+      params.delete('ticket');
+      params.delete('drawer');
+      params.delete('subtab');
+    }
+
+    // When navigating away from classroom / brochure, prune lesson param
+    if ((currentView === ROUTES.CLASSROOM || currentView === ROUTES.BROCHURE) && 
+        view !== ROUTES.CLASSROOM && view !== ROUTES.BROCHURE) {
+      params.delete('lesson');
+      params.delete('course');
+    }
+
     const newQuery = params.toString();
     const newPath = window.location.pathname + (newQuery ? ('?' + newQuery) : '') + window.location.hash;
 
     if (replace || currentView === view) {
-      window.history.replaceState({ view }, document.title, newPath);
+      window.history.replaceState({ ...(window.history.state || {}), view }, document.title, newPath);
     } else {
-      window.history.pushState({ view }, document.title, newPath);
+      window.history.pushState({ ...(window.history.state || {}), view }, document.title, newPath);
     }
   } catch (e) {
     console.warn('URL update skipped:', e);
   }
 }
+
+/**
+ * Reads a single query parameter from current URL.
+ * @param {string} key
+ * @param {string|null} defaultValue
+ * @returns {string|null}
+ */
+export function getRouteParam(key, defaultValue = null) {
+  try {
+    if (typeof window === 'undefined') return defaultValue;
+    const params = new URLSearchParams(window.location.search);
+    const val = params.get(key);
+    return val !== null ? val : defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
+}
+
+/**
+ * Sets or updates a single query parameter in browser URL without reloading.
+ * @param {string} key
+ * @param {string|number|null} value
+ * @param {boolean} replace
+ */
+export function setRouteParam(key, value, replace = true) {
+  try {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (value === null || value === undefined || value === '') {
+      params.delete(key);
+    } else {
+      params.set(key, String(value));
+    }
+    const newQuery = params.toString();
+    const newPath = window.location.pathname + (newQuery ? ('?' + newQuery) : '') + window.location.hash;
+    if (replace) {
+      window.history.replaceState(window.history.state, document.title, newPath);
+    } else {
+      window.history.pushState(window.history.state, document.title, newPath);
+    }
+  } catch (e) {
+    console.warn('setRouteParam error:', e);
+  }
+}
+
+/**
+ * Removes a single query parameter from the URL.
+ * @param {string} key
+ * @param {boolean} replace
+ */
+export function removeRouteParam(key, replace = true) {
+  setRouteParam(key, null, replace);
+}
+
+/**
+ * Atomically sets or removes multiple query parameters in a single history call.
+ * @param {Record<string, string|number|null|undefined>} paramsObj
+ * @param {boolean} replace
+ */
+export function setRouteParams(paramsObj = {}, replace = true) {
+  try {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    Object.entries(paramsObj).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') {
+        params.delete(k);
+      } else {
+        params.set(k, String(v));
+      }
+    });
+    const newQuery = params.toString();
+    const newPath = window.location.pathname + (newQuery ? ('?' + newQuery) : '') + window.location.hash;
+    if (replace) {
+      window.history.replaceState(window.history.state, document.title, newPath);
+    } else {
+      window.history.pushState(window.history.state, document.title, newPath);
+    }
+  } catch (e) {
+    console.warn('setRouteParams error:', e);
+  }
+}
+
 

@@ -20,6 +20,7 @@ export default function LeaderboardDrawer({
   const [editingRanking, setEditingRanking] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   // Form states for faculty edit
   const [editForm, setEditForm] = useState({
@@ -48,11 +49,52 @@ export default function LeaderboardDrawer({
     tasks_completed: 1
   });
 
-  const isFaculty = currentUser && (
-    currentUser.role === 'admin' || 
-    currentUser.role === 'faculty' || 
-    currentUser.role === 'instructor'
-  );
+  const isStaff = Boolean(currentUser && (
+    ['super_admin', 'admin', 'coordinator', 'faculty', 'instructor', 'placement_officer'].includes(
+      (currentUser.role || '').toLowerCase()
+    )
+  ));
+  const isFaculty = isStaff;
+
+  // Recalculate & Sync rankings from real submissions, progress, and attendance
+  const handleRecalculate = async () => {
+    if (!isStaff) return;
+    setIsRecalculating(true);
+    try {
+      const res = await api.recalculateLeaderboard(selectedCourseId ? parseInt(selectedCourseId) : null);
+      if (res && res.success) {
+        if (showToast) showToast(res.message || 'Academic leaderboard standings recalculated successfully');
+        await fetchLeaderboard();
+      } else {
+        alert(res?.error || 'Failed to recalculate leaderboard standings');
+      }
+    } catch (err) {
+      alert(err.message || 'Error recalculating leaderboard');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  // Delete student ranking from leaderboard
+  const handleDeleteRanking = async (rankingId, studentName) => {
+    if (!isStaff) return;
+    if (!window.confirm(`Are you sure you want to remove ${studentName || 'this student'} from the academic leaderboard?`)) return;
+    setIsSaving(true);
+    try {
+      const res = await api.deleteLeaderboardRanking(rankingId);
+      if (res && res.success) {
+        if (showToast) showToast(`Removed ${studentName || 'student'} from leaderboard`);
+        setEditingRanking(null);
+        await fetchLeaderboard();
+      } else {
+        alert(res?.error || 'Failed to delete student ranking');
+      }
+    } catch (err) {
+      alert(err.message || 'Error removing student ranking');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Load leaderboard from API
   const fetchLeaderboard = async () => {
@@ -213,10 +255,10 @@ export default function LeaderboardDrawer({
                   <h2 className="text-base sm:text-lg font-black tracking-tight text-white truncate">
                     Academic Leaderboard
                   </h2>
-                  {isFaculty ? (
+                  {isStaff ? (
                     <span className="inline-flex items-center gap-1 bg-blue-900/60 text-blue-300 border border-blue-500/40 px-2 py-0.5 rounded-full text-[10px] font-bold">
                       <Shield className="w-3 h-3 text-blue-400" />
-                      <span>Faculty Mode (Editable)</span>
+                      <span>Staff Authority (Full Management)</span>
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 bg-emerald-950/80 text-emerald-300 border border-emerald-600/50 px-2 py-0.5 rounded-full text-[10px] font-bold">
@@ -280,16 +322,28 @@ export default function LeaderboardDrawer({
               </div>
             </div>
 
-            {/* Faculty Action: Add Student */}
-            {isFaculty && (
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(true)}
-                className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Student to Board</span>
-              </button>
+            {/* Staff Action: Recalculate & Add Student */}
+            {isStaff && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRecalculate}
+                  disabled={isRecalculating}
+                  className="bg-[#10233d] hover:bg-[#1b3d63] text-sky-300 border border-sky-500/40 text-xs font-bold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
+                  title="Recalculate student rankings based on verified submissions, module completions, and attendance"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRecalculating ? 'animate-spin text-sky-400' : 'text-sky-400'}`} />
+                  <span>{isRecalculating ? 'Recalculating...' : 'Recalculate Standings'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="bg-[#0A7CB3] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Student to Board</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -641,22 +695,34 @@ export default function LeaderboardDrawer({
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1b3d63]">
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#1b3d63]">
                 <button
                   type="button"
-                  onClick={() => setEditingRanking(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
+                  onClick={() => handleDeleteRanking(editingRanking.id, editingRanking.student_name)}
                   disabled={isSaving}
-                  className="bg-[#0A7CB3] hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-400 hover:text-white hover:bg-rose-900/50 border border-rose-500/30 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Remove this student record from leaderboard"
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>{isSaving ? 'Saving...' : 'Save Ranking Changes'}</span>
+                  <X className="w-3.5 h-3.5" />
+                  <span>Remove from Board</span>
                 </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingRanking(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="bg-[#0A7CB3] hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSaving ? 'Saving...' : 'Save Ranking Changes'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
