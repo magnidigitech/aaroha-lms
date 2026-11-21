@@ -103,11 +103,17 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('courses')}
           aria-label={`Enrolled Courses: ${summary.active_courses ?? 0}. Click to filter active learning programs`}
-          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-[#0A7CB3] dark:hover:border-[#0A7CB3] hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2"
+          className={`w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border p-4.5 shadow-2xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2 ${
+            activeTab === 'courses'
+              ? 'border-[#0A7CB3] dark:border-[#0A7CB3] ring-2 ring-[#0A7CB3]/40 bg-blue-50/30 dark:bg-blue-950/30 shadow-xs'
+              : 'border-slate-200/90 dark:border-slate-800 hover:border-[#0A7CB3] dark:hover:border-[#0A7CB3] hover:shadow-xs'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Enrolled Courses</span>
-            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] dark:text-[#38bdf8] group-hover:scale-110 transition-transform">
+            <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${
+              activeTab === 'courses' ? 'bg-[#0A7CB3] text-white' : 'bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] dark:text-[#38bdf8]'
+            }`}>
               <BookOpen size={16} />
             </div>
           </div>
@@ -123,11 +129,17 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('performance')}
           aria-label={`Curriculum Completion: ${summary.course_completion_pct ?? 0} percent. Click to view performance details`}
-          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          className={`w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border p-4.5 shadow-2xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+            activeTab === 'performance'
+              ? 'border-emerald-500 dark:border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-xs'
+              : 'border-slate-200/90 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-xs'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Completion</span>
-            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+            <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${
+              activeTab === 'performance' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+            }`}>
               <CheckCircle2 size={16} />
             </div>
           </div>
@@ -147,11 +159,17 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('performance')}
           aria-label={`Attendance: ${summary.attendance_pct ?? 0} percent. Click to view attendance details`}
-          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-indigo-500 dark:hover:border-indigo-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className={`w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border p-4.5 shadow-2xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+            activeTab === 'performance'
+              ? 'border-indigo-500 dark:border-indigo-500 ring-2 ring-indigo-500/40 bg-indigo-50/20 dark:bg-indigo-950/20 shadow-xs'
+              : 'border-slate-200/90 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 hover:shadow-xs'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Attendance</span>
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+            <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${
+              activeTab === 'performance' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
+            }`}>
               <UserCheck size={16} />
             </div>
           </div>
@@ -171,11 +189,17 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('performance')}
           aria-label={`Assignments Due: ${summary.assignments_awaiting_submission ?? 0}. Click to view pending tasks`}
-          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-amber-500 dark:hover:border-amber-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+          className={`w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border p-4.5 shadow-2xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
+            activeTab === 'performance'
+              ? 'border-amber-500 dark:border-amber-500 ring-2 ring-amber-500/40 bg-amber-50/20 dark:bg-amber-950/20 shadow-xs'
+              : 'border-slate-200/90 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 hover:shadow-xs'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Assignments Due</span>
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+            <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${
+              activeTab === 'performance' ? 'bg-amber-600 text-white' : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+            }`}>
               <Clock size={16} />
             </div>
           </div>
@@ -191,11 +215,17 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('schedule')}
           aria-label={`Upcoming Quizzes: ${summary.upcoming_quizzes ?? summary.upcoming_assessments ?? 0}. Click to view schedule`}
-          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-purple-500 dark:hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          className={`w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border p-4.5 shadow-2xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+            activeTab === 'schedule'
+              ? 'border-purple-500 dark:border-purple-500 ring-2 ring-purple-500/40 bg-purple-50/20 dark:bg-purple-950/20 shadow-xs'
+              : 'border-slate-200/90 dark:border-slate-800 hover:border-purple-500 dark:hover:border-purple-500 hover:shadow-xs'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Upcoming Quizzes</span>
-            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+            <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${
+              activeTab === 'schedule' ? 'bg-purple-600 text-white' : 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400'
+            }`}>
               <Award size={16} />
             </div>
           </div>
@@ -211,11 +241,17 @@ export default function StudentDashboardView({
           type="button"
           onClick={() => setActiveTab('certificates')}
           aria-label={`Certificates: ${summary.earned_certificates ?? certificates.length ?? 0}. Click to view issued credentials`}
-          className="w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-2xs hover:border-purple-500 dark:hover:border-purple-500 hover:shadow-xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          className={`w-full text-left bg-white dark:bg-[#0c1527] rounded-2xl border p-4.5 shadow-2xs transition-all cursor-pointer group focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+            activeTab === 'certificates'
+              ? 'border-purple-500 dark:border-purple-500 ring-2 ring-purple-500/40 bg-purple-50/20 dark:bg-purple-950/20 shadow-xs'
+              : 'border-slate-200/90 dark:border-slate-800 hover:border-purple-500 dark:hover:border-purple-500 hover:shadow-xs'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Certificates</span>
-            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+            <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${
+              activeTab === 'certificates' ? 'bg-purple-600 text-white' : 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400'
+            }`}>
               <Award size={16} />
             </div>
           </div>
@@ -232,52 +268,62 @@ export default function StudentDashboardView({
 
       {/* Student Quick Action Bar */}
       <div className="bg-slate-50 dark:bg-[#0c1527] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
-          <span>Quick Launch:</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Quick Launch:</span>
+          {activeTab && (
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hidden sm:inline-block">
+              (Viewing: <span className="text-[#0A7CB3] dark:text-[#38bdf8] font-bold capitalize">{activeTab === 'all' ? 'All Overview' : activeTab}</span>)
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Quick tab switcher pills that dynamically reflect active state */}
+          {[
+            { id: 'all', label: 'Dashboard Overview', icon: BookOpen },
+            { id: 'courses', label: 'My Courses (' + myCourses.length + ')', icon: BookOpen },
+            { id: 'schedule', label: 'View Schedule', icon: Calendar },
+            { id: 'performance', label: 'Submit Assignment', icon: FileText },
+            { id: 'certificates', label: 'View Certificates (' + certificates.length + ')', icon: Award },
+            { id: 'placement', label: 'Placement Readiness', icon: Briefcase },
+            { id: 'support', label: 'Support & Helpdesk' + (studentTickets.length > 0 ? ` (${studentTickets.length})` : ''), icon: HelpCircle }
+          ].map(action => {
+            const Icon = action.icon;
+            const isTabActive = activeTab === action.id;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(action.id);
+                  if (action.id === 'support') {
+                    const el = document.getElementById('support-helpdesk-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer ${
+                  isTabActive
+                    ? 'bg-[#0A7CB3] text-white font-bold shadow-xs border border-[#0A7CB3] ring-2 ring-[#0A7CB3]/30'
+                    : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold shadow-2xs'
+                }`}
+              >
+                <Icon size={13} className={isTabActive ? 'text-white' : 'text-[#0A7CB3]'} />
+                <span>{action.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Direct Classroom Action: Continue Learning / Resume Course */}
           {hasAccessibleCourse && (
             <button
+              type="button"
               onClick={() => onOpenCourse && onOpenCourse(firstAccessibleCourse.course_id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer ml-auto"
+              title="Jump directly into your active course classroom"
             >
-              <Play size={13} />
-              Continue Learning
+              <Play size={13} fill="currentColor" />
+              <span>Continue Learning</span>
             </button>
           )}
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-          >
-            <Calendar size={13} />
-            View Schedule
-          </button>
-          <button
-            onClick={() => setActiveTab('performance')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-          >
-            <FileText size={13} />
-            Submit Assignment
-          </button>
-          <button
-            onClick={() => setActiveTab('certificates')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-          >
-            <Award size={13} />
-            View Certificates
-          </button>
-          <button
-            onClick={() => onOpenTicketModal && onOpenTicketModal('my_tickets')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-          >
-            <HelpCircle size={13} className="text-[#0A7CB3]" />
-            <span>Support & Helpdesk</span>
-            {studentTickets.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#0A7CB3] text-white">
-                {studentTickets.length}
-              </span>
-            )}
-          </button>
         </div>
       </div>
 
@@ -333,19 +379,23 @@ export default function StudentDashboardView({
           { id: 'placement', label: 'Placement Readiness' },
           { id: 'support', label: 'Support & Helpdesk' + (studentTickets.length > 0 ? ` (${studentTickets.length})` : '') },
           { id: 'expired', label: 'Expired Courses (' + expiredCourses.length + ')' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={'px-3.5 py-2.5 rounded-t-xl transition-all whitespace-nowrap cursor-pointer ' + 
-              (activeTab === tab.id 
-                ? 'text-[#0A7CB3] dark:text-[#38bdf8] border-b-2 border-[#0A7CB3] dark:border-[#38bdf8] bg-blue-50/40 dark:bg-blue-950/40 font-bold' 
-                : 'hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/40')}
-          >
-            {tab.label}
-          </button>
-        ))}
+        ].map(tab => {
+          const isTabActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={'flex items-center gap-1.5 px-3.5 py-2.5 rounded-t-xl transition-all whitespace-nowrap cursor-pointer ' + 
+                (isTabActive 
+                  ? 'text-[#0A7CB3] dark:text-[#38bdf8] border-b-2 border-[#0A7CB3] dark:border-[#38bdf8] bg-blue-50/80 dark:bg-blue-950/60 font-black shadow-2xs' 
+                  : 'hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/40')}
+            >
+              {isTabActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0A7CB3] dark:bg-[#38bdf8]" />}
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* SECTION 1: MY COURSES */}
