@@ -14,6 +14,7 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 
 export default function AdminCoursesTab({
   courses = [],
+  faculty = [],
   onAddCourse,
   onUpdateCourse,
   onDeleteCourse,
@@ -847,6 +848,8 @@ export default function AdminCoursesTab({
         isOpen={courseModal.isOpen}
         initialData={courseModal.initialData}
         initialTab={courseModal.initialTab}
+        faculty={faculty}
+        currentUser={currentUser}
         onClose={() => setCourseModal({ isOpen: false, initialData: null, initialTab: 'syllabus' })}
         onSave={async (formData) => {
           if (courseModal.initialData) {

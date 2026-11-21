@@ -1288,6 +1288,7 @@ export default function AdminPortalView({
           {activeModule === 'courses' && (
             <AdminCoursesTab
               courses={courses}
+              faculty={faculty}
               onAddCourse={onAddCourse}
               onUpdateCourse={onUpdateCourse}
               onDeleteCourse={onDeleteCourse}

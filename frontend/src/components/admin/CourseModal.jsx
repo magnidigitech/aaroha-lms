@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   X, BookOpen, AlertCircle, Loader2, Award, FileText, 
   GraduationCap, Check, User, Image as ImageIcon, Sparkles, 
   CheckCircle2, Upload, Trash2, Globe, Camera, Clock,
-  Tag, Palette
+  Tag, Palette, AlertTriangle
 } from 'lucide-react';
 import MediaSourceInput from '../common/MediaSourceInput';
 import CourseCardBadge, { BADGE_COLOR_PRESETS } from '../CourseCardBadge';
 import { AVATAR_PRESETS } from '../../avatarPresets';
+import api from '../../apiService';
 
 const PRESET_DOMAINS = [
   'Cloud Architecture',
@@ -40,10 +41,24 @@ export default function CourseModal({
   initialData = null, // null for create mode, or existing course object for edit mode
   initialTab = 'syllabus',
   availableCategories = PRESET_DOMAINS,
-  currentUser = null
+  currentUser = null,
+  faculty = []
 }) {
   const isEditMode = Boolean(initialData?.id);
   const [activeTab, setActiveTab] = useState(initialTab || 'syllabus');
+  const [facultyList, setFacultyList] = useState(Array.isArray(faculty) ? faculty : []);
+
+  useEffect(() => {
+    if (Array.isArray(faculty) && faculty.length > 0) {
+      setFacultyList(faculty);
+    } else if (isOpen) {
+      api.adminGetFaculty().then(res => {
+        if (res && res.success && Array.isArray(res.faculty)) {
+          setFacultyList(res.faculty);
+        }
+      }).catch(() => {});
+    }
+  }, [faculty, isOpen]);
 
   // Sub-tabs for image uploads
   const [avatarUploadTab, setAvatarUploadTab] = useState('upload'); // 'upload' | 'presets' | 'url'
@@ -91,6 +106,18 @@ export default function CourseModal({
   const [isDirty, setIsDirty] = useState(false);
   const titleInputRef = useRef(null);
   const triggerElementRef = useRef(null);
+
+  // Dynamic verification of assigned faculty against institutional directory
+  const verifiedFacultyMatch = useMemo(() => {
+    const rawName = (formData.instructor_name || '').trim().toLowerCase();
+    if (!rawName) return null;
+    return facultyList.find(f => {
+      const name = (f.full_name || f.name || '').trim().toLowerCase();
+      const email = (f.email || '').trim().toLowerCase();
+      const code = (f.faculty_id_code || f.faculty_code || '').trim().toLowerCase();
+      return name === rawName || email === rawName || (code && code === rawName);
+    }) || null;
+  }, [formData.instructor_name, facultyList]);
 
   // Client-side image processor using HTML5 canvas
   const processImageFile = (file, isSquare = true) => {
@@ -846,6 +873,117 @@ export default function CourseModal({
           {/* TAB 4: FACULTY & INSTRUCTORS */}
           {activeTab === 'faculty' && (
             <div className="space-y-4 animate-in fade-in duration-150">
+              {/* Faculty Directory Selector & Verification Section */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="course-faculty-select" className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-[#0A7CB3]" />
+                    Assign Verified Institutional Faculty
+                  </label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await api.adminGetFaculty();
+                        if (res && res.success && Array.isArray(res.faculty)) {
+                          setFacultyList(res.faculty);
+                        }
+                      } catch (_) {}
+                    }}
+                    className="text-[11px] font-semibold text-[#0A7CB3] hover:underline flex items-center gap-1 cursor-pointer"
+                    title="Reload faculty roster from database"
+                  >
+                    Refresh Directory ({facultyList.length})
+                  </button>
+                </div>
+
+                <div>
+                  <select
+                    id="course-faculty-select"
+                    value={verifiedFacultyMatch ? String(verifiedFacultyMatch.id) : (formData.instructor_name ? '_custom' : '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '_custom') {
+                        return;
+                      }
+                      if (!val) {
+                        setFormData(prev => ({
+                          ...prev,
+                          instructor_name: '',
+                          instructor_title: '',
+                          instructor_department: 'Aaroha Institute of Technology',
+                          instructor_avatar: '',
+                          instructor_bio: ''
+                        }));
+                        setIsDirty(true);
+                        return;
+                      }
+                      const selected = facultyList.find(f => String(f.id) === String(val));
+                      if (selected) {
+                        setFormData(prev => ({
+                          ...prev,
+                          instructor_name: selected.full_name || selected.name || '',
+                          instructor_title: selected.title || selected.expertise || '',
+                          instructor_department: selected.department || 'Aaroha Institute of Technology',
+                          instructor_avatar: selected.avatar || '',
+                          instructor_bio: selected.bio || selected.qualifications || ''
+                        }));
+                        setIsDirty(true);
+                      }
+                    }}
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
+                  >
+                    <option value="">-- Choose from Verified Faculty Directory ({facultyList.length} available) --</option>
+                    {facultyList.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.full_name || f.name} {f.faculty_id_code ? `(${f.faculty_id_code})` : ''} — {f.title || f.expertise || f.department || 'Faculty'}
+                      </option>
+                    ))}
+                    <option value="_custom">-- Manual Entry / External Visiting Instructor --</option>
+                  </select>
+                </div>
+
+                {/* Real-time Verification Status Banner */}
+                {verifiedFacultyMatch ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200/80 rounded-xl flex items-center justify-between text-xs text-emerald-800">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="font-bold">Verified Institutional Faculty: </span>
+                        <span>{verifiedFacultyMatch.full_name || verifiedFacultyMatch.name}</span>
+                        {verifiedFacultyMatch.faculty_id_code && (
+                          <span className="font-semibold text-emerald-700"> ({verifiedFacultyMatch.faculty_id_code})</span>
+                        )}
+                        {verifiedFacultyMatch.department && (
+                          <span className="text-emerald-700"> • {verifiedFacultyMatch.department}</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="shrink-0 px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-md text-[10px] uppercase tracking-wider">
+                      Verified Active
+                    </span>
+                  </div>
+                ) : formData.instructor_name ? (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <div>
+                        <span className="font-bold">Unverified / External Instructor: </span>
+                        <span>"{formData.instructor_name}" is not registered in the institutional faculty roster.</span>
+                      </div>
+                    </div>
+                    <span className="shrink-0 px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded-md text-[10px] uppercase tracking-wider">
+                      Not In List
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-2.5 bg-blue-50/60 border border-blue-200/60 rounded-xl flex items-center gap-2 text-xs text-blue-700">
+                    <AlertCircle className="w-4 h-4 text-[#0A7CB3] shrink-0" />
+                    <span>Select an instructor from the verified directory dropdown above, or enter instructor details manually.</span>
+                  </div>
+                )}
+              </div>
+
               {/* Dynamic Live Faculty Preview Card */}
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3.5">
                 <div className="relative shrink-0">
@@ -861,11 +999,16 @@ export default function CourseModal({
                       {(formData.instructor_name || currentUser?.full_name || 'F').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${verifiedFacultyMatch ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate">
-                    {formData.instructor_name || currentUser?.full_name || 'Faculty'}
+                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate flex items-center gap-1.5">
+                    <span>{formData.instructor_name || currentUser?.full_name || 'Faculty'}</span>
+                    {verifiedFacultyMatch && (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                        Verified
+                      </span>
+                    )}
                   </div>
                   {(formData.instructor_title || currentUser?.title) ? (
                     <div className="text-[#0A7CB3] font-semibold text-[11px] truncate mt-0.5">
@@ -902,20 +1045,41 @@ export default function CourseModal({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">
-                    Faculty / Instructor Name
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 block text-xs sm:text-sm">
+                      Faculty / Instructor Name
+                    </label>
+                    {formData.instructor_name ? (
+                      verifiedFacultyMatch ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          In List
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Not in List
+                        </span>
+                      )
+                    ) : null}
+                  </div>
                   <input
                     type="text"
                     value={formData.instructor_name}
                     onChange={(e) => handleChange('instructor_name', e.target.value)}
                     placeholder={currentUser?.full_name || 'e.g. Dr. Jane Smith'}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className={`w-full p-2.5 bg-slate-50 border rounded-xl focus:bg-white focus:ring-2 outline-none transition-all ${
+                      formData.instructor_name
+                        ? verifiedFacultyMatch
+                          ? 'border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500/20'
+                          : 'border-amber-300 focus:border-amber-500 focus:ring-amber-500/20'
+                        : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/20'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">
+                  <label className="font-semibold text-slate-800 block mb-1 text-xs sm:text-sm">
                     Academic / Professional Title
                   </label>
                   <input
@@ -923,7 +1087,7 @@ export default function CourseModal({
                     value={formData.instructor_title}
                     onChange={(e) => handleChange('instructor_title', e.target.value)}
                     placeholder={currentUser?.title || 'e.g. Principal Systems Architect'}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-xs sm:text-sm"
                   />
                 </div>
               </div>
