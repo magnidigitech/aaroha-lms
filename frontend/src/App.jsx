@@ -550,16 +550,29 @@ export default function App() {
     });
   };
 
-  const handleOpenCourseDetails = async (course, targetLessonId = null) => {
+  const handleOpenCourseDetails = async (courseOrId, targetLessonId = null) => {
     if (activeView === 'student' || activeView === 'catalog' || activeView === 'degrees' || activeView === 'admin') {
       setReturnView(activeView);
     }
-    const fallback = initialCourses.find(c => c.id === course?.id);
+    const courseId = (typeof courseOrId === 'object' && courseOrId !== null)
+      ? (courseOrId.id || courseOrId.course_id)
+      : courseOrId;
+    const found = courses.find(c => String(c.id) === String(courseId) || String(c.course_id) === String(courseId));
+    const course = (typeof courseOrId === 'object' && courseOrId !== null)
+      ? { ...(found || {}), ...courseOrId, id: courseId }
+      : (found || { id: courseId, title: 'Program Curriculum', modules: [] });
+
+    const fallback = initialCourses.find(c => String(c.id) === String(courseId));
     const enriched = {
       ...course,
+      id: courseId,
       modules: (course?.modules && course.modules.length > 0) ? course.modules : (fallback?.modules || [])
     };
     setSelectedCourse(enriched);
+    try {
+      if (courseId) sessionStorage.setItem('aaroha_selected_course_id', String(courseId));
+    } catch (e) {}
+
     if (targetLessonId) {
       setTargetClassroomLessonId(targetLessonId);
     }
@@ -569,7 +582,7 @@ export default function App() {
     const isFacultyOrAdmin = Boolean(currentUser && isFacultyRole(currentUser.role));
     const isEnrolledInCourse = isFacultyOrAdmin || (currentUser 
       ? enrollments.some(e => 
-          e.course_id === course.id && 
+          String(e.course_id) === String(courseId) && 
           e.user_id === currentUser.id && 
           (e.status === 'active' || e.status === 'completed') &&
           isEnrollmentWithinSixMonths(e)
@@ -584,14 +597,15 @@ export default function App() {
     }
 
     try {
-      const res = await api.getCourseDetails(course.id || course.slug);
+      const res = await api.getCourseDetails(courseId || course.slug);
       if (res && res.course) {
         const serverCourse = res.course;
-        const fb = initialCourses.find(c => c.id === serverCourse.id);
-        setSelectedCourse({
+        const fb = initialCourses.find(c => String(c.id) === String(serverCourse.id));
+        setSelectedCourse(prev => ({
+          ...(prev || {}),
           ...serverCourse,
-          modules: (serverCourse.modules && serverCourse.modules.length > 0) ? serverCourse.modules : (fb?.modules || [])
-        });
+          modules: (serverCourse.modules && serverCourse.modules.length > 0) ? serverCourse.modules : (fb?.modules || prev?.modules || [])
+        }));
         if (serverCourse.enrollment_id && Array.isArray(serverCourse.completed_lesson_ids)) {
           setLessonProgress(prev => {
             const filtered = prev.filter(p => p.enrollment_id !== serverCourse.enrollment_id);
@@ -1687,16 +1701,7 @@ export default function App() {
             taskSubmissions={taskSubmissions}
             certificates={certificates}
             showToast={showToast}
-            onOpenCourse={(course) => {
-              const fallback = initialCourses.find(c => c.id === course?.id);
-              const enriched = {
-                ...course,
-                modules: (course?.modules && course.modules.length > 0) ? course.modules : (fallback?.modules || [])
-              };
-              setSelectedCourse(enriched);
-              setReturnView('student');
-              setActiveView('course-classroom');
-            }}
+            onOpenCourse={(course) => handleOpenCourseDetails(course)}
             onExploreCatalog={() => {
               setActiveView(HOMEPAGE_ROUTE);
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1743,16 +1748,7 @@ export default function App() {
               )
             }
             onOpenClassroom={(course, lesson) => {
-              const fallback = initialCourses.find(c => c.id === course?.id);
-              const enriched = {
-                ...course,
-                modules: (course?.modules && course.modules.length > 0) ? course.modules : (fallback?.modules || [])
-              };
-              setSelectedCourse(enriched);
-              if (lesson && lesson.id) {
-                setTargetClassroomLessonId(lesson.id);
-              }
-              setActiveView('course-classroom');
+              handleOpenCourseDetails(course, lesson?.id);
             }}
             currentUser={currentUser}
           />

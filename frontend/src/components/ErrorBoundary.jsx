@@ -18,16 +18,38 @@ export default class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
     console.error('ErrorBoundary caught an unhandled rendering error:', error, errorInfo);
+
+    // Auto-recover once from stale dynamic chunk hash mismatches caused by recent deployments
+    const errorMsg = error?.message || '';
+    const isChunkError = (
+      errorMsg.includes('dynamically imported module') ||
+      errorMsg.includes('Loading chunk') ||
+      errorMsg.includes('Failed to fetch') ||
+      error?.name === 'ChunkLoadError'
+    );
+    if (isChunkError) {
+      try {
+        const hasRetried = sessionStorage.getItem('aaroha_chunk_reload_attempted');
+        if (!hasRetried) {
+          sessionStorage.setItem('aaroha_chunk_reload_attempted', 'true');
+          window.location.reload();
+          return;
+        }
+      } catch (e) {}
+    }
   }
 
   handleReload = () => {
+    try {
+      sessionStorage.removeItem('aaroha_chunk_reload_attempted');
+    } catch (e) {}
     window.location.reload();
   };
 
   handleResetState = () => {
     try {
-      sessionStorage.clear();
-      // Keep persistent login unless requested
+      sessionStorage.removeItem('aaroha_selected_course_id');
+      sessionStorage.removeItem('aaroha_chunk_reload_attempted');
     } catch (e) {}
     this.setState({ hasError: false, error: null, errorInfo: null });
     if (this.props.onReset) {
@@ -35,6 +57,14 @@ export default class ErrorBoundary extends React.Component {
     } else {
       window.location.reload();
     }
+  };
+
+  handleSafeRecover = () => {
+    try {
+      sessionStorage.removeItem('aaroha_selected_course_id');
+      sessionStorage.removeItem('aaroha_chunk_reload_attempted');
+    } catch (e) {}
+    window.location.href = '/?view=catalog';
   };
 
   handleHardReset = () => {
@@ -48,6 +78,8 @@ export default class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const errorMsg = this.state.error?.message || String(this.state.error || 'Unknown render exception');
+
       return (
         <div 
           role="alert" 
@@ -68,12 +100,25 @@ export default class ErrorBoundary extends React.Component {
               </p>
             </div>
 
+            {/* Diagnostic Details Disclosure for rapid triage */}
+            {this.state.error && (
+              <details className="text-left bg-slate-50 rounded-2xl p-3 border border-slate-200 text-xs">
+                <summary className="font-semibold text-slate-700 cursor-pointer hover:text-slate-900 select-none flex items-center justify-between">
+                  <span>Diagnostic Details: {this.state.error?.name || 'Error'}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">click to expand</span>
+                </summary>
+                <div className="mt-2.5 font-mono text-[11px] text-rose-600 break-words whitespace-pre-wrap bg-white p-3 rounded-xl border border-slate-200/80 max-h-36 overflow-y-auto">
+                  {errorMsg}
+                </div>
+              </details>
+            )}
+
             {/* Action buttons with visible keyboard focus */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold inline-flex items-center justify-center gap-2 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2 transition-all"
+                className="w-full sm:w-auto px-4.5 py-2.5 rounded-xl bg-[#0A7CB3] hover:bg-[#086491] text-white text-xs font-bold inline-flex items-center justify-center gap-2 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0A7CB3] focus:ring-offset-2 transition-all"
               >
                 <RefreshCw size={14} />
                 <span>Reload View</span>
@@ -81,20 +126,21 @@ export default class ErrorBoundary extends React.Component {
 
               <button
                 type="button"
-                onClick={this.handleResetState}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-all"
+                onClick={this.handleSafeRecover}
+                className="w-full sm:w-auto px-4.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-all"
               >
                 <RotateCcw size={14} />
-                <span>Retry View</span>
+                <span>Return to Catalog</span>
               </button>
 
               <button
                 type="button"
                 onClick={this.handleHardReset}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-500 hover:text-slate-800 text-xs font-medium inline-flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-all"
+                className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl text-slate-500 hover:text-slate-800 text-xs font-medium inline-flex items-center justify-center gap-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-all"
+                title="Clears local cache and signs out"
               >
                 <Home size={14} />
-                <span>Back to Home</span>
+                <span>Sign Out</span>
               </button>
             </div>
           </div>

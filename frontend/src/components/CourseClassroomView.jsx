@@ -216,15 +216,7 @@ export default function CourseClassroomView({
     }
   }, [activeLesson?.id, activeLesson?.video_url, activeLesson?.media_url, activeLesson?.bunny_video_id, activeLesson?.is_free_preview, isEnrolled, hasAccess, isFacultyOrAdmin]);
 
-  if (!course) return null;
-
-  const isAccessExpired = !isFacultyOrAdmin && Boolean(
-    course?.is_expired ||
-    course?.access_status === 'expired' ||
-    (course?.expires_at && new Date(course.expires_at).getTime() < Date.now())
-  );
-
-  // Calculate course progress percentage
+  // Calculate course progress percentage and completed lesson set (called unconditionally)
   const totalLessonsCount = allLessons.length;
   const completedLessonIds = useMemo(() => {
     const ids = new Set();
@@ -248,6 +240,12 @@ export default function CourseClassroomView({
   const progressPct = totalLessonsCount > 0 
     ? Math.round((completedCount / totalLessonsCount) * 100) 
     : 0;
+
+  const isAccessExpired = !isFacultyOrAdmin && Boolean(
+    course?.is_expired ||
+    course?.access_status === 'expired' ||
+    (course?.expires_at && new Date(course.expires_at).getTime() < Date.now())
+  );
 
   const toggleModule = (index) => {
     setExpandedModules(prev => ({
@@ -346,6 +344,22 @@ export default function CourseClassroomView({
 
   const currentMedia = activeLesson?.media_url || activeLesson?.video_url || activeLesson?.bunny_video_id || '';
 
+  if (!course) {
+    return (
+      <div className="min-h-screen bg-[#071322] flex flex-col items-center justify-center p-8 text-white space-y-4">
+        <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+        <p className="text-xs text-slate-300">Retrieving curriculum specifications...</p>
+        <button
+          onClick={onBack}
+          className="px-4 py-2 bg-[#132A4A] hover:bg-[#1A3860] border border-[#23456F] text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Return to Dashboard</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#071322] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
       {/* Top Header Bar */}
@@ -409,12 +423,12 @@ export default function CourseClassroomView({
             >
               <img
                 src={currentUser.avatar || '/avatars/3d/memo_13.png'}
-                alt={currentUser.full_name}
+                alt={currentUser.full_name || 'User'}
                 onError={(e) => { e.currentTarget.src = '/avatars/3d/memo_13.png'; }}
                 className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/50 group-hover:ring-blue-400 group-hover:scale-105 transition-all shrink-0 bg-slate-100"
               />
               <span className="text-xs font-semibold text-slate-200 group-hover:text-white hidden md:inline">
-                {currentUser.full_name.split(' ')[0]}
+                {currentUser.full_name ? currentUser.full_name.split(' ')[0] : (currentUser.display_name || 'Learner')}
               </span>
             </button>
           ) : (
@@ -977,7 +991,7 @@ export default function CourseClassroomView({
                         </div>
                         <div className="min-w-0">
                           <h3 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors truncate">
-                            {mod.title.startsWith('Module') ? mod.title : `Module ${modIdx + 1}: ${mod.title}`}
+                            {(mod?.title || '').startsWith('Module') ? mod.title : `Module ${modIdx + 1}: ${mod?.title || 'Core Curriculum'}`}
                           </h3>
                           <p className="text-[11px] text-slate-400 mt-0.5">
                             {modLessonsCount} Lessons · {mod.duration || '2 hr 15 min'}
