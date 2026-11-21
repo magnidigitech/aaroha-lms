@@ -14,12 +14,12 @@ export default function SuperAdminDashboardView({
 }) {
   const [viewMode, setViewMode] = useState('governance'); // 'governance' | 'operations'
 
-  const operationalData = dashboardData.operational || {};
-  const governance = dashboardData.governance || {};
-  const usersByRole = governance.users_by_role || {};
-  const placement = governance.placement_overview || {};
-  const integrations = governance.integration_health || [];
-  const auditLogs = governance.recent_audit_logs || [];
+  const operationalData = (dashboardData.operational && typeof dashboardData.operational === 'object') ? dashboardData.operational : {};
+  const governance = (dashboardData.governance && typeof dashboardData.governance === 'object') ? dashboardData.governance : {};
+  const usersByRole = (governance.users_by_role && typeof governance.users_by_role === 'object' && !Array.isArray(governance.users_by_role)) ? governance.users_by_role : {};
+  const placement = (governance.placement_overview && typeof governance.placement_overview === 'object') ? governance.placement_overview : {};
+  const integrations = Array.isArray(governance.integration_health) ? governance.integration_health : [];
+  const auditLogs = Array.isArray(governance.recent_audit_logs) ? governance.recent_audit_logs : [];
 
   return (
     <div className="space-y-8">
@@ -122,7 +122,7 @@ export default function SuperAdminDashboardView({
                 </div>
               </div>
               <div className="text-2xl font-black text-slate-900">
-                {Object.values(usersByRole).reduce((a, b) => a + b, 0)}
+                {Object.values(usersByRole).reduce((a, b) => (Number(a) || 0) + (Number(b) || 0), 0)}
               </div>
               <div className="text-[11px] text-slate-500 mt-1">
                 {(usersByRole.student ?? 0) + ' Students • ' + (usersByRole.faculty ?? 0) + ' Faculty'}

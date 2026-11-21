@@ -123,8 +123,8 @@ export default function RoleBasedDashboardView({
         onViewWebsite={onViewWebsite || onExploreCatalog}
         isRefreshing={isRefreshing}
         onNavigateTab={handleStudentTabChange}
-        enrolledCoursesCount={dashboardData.my_courses?.length || 0}
-        nextClass={dashboardData.today_and_upcoming?.next_live_class || null}
+        enrolledCoursesCount={Array.isArray(dashboardData?.my_courses) ? dashboardData.my_courses.length : 0}
+        nextClass={dashboardData?.today_and_upcoming?.next_live_class || null}
         onOpenTicketModal={onOpenTicketModal}
       />
 

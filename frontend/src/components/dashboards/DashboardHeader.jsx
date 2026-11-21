@@ -232,7 +232,7 @@ export default function DashboardHeader({
             <span className="hidden sm:inline">Refresh</span>
             {lastRefreshed && (
               <span className="hidden md:inline text-[10px] text-slate-400">
-                ({lastRefreshed.split(' ')[1] || lastRefreshed})
+                ({typeof lastRefreshed === 'string' ? (lastRefreshed.split(' ')[1] || lastRefreshed) : String(lastRefreshed)})
               </span>
             )}
           </button>

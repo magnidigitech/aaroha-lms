@@ -102,10 +102,10 @@ export default class ErrorBoundary extends React.Component {
 
             {/* Diagnostic Details Disclosure for rapid triage */}
             {this.state.error && (
-              <details className="text-left bg-slate-50 rounded-2xl p-3 border border-slate-200 text-xs">
+              <details className="text-left bg-slate-50 rounded-2xl p-3 border border-slate-200 text-xs" open>
                 <summary className="font-semibold text-slate-700 cursor-pointer hover:text-slate-900 select-none flex items-center justify-between">
                   <span>Diagnostic Details: {this.state.error?.name || 'Error'}</span>
-                  <span className="text-[10px] text-slate-400 font-mono">click to expand</span>
+                  <span className="text-[10px] text-slate-400 font-mono">click to collapse</span>
                 </summary>
                 <div className="mt-2.5 font-mono text-[11px] text-rose-600 break-words whitespace-pre-wrap bg-white p-3 rounded-xl border border-slate-200/80 max-h-36 overflow-y-auto">
                   {errorMsg}

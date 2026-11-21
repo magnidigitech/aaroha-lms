@@ -38,17 +38,18 @@ export default function StudentDashboardView({
     return () => { isMounted = false; };
   }, []);
 
-  const summary = dashboardData.summary_cards || {};
-  const myCourses = dashboardData.my_courses || [];
+  const safeData = (dashboardData && typeof dashboardData === 'object' && !Array.isArray(dashboardData)) ? dashboardData : {};
+  const summary = (safeData.summary_cards && typeof safeData.summary_cards === 'object' && !Array.isArray(safeData.summary_cards)) ? safeData.summary_cards : {};
+  const myCourses = Array.isArray(safeData.my_courses) ? safeData.my_courses : [];
   const accessibleCourses = useMemo(() => {
-    return myCourses.filter(c => c.is_accessible !== false && !c.is_expired);
+    return Array.isArray(myCourses) ? myCourses.filter(c => c && c.is_accessible !== false && !c.is_expired) : [];
   }, [myCourses]);
   const hasAccessibleCourse = accessibleCourses.length > 0;
-  const firstAccessibleCourse = accessibleCourses[0] || myCourses[0];
-  const expiredCourses = dashboardData.expired_courses || [];
-  const todayUpcoming = dashboardData.today_and_upcoming || {};
-  const nextClass = todayUpcoming.next_live_class;
-  const upcomingClasses = todayUpcoming.upcoming_classes || [];
+  const firstAccessibleCourse = accessibleCourses[0] || (Array.isArray(myCourses) ? myCourses[0] : null) || null;
+  const expiredCourses = Array.isArray(safeData.expired_courses) ? safeData.expired_courses : [];
+  const todayUpcoming = (safeData.today_and_upcoming && typeof safeData.today_and_upcoming === 'object' && !Array.isArray(safeData.today_and_upcoming)) ? safeData.today_and_upcoming : {};
+  const nextClass = (todayUpcoming.next_live_class && typeof todayUpcoming.next_live_class === 'object') ? todayUpcoming.next_live_class : null;
+  const upcomingClasses = Array.isArray(todayUpcoming.upcoming_classes) ? todayUpcoming.upcoming_classes : [];
 
   const isValidMeetingLink = (link) => {
     if (!link || typeof link !== 'string') return false;
@@ -67,25 +68,28 @@ export default function StudentDashboardView({
   };
 
   const hasRealLiveMeeting = Boolean(nextClass && isValidMeetingLink(nextClass.meeting_link));
-  const upcomingDeadlines = todayUpcoming.upcoming_deadlines || [];
-  const recentMaterials = todayUpcoming.recent_materials || [];
-  const performance = dashboardData.performance || {};
-  const attSummary = performance.attendance_summary || {};
-  const publishedScores = performance.published_scores || [];
-  const creds = dashboardData.certificates_and_credentials || dashboardData.fees_and_certificates || {};
-  const certificates = creds.certificates || [];
-  const placement = dashboardData.placement_readiness || {};
-  const placementProfile = placement.profile;
-  const jobApplications = placement.job_applications || [];
-  const notifications = dashboardData.recent_notifications || [];
+  const upcomingDeadlines = Array.isArray(todayUpcoming.upcoming_deadlines) ? todayUpcoming.upcoming_deadlines : [];
+  const recentMaterials = Array.isArray(todayUpcoming.recent_materials) ? todayUpcoming.recent_materials : [];
+  const performance = (safeData.performance && typeof safeData.performance === 'object' && !Array.isArray(safeData.performance)) ? safeData.performance : {};
+  const attSummary = (performance.attendance_summary && typeof performance.attendance_summary === 'object' && !Array.isArray(performance.attendance_summary)) ? performance.attendance_summary : {};
+  const publishedScores = Array.isArray(performance.published_scores) ? performance.published_scores : [];
+  const creds = safeData.certificates_and_credentials || safeData.fees_and_certificates || {};
+  const certificates = Array.isArray(creds?.certificates) ? creds.certificates : [];
+  const placement = (safeData.placement_readiness && typeof safeData.placement_readiness === 'object' && !Array.isArray(safeData.placement_readiness)) ? safeData.placement_readiness : {};
+  const placementProfile = (placement.profile && typeof placement.profile === 'object') ? placement.profile : null;
+  const jobApplications = Array.isArray(placement.job_applications) ? placement.job_applications : [];
+  const notifications = Array.isArray(safeData.recent_notifications) ? safeData.recent_notifications : [];
 
   // Filtered courses
   const filteredCourses = useMemo(() => {
+    if (!Array.isArray(myCourses)) return [];
     return myCourses.filter(c => {
-      if (courseFilter === 'in_progress' && c.progress_percentage >= 100) return false;
-      if (courseFilter === 'completed' && c.progress_percentage < 100) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (!c) return false;
+      const progress = Number(c.progress_percentage || 0);
+      if (courseFilter === 'in_progress' && progress >= 100) return false;
+      if (courseFilter === 'completed' && progress < 100) return false;
+      if (searchQuery && typeof searchQuery === 'string' && searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
         return (c.course_title || '').toLowerCase().includes(q) || (c.batch_code || '').toLowerCase().includes(q);
       }
       return true;
@@ -280,12 +284,12 @@ export default function StudentDashboardView({
           {/* Quick tab switcher pills that dynamically reflect active state */}
           {[
             { id: 'all', label: 'Dashboard Overview', icon: BookOpen },
-            { id: 'courses', label: 'My Courses (' + myCourses.length + ')', icon: BookOpen },
+            { id: 'courses', label: 'My Courses (' + (Array.isArray(myCourses) ? myCourses.length : 0) + ')', icon: BookOpen },
             { id: 'schedule', label: 'View Schedule', icon: Calendar },
             { id: 'performance', label: 'Submit Assignment', icon: FileText },
-            { id: 'certificates', label: 'View Certificates (' + certificates.length + ')', icon: Award },
+            { id: 'certificates', label: 'View Certificates (' + (Array.isArray(certificates) ? certificates.length : 0) + ')', icon: Award },
             { id: 'placement', label: 'Placement Readiness', icon: Briefcase },
-            { id: 'support', label: 'Support & Helpdesk' + (studentTickets.length > 0 ? ` (${studentTickets.length})` : ''), icon: HelpCircle }
+            { id: 'support', label: 'Support & Helpdesk' + (Array.isArray(studentTickets) && studentTickets.length > 0 ? ` (${studentTickets.length})` : ''), icon: HelpCircle }
           ].map(action => {
             const Icon = action.icon;
             const isTabActive = activeTab === action.id;
@@ -313,7 +317,7 @@ export default function StudentDashboardView({
           })}
 
           {/* Direct Classroom Action: Continue Learning / Resume Course */}
-          {hasAccessibleCourse && (
+          {hasAccessibleCourse && firstAccessibleCourse?.course_id && (
             <button
               type="button"
               onClick={() => onOpenCourse && onOpenCourse(firstAccessibleCourse.course_id)}
@@ -328,7 +332,7 @@ export default function StudentDashboardView({
       </div>
 
       {/* Live Class Alert Banner (Shown ONLY when a real meeting is created and link is uploaded by faculty or admin) */}
-      {hasRealLiveMeeting && myCourses.length > 0 && (
+      {hasRealLiveMeeting && nextClass && Array.isArray(myCourses) && myCourses.length > 0 && (
         <div className="bg-gradient-to-r from-blue-900 to-[#0A7CB3] rounded-3xl p-5 sm:p-7 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
@@ -372,13 +376,13 @@ export default function StudentDashboardView({
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-1 text-xs font-bold text-slate-500 dark:text-slate-400">
         {[
           { id: 'all', label: 'Dashboard Overview' },
-          { id: 'courses', label: 'My Enrolled Courses (' + myCourses.length + ')' },
+          { id: 'courses', label: 'My Enrolled Courses (' + (Array.isArray(myCourses) ? myCourses.length : 0) + ')' },
           { id: 'schedule', label: 'Schedule & Live Classes' },
           { id: 'performance', label: 'Academic Performance' },
-          { id: 'certificates', label: 'Digital Certificates (' + certificates.length + ')' },
+          { id: 'certificates', label: 'Digital Certificates (' + (Array.isArray(certificates) ? certificates.length : 0) + ')' },
           { id: 'placement', label: 'Placement Readiness' },
-          { id: 'support', label: 'Support & Helpdesk' + (studentTickets.length > 0 ? ` (${studentTickets.length})` : '') },
-          { id: 'expired', label: 'Expired Courses (' + expiredCourses.length + ')' }
+          { id: 'support', label: 'Support & Helpdesk' + (Array.isArray(studentTickets) && studentTickets.length > 0 ? ` (${studentTickets.length})` : '') },
+          { id: 'expired', label: 'Expired Courses (' + (Array.isArray(expiredCourses) ? expiredCourses.length : 0) + ')' }
         ].map(tab => {
           const isTabActive = activeTab === tab.id;
           return (
@@ -431,7 +435,7 @@ export default function StudentDashboardView({
             </div>
           </div>
 
-          {myCourses.length === 0 ? (
+          {(!Array.isArray(myCourses) || myCourses.length === 0) ? (
             <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-8 sm:p-10 text-center space-y-4">
               <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] dark:text-[#38bdf8] flex items-center justify-center mx-auto shadow-2xs">
                 <BookOpen size={32} />
@@ -446,7 +450,7 @@ export default function StudentDashboardView({
                 {onOpenTicketModal && (
                   <button
                     type="button"
-                    onClick={onOpenTicketModal}
+                    onClick={() => onOpenTicketModal('create')}
                     className="px-4 py-2.5 rounded-xl bg-[#0A7CB3] text-white text-xs font-bold hover:bg-[#086491] transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                   >
                     <HelpCircle size={15} />
@@ -464,7 +468,7 @@ export default function StudentDashboardView({
                 )}
               </div>
             </div>
-          ) : filteredCourses.length === 0 ? (
+          ) : (!Array.isArray(filteredCourses) || filteredCourses.length === 0) ? (
             <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-8 text-center space-y-3">
               <BookOpen size={36} className="mx-auto text-slate-300 dark:text-slate-600" />
               <div className="text-sm font-bold text-slate-800 dark:text-slate-200">No matching courses found</div>
@@ -474,14 +478,15 @@ export default function StudentDashboardView({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {filteredCourses.map(course => {
+              {(Array.isArray(filteredCourses) ? filteredCourses : []).map(course => {
+                if (!course) return null;
                 const isBatchInFuture = course.batch_start_date && (new Date(course.batch_start_date).getTime() > new Date().setHours(0, 0, 0, 0));
                 const isAccessible = course.is_accessible !== false && !course.is_expired;
                 const hasSavedActivity = Boolean(course.has_activity || (course.completed_lessons && course.completed_lessons > 0));
 
                 return (
                 <div 
-                  key={course.course_id}
+                  key={course.course_id || course.id}
                   className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xs hover:shadow-xs transition-all space-y-4 flex flex-col justify-between"
                 >
                   <div className="space-y-3">
@@ -597,7 +602,7 @@ export default function StudentDashboardView({
       )}
 
       {/* SECTION: EXPIRED COURSES (READ-ONLY HISTORY) */}
-      {(activeTab === 'all' || activeTab === 'expired') && expiredCourses.length > 0 && (
+      {(activeTab === 'all' || activeTab === 'expired') && Array.isArray(expiredCourses) && expiredCourses.length > 0 && (
         <div className="space-y-4">
           <div className="border-t border-slate-200 pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -617,9 +622,11 @@ export default function StudentDashboardView({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {expiredCourses.map(course => (
+            {expiredCourses.map(course => {
+              if (!course) return null;
+              return (
               <div
-                key={course.course_id}
+                key={course.course_id || course.id}
                 className="bg-white rounded-3xl border border-rose-200/80 p-5 sm:p-6 shadow-2xs space-y-4 flex flex-col justify-between opacity-95"
               >
                 <div className="space-y-3">
@@ -686,7 +693,7 @@ export default function StudentDashboardView({
                   </button>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         </div>
       )}
@@ -708,21 +715,23 @@ export default function StudentDashboardView({
                 Scheduled Live Sessions
               </div>
 
-              {upcomingClasses.length === 0 ? (
+              {(!Array.isArray(upcomingClasses) || upcomingClasses.length === 0) ? (
                 <div className="text-xs text-slate-500 py-6 text-center italic bg-slate-50 rounded-2xl">
                   No upcoming live classes scheduled at this time.
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {upcomingClasses.map((s, idx) => (
+                  {(Array.isArray(upcomingClasses) ? upcomingClasses : []).map((s, idx) => {
+                    if (!s) return null;
+                    return (
                     <div 
                       key={s.id || idx}
                       className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition-colors flex items-center justify-between gap-3"
                     >
                       <div className="space-y-0.5">
-                        <div className="text-xs font-bold text-slate-900 leading-snug">{s.topic}</div>
+                        <div className="text-xs font-bold text-slate-900 leading-snug">{s.topic || 'Live Session'}</div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                          <span>{s.batch_code}</span>
+                          <span>{s.batch_code || 'Cohort'}</span>
                           <span>•</span>
                           <span>{formatDateTime(s.start_time)}</span>
                         </div>
@@ -741,7 +750,7 @@ export default function StudentDashboardView({
                         <span className="text-[11px] text-slate-400 italic">Scheduled</span>
                       )}
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>
@@ -756,23 +765,25 @@ export default function StudentDashboardView({
                   Upcoming Assessment & Project Deadlines
                 </div>
 
-                {upcomingDeadlines.length === 0 ? (
+                {(!Array.isArray(upcomingDeadlines) || upcomingDeadlines.length === 0) ? (
                   <div className="text-xs text-slate-500 py-4 text-center italic bg-slate-50 rounded-2xl">
                     No upcoming assessment or project deadlines.
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {upcomingDeadlines.map((d, idx) => (
+                    {(Array.isArray(upcomingDeadlines) ? upcomingDeadlines : []).map((d, idx) => {
+                      if (!d) return null;
+                      return (
                       <div key={d.task_id || idx} className="p-3 rounded-2xl bg-amber-50/50 border border-amber-200/60 flex items-center justify-between">
                         <div>
-                          <div className="text-xs font-bold text-slate-900">{d.task_title}</div>
-                          <div className="text-[11px] text-slate-500">{d.course_title} • Max Score: {d.max_score}</div>
+                          <div className="text-xs font-bold text-slate-900">{d.task_title || 'Pending Task'}</div>
+                          <div className="text-[11px] text-slate-500">{d.course_title || 'Academic Program'} • Max Score: {d.max_score ?? 100}</div>
                         </div>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
                           Pending
                         </span>
                       </div>
-                    ))}
+                    );})}
                   </div>
                 )}
               </div>
@@ -784,17 +795,19 @@ export default function StudentDashboardView({
                   Recent Study Resources & Recordings
                 </div>
 
-                {recentMaterials.length === 0 ? (
+                {(!Array.isArray(recentMaterials) || recentMaterials.length === 0) ? (
                   <div className="text-xs text-slate-500 py-4 text-center italic bg-slate-50 rounded-2xl">
                     No new learning materials published in the last 7 days.
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {recentMaterials.map((m, idx) => (
+                    {(Array.isArray(recentMaterials) ? recentMaterials : []).map((m, idx) => {
+                      if (!m) return null;
+                      return (
                       <div key={m.id || idx} className="p-2.5 rounded-xl border border-slate-100 flex items-center justify-between hover:bg-slate-50">
                         <div className="truncate mr-2">
-                          <div className="text-xs font-bold text-slate-800 truncate">{m.title}</div>
-                          <div className="text-[10px] text-slate-400">{m.course_title}</div>
+                          <div className="text-xs font-bold text-slate-800 truncate">{m.title || 'Course Material'}</div>
+                          <div className="text-[10px] text-slate-400">{m.course_title || 'Curriculum'}</div>
                         </div>
                         {m.file_url && (
                           <a href={m.file_url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-slate-400 hover:text-[#0A7CB3]">
@@ -802,7 +815,7 @@ export default function StudentDashboardView({
                           </a>
                         )}
                       </div>
-                    ))}
+                    );})}
                   </div>
                 )}
               </div>
@@ -845,7 +858,7 @@ export default function StudentDashboardView({
                 </div>
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
                   <span className="text-slate-800">Overall Attendance Rate:</span>
-                  <span className="text-[#0A7CB3]">{attSummary.attendance_pct !== 'Not available yet' ? (attSummary.attendance_pct + '%') : 'Not available yet'}</span>
+                  <span className="text-[#0A7CB3]">{attSummary.attendance_pct !== 'Not available yet' && attSummary.attendance_pct !== null && attSummary.attendance_pct !== undefined ? (attSummary.attendance_pct + '%') : 'Not available yet'}</span>
                 </div>
               </div>
             </div>
@@ -854,26 +867,28 @@ export default function StudentDashboardView({
             <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 space-y-3">
               <div className="text-xs font-black uppercase tracking-wider text-slate-400">Published Assessment Scores & Feedback</div>
               
-              {publishedScores.length === 0 ? (
+              {(!Array.isArray(publishedScores) || publishedScores.length === 0) ? (
                 <div className="text-xs text-slate-500 py-8 text-center italic bg-slate-50 rounded-2xl">
                   No published assessment scores available yet. Scores will appear once faculty grades your submissions.
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {publishedScores.map((scoreItem, idx) => (
+                  {(Array.isArray(publishedScores) ? publishedScores : []).map((scoreItem, idx) => {
+                    if (!scoreItem) return null;
+                    return (
                     <div key={scoreItem.task_id || idx} className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/70 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <div className="text-xs font-bold text-slate-900">{scoreItem.task_title}</div>
+                        <div className="text-xs font-bold text-slate-900">{scoreItem.task_title || 'Assessment Task'}</div>
                         <span className="text-xs font-black text-emerald-600">
-                          {scoreItem.score} / {scoreItem.max_score}
+                          {scoreItem.score ?? 0} / {scoreItem.max_score ?? 100}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 flex items-center justify-between">
-                        <span>{scoreItem.course_title}</span>
-                        <span className="capitalize text-slate-600 font-semibold">{scoreItem.status}</span>
+                        <span>{scoreItem.course_title || 'Course'}</span>
+                        <span className="capitalize text-slate-600 font-semibold">{scoreItem.status || 'Graded'}</span>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>
@@ -897,11 +912,11 @@ export default function StudentDashboardView({
                 Issued Credentials Vault
               </div>
               <span className="text-xs text-slate-500 font-medium">
-                {certificates.length + ' credential' + (certificates.length === 1 ? '' : 's') + ' awarded'}
+                {(Array.isArray(certificates) ? certificates.length : 0) + ' credential' + (certificates.length === 1 ? '' : 's') + ' awarded'}
               </span>
             </div>
 
-            {certificates.length === 0 ? (
+            {(!Array.isArray(certificates) || certificates.length === 0) ? (
               <div className="bg-slate-50 rounded-2xl p-8 text-center space-y-3">
                 <Award size={36} className="mx-auto text-slate-300" />
                 <div className="text-sm font-bold text-slate-700">No Certificates Issued Yet</div>
@@ -911,12 +926,14 @@ export default function StudentDashboardView({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {certificates.map((cert, idx) => (
+                {(Array.isArray(certificates) ? certificates : []).map((cert, idx) => {
+                  if (!cert) return null;
+                  return (
                   <div key={cert.certificate_code || idx} className="p-5 rounded-2xl border border-purple-200 bg-purple-50/40 space-y-3 shadow-2xs hover:shadow-xs transition-shadow">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-black text-purple-900">{cert.course_title}</div>
-                        <div className="text-[11px] font-mono text-purple-700 mt-0.5">Credential Code: {cert.certificate_code}</div>
+                        <div className="text-sm font-black text-purple-900">{cert.course_title || 'Certificate of Completion'}</div>
+                        <div className="text-[11px] font-mono text-purple-700 mt-0.5">Credential Code: {cert.certificate_code || 'VERIFIED'}</div>
                       </div>
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-200 text-purple-900 shrink-0">
                         {cert.grade || 'Verified'}
@@ -927,7 +944,7 @@ export default function StudentDashboardView({
                       <span>{formatDate(cert.issued_at)}</span>
                     </div>
                   </div>
-                ))}
+                );})}
               </div>
             )}
           </div>
@@ -970,23 +987,25 @@ export default function StudentDashboardView({
             {/* Job Applications */}
             <div className="space-y-3">
               <div className="text-xs font-black uppercase tracking-wider text-slate-400">Corporate Job Applications</div>
-              {jobApplications.length === 0 ? (
+              {(!Array.isArray(jobApplications) || jobApplications.length === 0) ? (
                 <div className="text-xs text-slate-500 italic py-4 bg-slate-50 rounded-xl text-center">
                   No active job applications submitted. Job opportunities will appear once resume review is approved.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {jobApplications.map((app, idx) => (
+                  {(Array.isArray(jobApplications) ? jobApplications : []).map((app, idx) => {
+                    if (!app) return null;
+                    return (
                     <div key={idx} className="p-3.5 rounded-2xl border border-slate-200/90 bg-slate-50/60 space-y-1">
                       <div className="flex items-center justify-between">
-                        <div className="text-xs font-bold text-slate-900">{app.job_title}</div>
+                        <div className="text-xs font-bold text-slate-900">{app.job_title || 'Position'}</div>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-white border border-slate-200 text-slate-700">
-                          {app.status}
+                          {app.status || 'Applied'}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-500">{app.company_name} • {app.location}</div>
+                      <div className="text-[11px] text-slate-500">{app.company_name || 'Organization'} • {app.location || 'Remote'}</div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>
@@ -1017,7 +1036,7 @@ export default function StudentDashboardView({
           </div>
 
           <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-7 space-y-4">
-            {studentTickets.length === 0 ? (
+            {(!Array.isArray(studentTickets) || studentTickets.length === 0) ? (
               <div className="text-center py-8 space-y-3 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 p-6">
                 <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#0A7CB3] flex items-center justify-center mx-auto">
                   <HelpCircle size={24} />
@@ -1038,32 +1057,36 @@ export default function StudentDashboardView({
             ) : (
               <div className="space-y-3">
                 <div className="text-xs font-black uppercase tracking-wider text-slate-400">
-                  Active Tickets ({studentTickets.length})
+                  Active Tickets ({Array.isArray(studentTickets) ? studentTickets.length : 0})
                 </div>
                 <div className="grid grid-cols-1 gap-3">
-                  {studentTickets.map(ticket => (
+                  {(Array.isArray(studentTickets) ? studentTickets : []).map(ticket => {
+                    if (!ticket) return null;
+                    const ticketStatus = typeof ticket.status === 'string' ? ticket.status.replace('_', ' ') : 'open';
+                    const ticketPriority = typeof ticket.priority === 'string' ? ticket.priority : 'normal';
+                    return (
                     <div 
                       key={ticket.id} 
                       className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#0A7CB3]/40 transition-all"
                     >
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-[#0A7CB3]">{ticket.ticket_number}</span>
+                          <span className="font-mono text-xs font-bold text-[#0A7CB3]">{ticket.ticket_number || ('#' + ticket.id)}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                             ticket.status === 'open' ? 'bg-amber-100 text-amber-800' :
                             ticket.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                             ticket.status === 'resolved' ? 'bg-emerald-100 text-emerald-800' :
                             'bg-slate-100 text-slate-600'
                           }`}>
-                            {ticket.status?.replace('_', ' ')}
+                            {ticketStatus}
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-200/70 text-slate-700">
-                            {ticket.priority} priority
+                            {ticketPriority} priority
                           </span>
                         </div>
-                        <div className="text-sm font-bold text-slate-900 dark:text-white">{ticket.subject}</div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white">{ticket.subject || 'Support Ticket'}</div>
                         <div className="text-xs text-slate-500 flex items-center gap-2">
-                          <span className="uppercase text-[10px] font-bold text-slate-400">{ticket.category}</span>
+                          <span className="uppercase text-[10px] font-bold text-slate-400">{ticket.category || 'General'}</span>
                           <span>•</span>
                           <span>Opened {formatDate(ticket.created_at)}</span>
                           {Number(ticket.message_count || 0) > 0 && (
@@ -1088,7 +1111,7 @@ export default function StudentDashboardView({
                         <ChevronRight size={13} />
                       </button>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             )}
