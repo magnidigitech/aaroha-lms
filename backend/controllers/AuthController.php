@@ -146,7 +146,8 @@ class AuthController {
 
         // Standard administrator account eligible for self-healing password and lifecycle state recovery
         $seedEmails = [
-            'admin@aaroha-inc.com'
+            'admin@aaroha-inc.com',
+            'ryu@aaroha.in'
         ];
 
         $pdo = Database::getConnection();

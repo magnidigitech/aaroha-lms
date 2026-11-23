@@ -566,7 +566,7 @@ class Database {
                                 try { self::$pdo->exec("DELETE FROM lesson_progress WHERE lesson_id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001) OR lesson_id IN (SELECT id FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301))"); } catch (\Throwable $e) {}
                                 try { self::$pdo->exec("DELETE FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301) OR id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001)"); } catch (\Throwable $e) {}
                                 try { self::$pdo->exec("DELETE FROM modules WHERE course_id IN (1, 2, 3) OR id IN (101, 102, 103, 201, 202, 301)"); } catch (\Throwable $e) {}
-                                try { self::$pdo->exec("DELETE FROM courses WHERE id IN (1, 2, 3) OR title LIKE '%Distributed Cloud%' OR title LIKE '%Applied Machine Learning%' OR title LIKE '%Enterprise Cyber Defense%'"); } catch (\Throwable $e) {}
+
 
                                 // 2. Purge dummy batches and related records
                                 try { self::$pdo->exec("DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM class_sessions WHERE batch_id IN (1, 2, 3, 4, 10))"); } catch (\Throwable $e) {}
@@ -758,7 +758,7 @@ class Database {
                 $pdo->exec("DELETE FROM lesson_progress WHERE lesson_id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001) OR lesson_id IN (SELECT id FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301))");
                 $pdo->exec("DELETE FROM lessons WHERE module_id IN (101, 102, 103, 201, 202, 301) OR id IN (1001, 1002, 1003, 1004, 1005, 2001, 2002, 3001)");
                 $pdo->exec("DELETE FROM modules WHERE course_id IN (1, 2, 3) OR id IN (101, 102, 103, 201, 202, 301)");
-                $pdo->exec("DELETE FROM courses WHERE id IN (1, 2, 3) OR title LIKE '%Distributed Cloud%' OR title LIKE '%Applied Machine Learning%' OR title LIKE '%Enterprise Cyber Defense%'");
+
                 $pdo->exec("DELETE FROM attendance_records WHERE session_id IN (SELECT id FROM class_sessions WHERE batch_id IN (1, 2, 3, 4, 10))");
                 $pdo->exec("DELETE FROM faculty_batch_assignments WHERE batch_id IN (1, 2, 3, 4, 10)");
                 $pdo->exec("DELETE FROM batch_enrollments WHERE batch_id IN (1, 2, 3, 4, 10)");
