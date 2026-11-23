@@ -4,11 +4,28 @@ SET FOREIGN_KEY_CHECKS = 0;
 INSERT INTO users (id, full_name, email, password_hash, role, title, avatar, status, is_archived, authorized_roles_json)
 VALUES 
 (1, 'Aaroha Admin', 'admin@aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'super_admin', 'System Administrator', '/avatars/3d/memo_1.png', 'active', 0, '["super_admin","admin"]'),
-(4, 'Ryu', 'ryu@aaroha.in', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'super_admin', 'Platform Architect', '/avatars/3d/memo_13.png', 'active', 0, '["super_admin","admin","faculty","student"]')
+(2, 'Priya Sharma', 'coordinator@aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'coordinator', 'Academic Operations Coordinator', '/avatars/3d/memo_2.png', 'active', 0, '["coordinator"]'),
+(3, 'Elena Rostova', 'faculty@aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'faculty', 'Lead Systems & AI Faculty', '/avatars/3d/memo_3.png', 'active', 0, '["faculty"]'),
+(4, 'Ryu', 'ryu@aaroha.in', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'super_admin', 'Platform Architect', '/avatars/3d/memo_13.png', 'active', 0, '["super_admin","admin","faculty","student"]'),
+(5, 'Student Fellow', 'student@aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'student', 'Enrolled Fellow', '/avatars/3d/memo_4.png', 'active', 0, '["student"]'),
+(6, 'Deepa Nair', 'placement@aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'placement_officer', 'Head of Corporate Relations', '/avatars/3d/memo_5.png', 'active', 0, '["placement_officer"]'),
+(7, 'Priya Sharma', 'priya.sharma@aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'coordinator', 'Senior Academic Coordinator', '/avatars/3d/memo_2.png', 'active', 0, '["coordinator"]'),
+(8, 'Elena Rostova', 'elena.rostova@enterprise.io', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'faculty', 'Lead Systems & AI Faculty', '/avatars/3d/memo_3.png', 'active', 0, '["faculty"]'),
+(9, 'Aarav Patel', 'aarav.patel@student.aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'student', 'Enrolled Fellow (Cloud Architecture)', '/avatars/3d/memo_6.png', 'active', 0, '["student"]'),
+(10, 'Finance Officer', 'accounts@aaroha-inc.com', '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y', 'accounts', 'Finance & Bursar Officer', '/avatars/3d/memo_7.png', 'active', 0, '["accounts"]')
 ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), password_hash = VALUES(password_hash), status = 'active';
 
 INSERT INTO student_profiles (user_id, student_id_code, account_status, admission_status, enrollment_status)
-VALUES (4, 'STU-2026-0004', 'active', 'admitted', 'enrolled')
+VALUES 
+(4, 'STU-2026-0004', 'active', 'admitted', 'enrolled'),
+(5, 'STU-2026-0005', 'active', 'admitted', 'enrolled'),
+(9, 'STU-2026-0009', 'active', 'admitted', 'enrolled')
+ON DUPLICATE KEY UPDATE account_status = 'active';
+
+INSERT INTO faculty_profiles (user_id, faculty_id_code, account_status)
+VALUES 
+(3, 'FAC-2026-0003', 'active'),
+(8, 'FAC-2026-0008', 'active')
 ON DUPLICATE KEY UPDATE account_status = 'active';
 
 INSERT INTO courses (id, title, slug, category, level, duration, partner_type, rating, reviews_count, badge_text, description, thumbnail_url, skills, created_by, is_published, is_deleted)

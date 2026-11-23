@@ -630,24 +630,34 @@ def init_db():
     );
     """)
 
-    # 3. Super Administrator & Staff Baseline Setup
+    # 3. Canonical Test Users Baseline Setup (All matching password123)
     pw_hash = '$2y$12$fC/ALkID7616YWIOvrOYxO6kECCip3LILoAPJ4nVVYQFxAQtQQy5y' # Verified Bcrypt hash for 'password123'
-    cur.execute('''
-        INSERT INTO users (id, full_name, email, password_hash, role, title, avatar, status, is_archived, authorized_roles_json)
-        VALUES (1, 'Aaroha Admin', 'admin@aaroha-inc.com', ?, 'super_admin', 'System Administrator', '/avatars/3d/memo_1.png', 'active', 0, '["super_admin","admin"]')
-    ''', (pw_hash,))
+    canonical_users = [
+        (1, 'Aaroha Admin', 'admin@aaroha-inc.com', pw_hash, 'super_admin', 'System Administrator', '/avatars/3d/memo_1.png', '["super_admin","admin"]'),
+        (2, 'Priya Sharma', 'coordinator@aaroha-inc.com', pw_hash, 'coordinator', 'Academic Operations Coordinator', '/avatars/3d/memo_2.png', '["coordinator"]'),
+        (3, 'Elena Rostova', 'faculty@aaroha-inc.com', pw_hash, 'faculty', 'Lead Systems & AI Faculty', '/avatars/3d/memo_3.png', '["faculty"]'),
+        (4, 'Ryu', 'ryu@aaroha.in', pw_hash, 'super_admin', 'Platform Architect', '/avatars/3d/memo_13.png', '["super_admin","admin","faculty","student"]'),
+        (5, 'Student Fellow', 'student@aaroha-inc.com', pw_hash, 'student', 'Enrolled Fellow', '/avatars/3d/memo_4.png', '["student"]'),
+        (6, 'Deepa Nair', 'placement@aaroha-inc.com', pw_hash, 'placement_officer', 'Head of Corporate Relations', '/avatars/3d/memo_5.png', '["placement_officer"]'),
+        (7, 'Priya Sharma', 'priya.sharma@aaroha-inc.com', pw_hash, 'coordinator', 'Senior Academic Coordinator', '/avatars/3d/memo_2.png', '["coordinator"]'),
+        (8, 'Elena Rostova', 'elena.rostova@enterprise.io', pw_hash, 'faculty', 'Lead Systems & AI Faculty', '/avatars/3d/memo_3.png', '["faculty"]'),
+        (9, 'Aarav Patel', 'aarav.patel@student.aaroha-inc.com', pw_hash, 'student', 'Enrolled Fellow (Cloud Architecture)', '/avatars/3d/memo_6.png', '["student"]'),
+        (10, 'Finance Officer', 'accounts@aaroha-inc.com', pw_hash, 'accounts', 'Finance & Bursar Officer', '/avatars/3d/memo_7.png', '["accounts"]')
+    ]
 
-    # Insert Ryu Genuine Account
-    cur.execute('''
-        INSERT INTO users (id, full_name, email, password_hash, role, title, avatar, status, is_archived, authorized_roles_json)
-        VALUES (4, 'Ryu', 'ryu@aaroha.in', ?, 'super_admin', 'Platform Architect', '/avatars/3d/memo_13.png', 'active', 0, '["super_admin","admin","faculty","student"]')
-    ''', (pw_hash,))
-    cur.execute('''
-        INSERT INTO student_profiles (user_id, student_id_code, account_status, admission_status, enrollment_status)
-        VALUES (4, 'STU-2026-0004', 'active', 'admitted', 'enrolled')
-    ''')
+    for uid, name, email, phash, role, title, avatar, roles_json in canonical_users:
+        cur.execute('''
+            INSERT INTO users (id, full_name, email, password_hash, role, title, avatar, status, is_archived, authorized_roles_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 0, ?)
+        ''', (uid, name, email, phash, role, title, avatar, roles_json))
 
-    # Seed 6 Authentic Homepage Catalog Courses matching live production specification
+    # Profiles
+    cur.execute("INSERT INTO student_profiles (user_id, student_id_code, account_status, admission_status, enrollment_status) VALUES (4, 'STU-2026-0004', 'active', 'admitted', 'enrolled')")
+    cur.execute("INSERT INTO student_profiles (user_id, student_id_code, account_status, admission_status, enrollment_status) VALUES (5, 'STU-2026-0005', 'active', 'admitted', 'enrolled')")
+    cur.execute("INSERT INTO student_profiles (user_id, student_id_code, account_status, admission_status, enrollment_status) VALUES (9, 'STU-2026-0009', 'active', 'admitted', 'enrolled')")
+    cur.execute("INSERT INTO faculty_profiles (user_id, faculty_id_code, account_status) VALUES (3, 'FAC-2026-0003', 'active')")
+    cur.execute("INSERT INTO faculty_profiles (user_id, faculty_id_code, account_status) VALUES (8, 'FAC-2026-0008', 'active')")
+
     courses_seed = [
         (1, 'NLP', 'nlp-specialization', 'Applied AI', 'Advanced Level', '8 Weeks', 'Specialization', 4.90, '0', 'New',
          'Natural Language Processing fundamentals and advanced architectures.',
@@ -680,6 +690,11 @@ def init_db():
             INSERT INTO courses (id, title, slug, category, level, duration, partner_type, rating, reviews_count, badge_text, description, thumbnail_url, skills, created_by, is_published, is_deleted)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
         ''', (cid, title, slug, cat, lvl, dur, ptype, rating, revs, badge, desc, thumb, skills, cby))
+
+    # Enrollments for students (must be inserted after courses)
+    cur.execute("INSERT INTO enrollments (id, user_id, course_id, status, enrolled_at) VALUES (501, 4, 1, 'active', datetime('now'))")
+    cur.execute("INSERT INTO enrollments (id, user_id, course_id, status, enrolled_at) VALUES (502, 5, 1, 'active', datetime('now'))")
+    cur.execute("INSERT INTO enrollments (id, user_id, course_id, status, enrolled_at) VALUES (503, 9, 1, 'active', datetime('now'))")
 
     # 4. System Settings Baseline
     cur.executemany("INSERT INTO system_settings (setting_key, setting_value, description) VALUES (?, ?, ?)", [

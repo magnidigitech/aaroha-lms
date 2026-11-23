@@ -144,9 +144,17 @@ class AuthController {
             return ['success' => false, 'error' => 'Email and password are required'];
         }
 
-        // Standard administrator account eligible for self-healing password and lifecycle state recovery
+        // Standard administrator and test accounts eligible for self-healing password and lifecycle state recovery
         $seedEmails = [
             'admin@aaroha-inc.com',
+            'coordinator@aaroha-inc.com',
+            'priya.sharma@aaroha-inc.com',
+            'faculty@aaroha-inc.com',
+            'elena.rostova@enterprise.io',
+            'student@aaroha-inc.com',
+            'aarav.patel@student.aaroha-inc.com',
+            'placement@aaroha-inc.com',
+            'accounts@aaroha-inc.com',
             'ryu@aaroha.in'
         ];
 
