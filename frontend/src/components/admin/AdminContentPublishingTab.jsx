@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../../apiService';
 import { formatDate, formatDateTime } from '../../adminUtils';
+import MediaSourceInput from '../common/MediaSourceInput';
 
 export default function AdminContentPublishingTab({
   courses = [],
@@ -123,12 +124,13 @@ export default function AdminContentPublishingTab({
     try {
       const res = await api.adminGetAudienceCount(type, id);
       if (res?.success) {
-        setAudienceCount(res.recipient_count);
+        const count = res.recipient_count !== undefined ? res.recipient_count : (res.count ?? 0);
+        setAudienceCount(count);
       } else {
-        setAudienceCount(null);
+        setAudienceCount(0);
       }
     } catch {
-      setAudienceCount(null);
+      setAudienceCount(0);
     } finally {
       setAudienceLoading(false);
     }
@@ -150,6 +152,10 @@ export default function AdminContentPublishingTab({
       showToast('Title and Course are required', 'error');
       return;
     }
+    if (!materialForm.file_url && !materialForm.external_url) {
+      showToast('Please provide a file upload or an external URL link', 'error');
+      return;
+    }
 
     try {
       const payload = {
@@ -157,6 +163,7 @@ export default function AdminContentPublishingTab({
         course_id: Number(materialForm.course_id),
         batch_id: materialForm.batch_id ? Number(materialForm.batch_id) : null,
         audience_id: materialForm.audience_id ? Number(materialForm.audience_id) : Number(materialForm.course_id),
+        recipient_count: typeof audienceCount === 'number' ? audienceCount : 0,
         notify_audience: materialForm.notify_audience ? 1 : 0
       };
 
@@ -278,7 +285,11 @@ export default function AdminContentPublishingTab({
                 file_size: '2.4 MB',
                 file_type: 'PDF'
               });
-              if (courses[0]?.id) checkAudienceCount('course_enrolled', courses[0].id);
+              if (courses[0]?.id) {
+                checkAudienceCount('course_enrolled', courses[0].id);
+              } else {
+                checkAudienceCount('all_students', null);
+              }
               setIsMaterialModalOpen(true);
             }}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xs transition-colors"
@@ -737,7 +748,7 @@ export default function AdminContentPublishingTab({
       {/* MODAL 1: PUBLISH LMS LEARNING MATERIAL */}
       {isMaterialModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 my-8">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Publish Learning Material</h2>
@@ -847,12 +858,50 @@ export default function AdminContentPublishingTab({
                 </div>
               </div>
 
-              {/* 2. Audience Selection with Live Count */}
+              {/* 2. Custom Upload & Web / External URL Section */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <MediaSourceInput
+                  category={
+                    materialForm.material_type === 'video'
+                      ? 'lesson_video'
+                      : 'material_document'
+                  }
+                  label="Learning Material Asset (Custom Upload or External URL)"
+                  helpText="Upload a document or video file directly, or supply an external GitHub, Google Drive, or streaming link."
+                  value={materialForm.file_url || materialForm.external_url}
+                  onChange={(url, meta) => {
+                    setMaterialForm(prev => ({
+                      ...prev,
+                      file_url: meta?.source_type === 'upload' ? url : (meta?.source_type === 'url' ? '' : url),
+                      external_url: meta?.source_type === 'url' ? url : '',
+                      source_type: meta?.source_type || (url.startsWith('http') ? 'url' : 'upload'),
+                      file_size: meta?.file_size ? (typeof meta.file_size === 'number' ? `${(meta.file_size / (1024 * 1024)).toFixed(1)} MB` : meta.file_size) : prev.file_size,
+                      file_type: meta?.file_type || (meta?.mime_type ? meta.mime_type.split('/')[1]?.toUpperCase() : prev.file_type),
+                      storage_key: meta?.storage_key || null
+                    }));
+                  }}
+                  required
+                />
+              </div>
+
+              {/* 3. Description & Usage Instructions */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Material Description & Instructions (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Outline purpose, prerequisites, or usage instructions..."
+                  value={materialForm.description}
+                  onChange={e => setMaterialForm({ ...materialForm, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-hidden focus:border-blue-500"
+                />
+              </div>
+
+              {/* 4. Audience Selection with Live Count */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-700">Target Audience Scope</label>
                   <span className="text-[11px] font-semibold text-blue-700">
-                    {audienceLoading ? 'Calculating...' : `${audienceCount !== null ? audienceCount : '—'} Confirmed Recipients`}
+                    {audienceLoading ? 'Calculating...' : `${typeof audienceCount === 'number' ? audienceCount : (audienceCount || 0)} Confirmed Recipients`}
                   </span>
                 </div>
 
@@ -975,7 +1024,7 @@ export default function AdminContentPublishingTab({
       {/* MODAL 2: SUBMIT PUBLIC ARTICLE OR SHOWCASE */}
       {isPublicSubmissionModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 my-8">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Submit Content for Public Website</h2>
@@ -1033,6 +1082,17 @@ export default function AdminContentPublishingTab({
                   value={publicForm.body}
                   onChange={e => setPublicForm({ ...publicForm, body: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-hidden font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">External Resource / Project URL (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/... or live demo link"
+                  value={publicForm.external_url}
+                  onChange={e => setPublicForm({ ...publicForm, external_url: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-hidden"
                 />
               </div>
 

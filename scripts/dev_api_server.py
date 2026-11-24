@@ -352,17 +352,22 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             # 1. Health / ping
             
             # Direct Storage File Access (Public Assets)
-            if path.startswith("/uploads/public/"):
-                f_key = path.replace("/uploads/public/", "").strip()
+            if path.startswith("/uploads/public/") or path.startswith("/upload/public/"):
+                f_key = path.replace("/uploads/public/", "").replace("/upload/public/", "").strip()
                 f_row = cur.execute("SELECT * FROM uploaded_files WHERE file_key = ?", (f_key,)).fetchone()
                 if not f_row:
                     return self._send_json({"success": False, "error": "Public asset not found."}, 404)
                 return self._serve_file(f_row['storage_path'], f_row['mime_type'], f_row['original_filename'], is_download=False)
 
             # Protected Storage File Streaming (Requires Token or Active Unexpired Enrollment)
-            if path.startswith("/uploads/stream/") or path.startswith("/uploads/download/"):
-                is_download = path.startswith("/uploads/download/")
-                prefix = "/uploads/download/" if is_download else "/uploads/stream/"
+            if (path.startswith("/uploads/stream/") or path.startswith("/upload/stream/") or
+                path.startswith("/uploads/download/") or path.startswith("/upload/download/")):
+                is_download = "/download/" in path
+                prefix = "/uploads/download/" if path.startswith("/uploads/download/") else (
+                    "/upload/download/" if path.startswith("/upload/download/") else (
+                        "/uploads/stream/" if path.startswith("/uploads/stream/") else "/upload/stream/"
+                    )
+                )
                 f_key = path.replace(prefix, "").strip()
                 f_row = cur.execute("SELECT * FROM uploaded_files WHERE file_key = ?", (f_key,)).fetchone()
                 if not f_row:
@@ -2120,7 +2125,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 return self._send_json({"success": True, "message": "All other active sessions have been invalidated."})
 
             # Direct Storage File Upload Endpoint (Multipart or JSON base64)
-            if path == "/uploads":
+            if path in ("/uploads", "/upload"):
                 file_bytes = None
                 orig_filename = "upload"
                 mime_type = "application/octet-stream"
@@ -2210,7 +2215,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 })
 
             # Chunked Resumable Upload for Large Videos & Files
-            if path == "/uploads/chunk":
+            if path in ("/uploads/chunk", "/upload/chunk"):
                 upload_id = str(data.get("upload_id", "")).strip()
                 chunk_index = int(data.get("chunk_index", 0))
                 total_chunks = int(data.get("total_chunks", 1))
@@ -3721,10 +3726,30 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
 
             # 15. Create Learning Material
             if path == "/admin/materials":
+                dest = data.get('destination', 'private_lms')
+                appr_status = 'approved' if user.get('role') in ('super_admin', 'admin', 'coordinator') else 'pending_review'
+                status = data.get('status', 'published')
+                sched_at = data.get('scheduled_release_at')
+                aud_type = data.get('audience_type', 'course_enrolled')
+                aud_id = data.get('audience_id')
+                rcp_count = data.get('recipient_count', 0)
+                notify = 1 if data.get('notify_audience') else 0
+                notif_status = 'queued' if (status == 'published' and notify == 1) else 'none'
+
                 cur.execute("""
-                    INSERT INTO learning_materials (course_id, batch_id, title, description, material_type, file_url, external_url, is_published, uploaded_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (data.get('course_id'), data.get('batch_id'), data['title'], data.get('description', ''), data.get('material_type', 'document'), data.get('file_url', ''), data.get('external_url', ''), 1 if data.get('is_published', True) else 0, user['id']))
+                    INSERT INTO learning_materials (
+                        course_id, batch_id, title, description, material_type, file_url, external_url,
+                        is_published, uploaded_by, destination, status, approval_status,
+                        audience_type, audience_id, recipient_count, notify_audience, notification_status,
+                        scheduled_release_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    data.get('course_id'), data.get('batch_id'), data['title'], data.get('description', ''),
+                    data.get('material_type', 'document'), data.get('file_url', ''), data.get('external_url', ''),
+                    1 if status == 'published' else 0, user['id'],
+                    dest, status, appr_status, aud_type, aud_id, rcp_count, notify, notif_status, sched_at
+                ))
                 mid = cur.lastrowid
                 conn.commit()
                 return self._send_json({"success": True, "message": "Material uploaded successfully", "material_id": mid})
@@ -3748,6 +3773,9 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 elif audience_type == "batch_enrolled" and audience_id:
                     count = cur.execute("SELECT COUNT(DISTINCT user_id) FROM batch_enrollments WHERE batch_id = ? AND status = 'active'", (audience_id,)).fetchone()[0]
                     scope_label = "Batch Students"
+                elif audience_type == "individual" and audience_id:
+                    count = cur.execute("SELECT COUNT(*) FROM users WHERE id = ?", (audience_id,)).fetchone()[0]
+                    scope_label = "Individual Learner"
                 else:
                     count = cur.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
                     scope_label = "All Active Learners"
@@ -3755,6 +3783,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 return self._send_json({
                     "success": True,
                     "count": count,
+                    "recipient_count": count,
                     "scope_label": scope_label
                 })
 
