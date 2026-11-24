@@ -73,22 +73,37 @@ export default function AdminContentPublishingTab({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [matRes, pubRes, queueRes] = await Promise.all([
+      const [matResResult, pubResResult, queueResResult] = await Promise.allSettled([
         api.adminGetMaterials(),
         api.publicGetContent({}),
         api.adminGetPublishingQueues()
       ]);
 
-      if (matRes?.success) setMaterials(matRes.materials || []);
-      if (pubRes?.success) {
+      if (matResResult.status === 'fulfilled' && matResResult.value?.success) {
+        setMaterials(matResResult.value.materials || []);
+      }
+
+      if (pubResResult.status === 'fulfilled' && pubResResult.value?.success) {
+        const pubRes = pubResResult.value;
         const combined = [
           ...(pubRes.articles || []),
           ...(pubRes.project_showcases || []),
           ...(pubRes.free_resources || [])
         ];
         setPublicContent(combined);
+      } else if (pubResResult.status === 'rejected') {
+        console.warn('Public content fetch warning:', pubResResult.reason);
       }
-      if (queueRes?.success) setPublishingQueues(queueRes);
+
+      if (queueResResult.status === 'fulfilled' && queueResResult.value?.success) {
+        setPublishingQueues(queueResResult.value);
+      } else if (queueResResult.status === 'rejected') {
+        console.warn('Publishing queues fetch warning:', queueResResult.reason);
+      }
+
+      if (matResResult.status === 'rejected' && pubResResult.status === 'rejected' && queueResResult.status === 'rejected') {
+        showToast(matResResult.reason?.message || 'Error loading content data', 'error');
+      }
     } catch (err) {
       console.warn('Publishing data fetch error:', err);
       showToast(err.message || 'Error loading content data', 'error');

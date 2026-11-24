@@ -1660,12 +1660,266 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 rows = cur.execute("""
                     SELECT m.*, c.title as course_title, b.batch_code, u.full_name as uploader_name
                     FROM learning_materials m
-                    JOIN courses c ON m.course_id = c.id
+                    LEFT JOIN courses c ON m.course_id = c.id
                     LEFT JOIN batches b ON m.batch_id = b.id
                     JOIN users u ON m.uploaded_by = u.id
                     ORDER BY m.created_at DESC
                 """).fetchall()
                 return self._send_json({"success": True, "materials": [dict(r) for r in rows]})
+
+            # 11b. Public Website Content & Showcases
+            if path == "/public/content" or path.startswith("/public/content/"):
+                parts = [p for p in path.split("/") if p]
+                slug = parts[2] if len(parts) > 2 else None
+
+                if slug:
+                    row = cur.execute("""
+                        SELECT pwc.id, pwc.title, pwc.slug, pwc.content_type, pwc.summary, pwc.body,
+                               pwc.media_url, pwc.external_url, pwc.published_at, pwc.live_version_data,
+                               u.full_name as author_name, u.title as author_title, u.avatar as author_avatar
+                        FROM public_website_content pwc
+                        JOIN users u ON pwc.author_id = u.id
+                        WHERE pwc.slug = ? AND pwc.status = 'published' AND pwc.approval_status = 'approved'
+                        LIMIT 1
+                    """, (slug,)).fetchone()
+                    if not row:
+                        return self._send_json({"success": False, "error": "Content not found or not published publicly."}, 404)
+                    item = dict(row)
+                    if item.get("live_version_data"):
+                        try:
+                            snap = json.loads(item["live_version_data"])
+                            item["title"] = snap.get("title", item["title"])
+                            item["summary"] = snap.get("summary", item["summary"])
+                            item["body"] = snap.get("body", item["body"])
+                        except Exception:
+                            pass
+                    item.pop("live_version_data", None)
+                    return self._send_json({"success": True, "content": item})
+
+                articles = []
+                showcases = []
+                resources = []
+                try:
+                    rows = cur.execute("""
+                        SELECT pwc.id, pwc.title, pwc.slug, pwc.content_type, pwc.summary, pwc.media_url,
+                               pwc.external_url, pwc.published_at, pwc.is_featured,
+                               u.full_name as author_name, u.title as author_title, u.avatar as author_avatar
+                        FROM public_website_content pwc
+                        JOIN users u ON pwc.author_id = u.id
+                        WHERE pwc.status = 'published' AND pwc.approval_status = 'approved'
+                        ORDER BY pwc.is_featured DESC, pwc.published_at DESC
+                    """).fetchall()
+                    for r in rows:
+                        d = dict(r)
+                        if d["content_type"] == "article":
+                            articles.append(d)
+                        elif d["content_type"] == "project_showcase":
+                            showcases.append(d)
+                        elif d["content_type"] == "resource":
+                            resources.append(d)
+                except Exception as e:
+                    sys.stderr.write(f"public_website_content query notice: {e}\n")
+
+                public_courses = []
+                try:
+                    c_rows = cur.execute("""
+                        SELECT c.id, c.title, c.slug, c.description, c.thumbnail_url, c.duration,
+                               c.level, c.prerequisites, c.what_you_will_learn, c.created_at
+                        FROM courses c
+                        WHERE (c.is_deleted = 0 OR c.is_deleted IS NULL)
+                        ORDER BY c.id ASC
+                    """).fetchall()
+                    for cr in c_rows:
+                        cid = cr["id"]
+                        mods = cur.execute("""
+                            SELECT m.title as module_title, m.sequence_order,
+                                   (SELECT COUNT(*) FROM lessons l WHERE l.module_id = m.id AND (l.is_deleted = 0 OR l.is_deleted IS NULL)) as lessons_count
+                            FROM modules m
+                            WHERE m.course_id = ?
+                            ORDER BY m.sequence_order ASC
+                        """, (cid,)).fetchall()
+
+                        b_rows = cur.execute("""
+                            SELECT b.batch_code, b.title as batch_title, b.start_date, b.end_date, b.delivery_mode
+                            FROM batches b
+                            WHERE b.course_id = ? AND b.status = 'active'
+                            ORDER BY b.start_date ASC
+                        """, (cid,)).fetchall()
+
+                        public_courses.append({
+                            "id": cid,
+                            "title": cr["title"],
+                            "slug": dict(cr).get("slug") or f"course-{cid}",
+                            "description": cr["description"],
+                            "thumbnail_url": cr["thumbnail_url"],
+                            "duration": cr["duration"],
+                            "level": cr["level"],
+                            "prerequisites": cr["prerequisites"],
+                            "what_you_will_learn": cr["what_you_will_learn"],
+                            "syllabus_overview": [dict(m) for m in mods],
+                            "upcoming_batches": [dict(b) for b in b_rows]
+                        })
+                except Exception as e:
+                    sys.stderr.write(f"courses query notice: {e}\n")
+
+                public_faculty = []
+                try:
+                    f_rows = cur.execute("""
+                        SELECT u.id, u.full_name, u.title, u.avatar, fp.bio, fp.expertise, fp.qualifications
+                        FROM users u
+                        LEFT JOIN faculty_profiles fp ON u.id = fp.user_id
+                        WHERE u.role IN ('faculty', 'instructor')
+                        ORDER BY u.full_name ASC
+                    """).fetchall()
+                    public_faculty = [dict(f) for f in f_rows]
+                except Exception as e:
+                    sys.stderr.write(f"faculty query notice: {e}\n")
+
+                return self._send_json({
+                    "success": True,
+                    "courses": public_courses,
+                    "articles": articles,
+                    "project_showcases": showcases,
+                    "free_resources": resources,
+                    "faculty": public_faculty
+                })
+
+            # 11c. Public Courses Only
+            if path == "/public/courses":
+                c_rows = cur.execute("""
+                    SELECT c.id, c.title, c.slug, c.description, c.thumbnail_url, c.duration,
+                           c.level, c.prerequisites, c.what_you_will_learn, c.created_at
+                    FROM courses c
+                    WHERE (c.is_deleted = 0 OR c.is_deleted IS NULL)
+                    ORDER BY c.id ASC
+                """).fetchall()
+                public_courses = []
+                for cr in c_rows:
+                    cid = cr["id"]
+                    mods = cur.execute("""
+                        SELECT m.title as module_title, m.sequence_order,
+                               (SELECT COUNT(*) FROM lessons l WHERE l.module_id = m.id AND (l.is_deleted = 0 OR l.is_deleted IS NULL)) as lessons_count
+                        FROM modules m
+                        WHERE m.course_id = ?
+                        ORDER BY m.sequence_order ASC
+                    """, (cid,)).fetchall()
+
+                    b_rows = cur.execute("""
+                        SELECT b.batch_code, b.title as batch_title, b.start_date, b.end_date, b.delivery_mode
+                        FROM batches b
+                        WHERE b.course_id = ? AND b.status = 'active'
+                        ORDER BY b.start_date ASC
+                    """, (cid,)).fetchall()
+
+                    public_courses.append({
+                        "id": cid,
+                        "title": cr["title"],
+                        "slug": dict(cr).get("slug") or f"course-{cid}",
+                        "description": cr["description"],
+                        "thumbnail_url": cr["thumbnail_url"],
+                        "duration": cr["duration"],
+                        "level": cr["level"],
+                        "prerequisites": cr["prerequisites"],
+                        "what_you_will_learn": cr["what_you_will_learn"],
+                        "syllabus_overview": [dict(m) for m in mods],
+                        "upcoming_batches": [dict(b) for b in b_rows]
+                    })
+                return self._send_json({"success": True, "courses": public_courses})
+
+            # 11d. Admin Publishing Queues
+            if path == "/admin/publishing/queues":
+                pwc_rows = cur.execute("""
+                    SELECT pwc.*, u.full_name as author_name, u.role as author_role
+                    FROM public_website_content pwc
+                    JOIN users u ON pwc.author_id = u.id
+                    WHERE pwc.approval_status = 'pending_review'
+                    ORDER BY pwc.created_at ASC
+                """).fetchall()
+
+                mat_rows = cur.execute("""
+                    SELECT lm.*, c.title as course_title, u.full_name as author_name
+                    FROM learning_materials lm
+                    LEFT JOIN courses c ON lm.course_id = c.id
+                    LEFT JOIN users u ON lm.uploaded_by = u.id
+                    WHERE lm.approval_status = 'pending_review'
+                    ORDER BY lm.created_at ASC
+                """).fetchall()
+
+                sched_mat = cur.execute("""
+                    SELECT lm.*, c.title as course_title, u.full_name as author_name
+                    FROM learning_materials lm
+                    LEFT JOIN courses c ON lm.course_id = c.id
+                    LEFT JOIN users u ON lm.uploaded_by = u.id
+                    WHERE lm.status = 'scheduled'
+                    ORDER BY lm.scheduled_release_at ASC
+                """).fetchall()
+
+                sched_ann = cur.execute("""
+                    SELECT a.*, u.full_name as author_name
+                    FROM announcements a
+                    JOIN users u ON a.author_id = u.id
+                    WHERE a.status = 'scheduled'
+                    ORDER BY a.scheduled_at ASC
+                """).fetchall()
+
+                correction = cur.execute("""
+                    SELECT pwc.id, pwc.title, pwc.content_type, pwc.approval_status, pwc.review_notes, pwc.updated_at,
+                           u.full_name as author_name
+                    FROM public_website_content pwc
+                    JOIN users u ON pwc.author_id = u.id
+                    WHERE pwc.approval_status IN ('changes_requested', 'rejected')
+                    ORDER BY pwc.updated_at DESC
+                """).fetchall()
+
+                failures = cur.execute("""
+                    SELECT id, title, 'announcement' as entity_type, notification_status, recipient_count, created_at
+                    FROM announcements
+                    WHERE notification_status = 'failed'
+                """).fetchall()
+
+                pending_pwc = [dict(r) for r in pwc_rows]
+                pending_mat = [dict(r) for r in mat_rows]
+                s_mat = [dict(r) for r in sched_mat]
+                s_ann = [dict(r) for r in sched_ann]
+                corr = [dict(r) for r in correction]
+                fails = [dict(r) for r in failures]
+
+                return self._send_json({
+                    "success": True,
+                    "summary": {
+                        "pending_approval_count": len(pending_pwc) + len(pending_mat),
+                        "scheduled_count": len(s_mat) + len(s_ann),
+                        "requiring_correction_count": len(corr),
+                        "delivery_failures_count": len(fails)
+                    },
+                    "pending_review": {
+                        "public_website_content": pending_pwc,
+                        "learning_materials": pending_mat
+                    },
+                    "scheduled": {
+                        "materials": s_mat,
+                        "announcements": s_ann
+                    },
+                    "requiring_correction": corr,
+                    "delivery_failures": fails
+                })
+
+            # 11e. Faculty Public Submissions
+            if path == "/faculty/public-submissions":
+                content_type = params.get("content_type", [None])[0] if 'params' in locals() else None
+                sql = """
+                    SELECT pwc.*, u.full_name as author_name, u.role as author_role, u.avatar as author_avatar
+                    FROM public_website_content pwc
+                    JOIN users u ON pwc.author_id = u.id
+                    WHERE 1=1
+                """
+                args = []
+                if content_type:
+                    sql += " AND pwc.content_type = ?"
+                    args.append(content_type)
+                sql += " ORDER BY pwc.created_at DESC"
+                rows = cur.execute(sql, args).fetchall()
+                return self._send_json({"success": True, "submissions": [dict(r) for r in rows]})
 
             # 12. Fees & Financials
             if path == "/admin/fees/plans":
@@ -3475,6 +3729,116 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 conn.commit()
                 return self._send_json({"success": True, "message": "Material uploaded successfully", "material_id": mid})
 
+            # 15b. Audience Count Calculation
+            if path == "/admin/audience-count":
+                audience_type = data.get("audience_type", "")
+                audience_id = data.get("audience_id")
+                count = 0
+                scope_label = "Target Audience"
+
+                if audience_type == "all_students":
+                    count = cur.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
+                    scope_label = "All Enrolled Students"
+                elif audience_type == "all_faculty":
+                    count = cur.execute("SELECT COUNT(*) FROM users WHERE role IN ('faculty', 'instructor')").fetchone()[0]
+                    scope_label = "All Faculty Members"
+                elif audience_type == "course_enrolled" and audience_id:
+                    count = cur.execute("SELECT COUNT(DISTINCT user_id) FROM enrollments WHERE course_id = ? AND status = 'active'", (audience_id,)).fetchone()[0]
+                    scope_label = "Course Cohort"
+                elif audience_type == "batch_enrolled" and audience_id:
+                    count = cur.execute("SELECT COUNT(DISTINCT user_id) FROM batch_enrollments WHERE batch_id = ? AND status = 'active'", (audience_id,)).fetchone()[0]
+                    scope_label = "Batch Students"
+                else:
+                    count = cur.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
+                    scope_label = "All Active Learners"
+
+                return self._send_json({
+                    "success": True,
+                    "count": count,
+                    "scope_label": scope_label
+                })
+
+            # 15c. Publish / Unpublish Learning Material
+            if path.startswith("/admin/materials/") and path.endswith("/publish"):
+                m_id = int(path.split("/")[3])
+                cur.execute("UPDATE learning_materials SET is_published = 1, status = 'published', updated_at = datetime('now') WHERE id = ?", (m_id,))
+                conn.commit()
+                return self._send_json({"success": True, "message": "Material published successfully."})
+
+            if path.startswith("/admin/materials/") and path.endswith("/unpublish"):
+                m_id = int(path.split("/")[3])
+                cur.execute("UPDATE learning_materials SET is_published = 0, status = 'draft', updated_at = datetime('now') WHERE id = ?", (m_id,))
+                conn.commit()
+                return self._send_json({"success": True, "message": "Material unpublished."})
+
+            # 15d. Faculty Public Submission Creation
+            if path == "/faculty/public-submissions":
+                title = (data.get("title") or "").strip()
+                if not title:
+                    return self._send_json({"success": False, "error": "Title is required."}, 400)
+                content_type = data.get("content_type", "article")
+                summary = data.get("summary", "")
+                body = data.get("body", "")
+                media_url = data.get("media_url")
+                external_url = data.get("external_url")
+                consent = 1 if data.get("consent_given", True) else 0
+
+                slug = re.sub(r'[^a-zA-Z0-9-]+', '-', title.lower()).strip('-') or f"submission-{int(time.time())}"
+                chk = cur.execute("SELECT COUNT(*) FROM public_website_content WHERE slug = ?", (slug,)).fetchone()[0]
+                if chk > 0:
+                    slug += f"-{int(time.time())}"
+
+                is_admin = user.get("role") in ("super_admin", "admin", "coordinator")
+                status = "published" if is_admin else "pending_review"
+                approval_status = "approved" if is_admin else "pending_review"
+
+                cur.execute("""
+                    INSERT INTO public_website_content (
+                        title, slug, content_type, summary, body, author_id, destination,
+                        status, approval_status, consent_given, media_url, external_url,
+                        published_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'public_website', ?, ?, ?, ?, ?, datetime('now'))
+                """, (title, slug, content_type, summary, body, user["id"], status, approval_status, consent, media_url, external_url))
+                new_id = cur.lastrowid
+                conn.commit()
+                return self._send_json({
+                    "success": True,
+                    "message": "Content published directly." if is_admin else "Content submitted for review.",
+                    "id": new_id,
+                    "slug": slug,
+                    "status": status,
+                    "approval_status": approval_status
+                }, 201)
+
+            # 15e. Admin Review Public Content / Materials
+            if path == "/admin/publishing/review":
+                c_type = data.get("content_type", "public_website_content")
+                c_id = int(data.get("id", 0))
+                action = data.get("action", "")
+                review_notes = data.get("review_notes", "")
+
+                if action not in ("approve", "request_changes", "reject"):
+                    return self._send_json({"success": False, "error": "Invalid action"}, 400)
+
+                new_approval = "approved" if action == "approve" else ("changes_requested" if action == "request_changes" else "rejected")
+                new_status = "published" if action == "approve" else ("draft" if action == "request_changes" else "archived")
+
+                if c_type == "learning_material":
+                    cur.execute("""
+                        UPDATE learning_materials
+                        SET approval_status = ?, status = ?, is_published = ?, review_notes = ?, updated_at = datetime('now')
+                        WHERE id = ?
+                    """, (new_approval, new_status, 1 if action == "approve" else 0, review_notes, c_id))
+                else:
+                    cur.execute("""
+                        UPDATE public_website_content
+                        SET approval_status = ?, status = ?, review_notes = ?, reviewed_by = ?, reviewed_at = datetime('now'), updated_at = datetime('now')
+                        WHERE id = ?
+                    """, (new_approval, new_status, review_notes, user["id"], c_id))
+
+                conn.commit()
+                return self._send_json({"success": True, "message": f"Review action '{action}' recorded."})
+
             # 16. Create Announcement
             if path == "/admin/announcements":
                 cur.execute("""
@@ -3819,6 +4183,25 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     """, (k, str(v)))
                 conn.commit()
                 return self._send_json({"success": True, "message": "Settings updated"})
+
+            # Learning Material Update
+            if path.startswith("/admin/materials/") and path.replace("/admin/materials/", "").isdigit():
+                m_id = int(path.replace("/admin/materials/", ""))
+                fields = []
+                vals = []
+                for k in ["title", "description", "material_type", "file_url", "external_url", "course_id", "batch_id", "session_id"]:
+                    if k in data:
+                        fields.append(f"{k} = ?")
+                        vals.append(data[k])
+                if "is_published" in data:
+                    fields.append("is_published = ?")
+                    vals.append(1 if data["is_published"] else 0)
+                if fields:
+                    fields.append("updated_at = datetime('now')")
+                    vals.append(m_id)
+                    cur.execute(f"UPDATE learning_materials SET {', '.join(fields)} WHERE id = ?", vals)
+                    conn.commit()
+                return self._send_json({"success": True, "message": "Material updated successfully."})
 
             # Update Followup
             if path.startswith("/admin/followups/") and path.replace("/admin/followups/", "").isdigit():
