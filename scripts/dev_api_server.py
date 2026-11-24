@@ -2413,6 +2413,109 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                     "enrollment_id": eid
                 }, 201)
 
+            # Create Module (POST /courses/{course_id}/modules or /admin/courses/{course_id}/modules)
+            if (path.startswith("/courses/") or path.startswith("/admin/courses/")) and path.endswith("/modules"):
+                parts = path.split("/")
+                cid = int(parts[-2])
+                title = str(data.get("title") or "").strip()
+                if not title:
+                    return self._send_json({"success": False, "error": "Module title required"}, 400)
+                estimated_time = str(data.get("estimated_time") or "5 hours to complete").strip()
+                description = str(data.get("description") or "").strip()
+                seq_row = cur.execute("SELECT COALESCE(MAX(sequence_order), 0) + 1 FROM modules WHERE course_id = ?", (cid,)).fetchone()
+                next_order = seq_row[0] if seq_row else 1
+                cur.execute("""
+                    INSERT INTO modules (course_id, title, estimated_time, description, sequence_order, is_deleted, created_at)
+                    VALUES (?, ?, ?, ?, ?, 0, datetime('now'))
+                """, (cid, title, estimated_time, description, next_order))
+                mid = cur.lastrowid
+                conn.commit()
+                return self._send_json({
+                    "success": True,
+                    "message": "Module created successfully",
+                    "module_id": mid,
+                    "module": {
+                        "id": mid,
+                        "course_id": cid,
+                        "title": title,
+                        "estimated_time": estimated_time,
+                        "description": description,
+                        "sequence_order": next_order,
+                        "lessons": [],
+                        "tasks": []
+                    }
+                }, 201)
+
+            # Create Lesson (POST /modules/{module_id}/lessons)
+            if path.startswith("/modules/") and path.endswith("/lessons"):
+                parts = path.split("/")
+                mid = int(parts[2])
+                title = str(data.get("title") or "").strip()
+                if not title:
+                    return self._send_json({"success": False, "error": "Lesson title required"}, 400)
+                content_type = str(data.get("content_type") or "article")
+                video_provider = data.get("video_provider")
+                duration = str(data.get("duration") or "20 min").strip()
+                content_body = data.get("content_body") or ""
+                media_url = data.get("media_url") or ""
+                is_free = 1 if data.get("is_free_preview") else 0
+                is_pub = 1 if data.get("is_published", True) else 0
+                seq_row = cur.execute("SELECT COALESCE(MAX(sequence_order), 0) + 1 FROM lessons WHERE module_id = ?", (mid,)).fetchone()
+                next_order = seq_row[0] if seq_row else 1
+                cur.execute("""
+                    INSERT INTO lessons (module_id, title, content_type, video_provider, duration, content_body, media_url, sequence_order, is_free_preview, is_published, is_deleted, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))
+                """, (mid, title, content_type, video_provider, duration, content_body, media_url, next_order, is_free, is_pub))
+                lid = cur.lastrowid
+                conn.commit()
+                return self._send_json({
+                    "success": True,
+                    "message": "Lesson created successfully",
+                    "lesson_id": lid,
+                    "lesson": {
+                        "id": lid,
+                        "module_id": mid,
+                        "title": title,
+                        "content_type": content_type,
+                        "duration": duration,
+                        "sequence_order": next_order,
+                        "is_free_preview": bool(is_free),
+                        "is_published": bool(is_pub)
+                    }
+                }, 201)
+
+            # Create Task (POST /modules/{module_id}/tasks)
+            if path.startswith("/modules/") and path.endswith("/tasks"):
+                parts = path.split("/")
+                mid = int(parts[2])
+                title = str(data.get("title") or "").strip()
+                if not title:
+                    return self._send_json({"success": False, "error": "Task title required"}, 400)
+                instructions = str(data.get("description") or data.get("instructions") or "")
+                task_type = str(data.get("task_type") or "assignment")
+                max_score = int(data.get("max_score") or 100)
+                pass_score = int(data.get("passing_score") or 70)
+                is_mand = 1 if data.get("is_mandatory", True) else 0
+                cur.execute("""
+                    INSERT INTO tasks (module_id, title, instructions, task_type, max_score, passing_score, is_mandatory, is_deleted, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))
+                """, (mid, title, instructions, task_type, max_score, pass_score, is_mand))
+                tid = cur.lastrowid
+                conn.commit()
+                return self._send_json({
+                    "success": True,
+                    "message": "Task created successfully",
+                    "task_id": tid,
+                    "task": {
+                        "id": tid,
+                        "module_id": mid,
+                        "title": title,
+                        "task_type": task_type,
+                        "max_score": max_score,
+                        "passing_score": pass_score
+                    }
+                }, 201)
+
             # Student Mark Lesson Complete
             if path.startswith("/lessons/") and path.endswith("/complete"):
                 user = self._get_auth_user()
@@ -4105,6 +4208,55 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
+            # Update Module (PUT /modules/{module_id})
+            if path.startswith("/modules/") and path.replace("/modules/", "").isdigit():
+                mid = int(path.replace("/modules/", ""))
+                title = str(data.get("title") or "").strip()
+                if not title:
+                    return self._send_json({"success": False, "error": "Module title required"}, 400)
+                est_time = str(data.get("estimated_time") or "5 hours to complete").strip()
+                desc = str(data.get("description") or "").strip()
+                cur.execute("UPDATE modules SET title = ?, estimated_time = ?, description = ? WHERE id = ? AND is_deleted = 0", (title, est_time, desc, mid))
+                conn.commit()
+                return self._send_json({"success": True, "message": "Module updated successfully", "module": {"id": mid, "title": title, "estimated_time": est_time, "description": desc}})
+
+            # Update Lesson (PUT /lessons/{lesson_id})
+            if path.startswith("/lessons/") and path.replace("/lessons/", "").isdigit():
+                lid = int(path.replace("/lessons/", ""))
+                fields, vals = [], []
+                for k in ["title", "content_type", "video_provider", "duration", "content_body", "media_url"]:
+                    if k in data:
+                        fields.append(f"{k} = ?")
+                        vals.append(data[k])
+                if "is_free_preview" in data:
+                    fields.append("is_free_preview = ?")
+                    vals.append(1 if data["is_free_preview"] else 0)
+                if "is_published" in data:
+                    fields.append("is_published = ?")
+                    vals.append(1 if data["is_published"] else 0)
+                if fields:
+                    vals.append(lid)
+                    cur.execute(f"UPDATE lessons SET {', '.join(fields)} WHERE id = ? AND is_deleted = 0", vals)
+                    conn.commit()
+                return self._send_json({"success": True, "message": "Lesson updated successfully"})
+
+            # Update Task (PUT /tasks/{task_id})
+            if path.startswith("/tasks/") and path.replace("/tasks/", "").isdigit():
+                tid = int(path.replace("/tasks/", ""))
+                fields, vals = [], []
+                for k in ["title", "instructions", "task_type", "max_score", "passing_score"]:
+                    if k in data:
+                        fields.append(f"{k} = ?")
+                        vals.append(data[k])
+                if "is_mandatory" in data:
+                    fields.append("is_mandatory = ?")
+                    vals.append(1 if data["is_mandatory"] else 0)
+                if fields:
+                    vals.append(tid)
+                    cur.execute(f"UPDATE tasks SET {', '.join(fields)} WHERE id = ? AND is_deleted = 0", vals)
+                    conn.commit()
+                return self._send_json({"success": True, "message": "Task updated successfully"})
+
             # Profile & Settings Update (All Roles)
             if path in ("/user/profile", "/auth/profile"):
                 user = self._get_auth_user()
@@ -4567,6 +4719,27 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
+            # Delete Module (DELETE /modules/{module_id})
+            if path.startswith("/modules/") and path.replace("/modules/", "").isdigit():
+                mid = int(path.replace("/modules/", ""))
+                cur.execute("UPDATE modules SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?", (mid,))
+                conn.commit()
+                return self._send_json({"success": True, "message": "Module successfully archived.", "module_id": mid})
+
+            # Delete Lesson (DELETE /lessons/{lesson_id})
+            if path.startswith("/lessons/") and path.replace("/lessons/", "").isdigit():
+                lid = int(path.replace("/lessons/", ""))
+                cur.execute("UPDATE lessons SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?", (lid,))
+                conn.commit()
+                return self._send_json({"success": True, "message": "Lesson successfully archived.", "lesson_id": lid})
+
+            # Delete Task (DELETE /tasks/{task_id})
+            if path.startswith("/tasks/") and path.replace("/tasks/", "").isdigit():
+                tid = int(path.replace("/tasks/", ""))
+                cur.execute("UPDATE tasks SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?", (tid,))
+                conn.commit()
+                return self._send_json({"success": True, "message": "Task successfully archived.", "task_id": tid})
+
             # Delete Course (Permanently delete eligible zero-dependency courses; HTTP 409 Conflict if dependencies exist)
             if (path.startswith("/courses/") or path.startswith("/admin/courses/")) and path.split("/")[-1].isdigit():
                 cid = int(path.split("/")[-1])
