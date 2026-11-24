@@ -135,6 +135,68 @@ def verify_file_token(token):
     except Exception:
         return None
 
+def auto_dispatch_scheduled_releases(cur, conn=None):
+    try:
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        rows = cur.execute("""
+            SELECT * FROM learning_materials
+            WHERE status = 'scheduled'
+              AND scheduled_release_at IS NOT NULL
+              AND scheduled_release_at <= ?
+              AND is_published = 0
+        """, (now_str,)).fetchall()
+
+        for r in rows:
+            mat = dict(r)
+            notify = mat.get('notify_audience') == 1
+            notif_status = 'sent' if notify else (mat.get('notification_status') or 'none')
+            notified_at = now_str if notif_status == 'sent' else mat.get('notified_at')
+
+            cur.execute("""
+                UPDATE learning_materials
+                SET status = 'published', is_published = 1, notification_status = ?, notified_at = ?, updated_at = ?
+                WHERE id = ?
+            """, (notif_status, notified_at, now_str, mat['id']))
+
+            if notif_status == 'sent':
+                aud_type = mat.get('audience_type') or 'course_enrolled'
+                aud_id = mat.get('audience_id')
+                ann_target_type = 'all_students'
+                ann_target_id = None
+                if aud_type in ('course_enrolled', 'course'):
+                    ann_target_type = 'course'
+                    ann_target_id = aud_id or mat.get('course_id')
+                elif aud_type in ('batch_enrolled', 'batch'):
+                    ann_target_type = 'batch'
+                    ann_target_id = aud_id or mat.get('batch_id')
+                elif aud_type == 'individual':
+                    ann_target_type = 'individual'
+                    ann_target_id = aud_id
+
+                course_name = "your enrolled program"
+                if mat.get('course_id'):
+                    c_row = cur.execute("SELECT title FROM courses WHERE id = ?", (mat['course_id'],)).fetchone()
+                    if c_row and c_row['title']:
+                        course_name = c_row['title']
+
+                ann_title = f"New Study Material: {mat['title']}"
+                ann_content = f"New learning resource '{mat['title']}' ({mat.get('material_type') or 'document'}) has been published for {course_name}. Access your student portal to review or download the material."
+                cur.execute("""
+                    INSERT INTO announcements (
+                        title, content, target_type, target_id, author_id, priority, status,
+                        destination, approval_status, notify_audience, notification_status,
+                        notified_at, recipient_count, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, 'high', 'published', ?, 'approved', 1, 'sent', ?, ?, datetime('now'), datetime('now'))
+                """, (
+                    ann_title, ann_content, ann_target_type, ann_target_id, mat.get('uploaded_by') or 1,
+                    mat.get('destination') or 'private_lms', notified_at, mat.get('recipient_count') or 0
+                ))
+
+        if rows and conn:
+            conn.commit()
+    except Exception as e:
+        sys.stderr.write(f"auto_dispatch_scheduled_releases error: {e}\n")
+
 class LMSRequestHandler(BaseHTTPRequestHandler):
     def _serve_file(self, file_path, mime_type, filename=None, is_download=False):
         if not os.path.exists(file_path):
@@ -349,6 +411,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
+            auto_dispatch_scheduled_releases(cur, conn)
             # 1. Health / ping
             
             # Direct Storage File Access (Public Assets)
@@ -2101,6 +2164,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
         cur = conn.cursor()
 
         try:
+            auto_dispatch_scheduled_releases(cur, conn)
             # User Password Change
             if path == "/user/change-password":
                 user = self._get_auth_user()
@@ -4063,11 +4127,54 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 new_status = "published" if action == "approve" else ("draft" if action == "request_changes" else "archived")
 
                 if c_type == "learning_material":
-                    cur.execute("""
-                        UPDATE learning_materials
-                        SET approval_status = ?, status = ?, is_published = ?, review_notes = ?, updated_at = datetime('now')
-                        WHERE id = ?
-                    """, (new_approval, new_status, 1 if action == "approve" else 0, review_notes, c_id))
+                    mat = cur.execute("SELECT * FROM learning_materials WHERE id = ?", (c_id,)).fetchone()
+                    notified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    if action == "approve" and mat and mat['notify_audience'] and mat['notification_status'] != 'sent':
+                        cur.execute("""
+                            UPDATE learning_materials
+                            SET approval_status = 'approved', status = 'published', is_published = 1,
+                                notification_status = 'sent', notified_at = ?, review_notes = ?, updated_at = datetime('now')
+                            WHERE id = ?
+                        """, (notified_at, review_notes, c_id))
+
+                        aud_type = mat['audience_type']
+                        aud_id = mat['audience_id']
+                        ann_target_type = 'all_students'
+                        ann_target_id = None
+                        if aud_type in ('course_enrolled', 'course'):
+                            ann_target_type = 'course'
+                            ann_target_id = aud_id or mat['course_id']
+                        elif aud_type in ('batch_enrolled', 'batch'):
+                            ann_target_type = 'batch'
+                            ann_target_id = aud_id or mat['batch_id']
+                        elif aud_type == 'individual':
+                            ann_target_type = 'individual'
+                            ann_target_id = aud_id
+
+                        course_name = "your enrolled program"
+                        if mat['course_id']:
+                            c_row = cur.execute("SELECT title FROM courses WHERE id = ?", (mat['course_id'],)).fetchone()
+                            if c_row and c_row['title']:
+                                course_name = c_row['title']
+
+                        ann_title = f"New Study Material: {mat['title']}"
+                        ann_content = f"New learning resource '{mat['title']}' ({mat['material_type'] or 'document'}) has been published for {course_name}. Access your student portal to review or download the material."
+                        cur.execute("""
+                            INSERT INTO announcements (
+                                title, content, target_type, target_id, author_id, priority, status,
+                                destination, approval_status, notify_audience, notification_status,
+                                notified_at, recipient_count, created_at, updated_at
+                            ) VALUES (?, ?, ?, ?, ?, 'high', 'published', ?, 'approved', 1, 'sent', ?, ?, datetime('now'), datetime('now'))
+                        """, (
+                            ann_title, ann_content, ann_target_type, ann_target_id, user['id'],
+                            mat['destination'] or 'private_lms', notified_at, mat['recipient_count'] or 0
+                        ))
+                    else:
+                        cur.execute("""
+                            UPDATE learning_materials
+                            SET approval_status = ?, status = ?, is_published = ?, review_notes = ?, updated_at = datetime('now')
+                            WHERE id = ?
+                        """, (new_approval, new_status, 1 if action == "approve" else 0, review_notes, c_id))
                 else:
                     cur.execute("""
                         UPDATE public_website_content

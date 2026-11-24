@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RoleBasedDashboardView from './dashboards/RoleBasedDashboardView';
 import CertificateModal from './CertificateModal';
 import StudentTicketModal from './StudentTicketModal';
@@ -50,6 +50,16 @@ export default function StudentPortalView({
       sessionStorage.removeItem('aaroha_student_selected_ticket_id');
     } catch (e) {}
   };
+
+  useEffect(() => {
+    const handleSupportEvent = (e) => {
+      const tab = e?.detail?.tab || 'my_tickets';
+      const ticketId = e?.detail?.ticketId || null;
+      handleOpenTicketModal(tab, ticketId);
+    };
+    window.addEventListener('aaroha:open-student-support', handleSupportEvent);
+    return () => window.removeEventListener('aaroha:open-student-support', handleSupportEvent);
+  }, []);
 
   return (
     <div className="pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

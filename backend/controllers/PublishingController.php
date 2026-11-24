@@ -169,6 +169,7 @@ class PublishingController {
      */
     public static function getMaterials($actor, $queryParams = []) {
         $pdo = Database::getConnection();
+        self::processScheduledReleases($pdo);
         $role = $actor['role'] ?? 'student';
         $userId = (int)($actor['id'] ?? 0);
         $isAdmin = self::isAdminRole($role);
@@ -1045,14 +1046,21 @@ class PublishingController {
             if (!$item) return ['success' => false, 'error' => 'Material not found.'];
 
             if ($action === 'approve') {
+                $notifStatus = ($item['notify_audience'] == 1) ? 'sent' : ($item['notification_status'] ?? 'none');
+                $notifiedAt = ($notifStatus === 'sent') ? $now : $item['notified_at'];
                 $upd = $pdo->prepare("
                     UPDATE learning_materials 
                     SET approval_status = 'approved', status = 'published', is_published = 1,
                         approved_by = ?, approved_at = ?, review_notes = ?, live_version_data = NULL,
+                        notification_status = ?, notified_at = ?,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 ");
-                $upd->execute([$actorId, $now, $reviewNotes, (int)$id]);
+                $upd->execute([$actorId, $now, $reviewNotes, $notifStatus, $notifiedAt, (int)$id]);
+
+                if ($notifStatus === 'sent') {
+                    self::dispatchMaterialAnnouncement($pdo, $item, $actorId);
+                }
             } elseif ($action === 'request_changes') {
                 $upd = $pdo->prepare("
                     UPDATE learning_materials 
@@ -1517,5 +1525,41 @@ class PublishingController {
             $annTitle, $annContent, $targetType, $targetId, (int)$actorId,
             $destination, $rcpCount
         ]);
+    }
+
+    /**
+     * Process any scheduled materials whose release time has arrived
+     */
+    public static function processScheduledReleases($pdo) {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT * FROM learning_materials
+                WHERE status = 'scheduled'
+                  AND scheduled_release_at IS NOT NULL
+                  AND scheduled_release_at <= CURRENT_TIMESTAMP
+                  AND is_published = 0
+            ");
+            $stmt->execute();
+            $items = $stmt->fetchAll();
+
+            foreach ($items as $item) {
+                $notifStatus = ($item['notify_audience'] == 1) ? 'sent' : ($item['notification_status'] ?? 'none');
+                $notifiedAt = ($notifStatus === 'sent') ? date('Y-m-d H:i:s') : $item['notified_at'];
+
+                $upd = $pdo->prepare("
+                    UPDATE learning_materials
+                    SET status = 'published', is_published = 1,
+                        notification_status = ?, notified_at = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ");
+                $upd->execute([$notifStatus, $notifiedAt, (int)$item['id']]);
+
+                if ($notifStatus === 'sent') {
+                    self::dispatchMaterialAnnouncement($pdo, $item, (int)($item['uploaded_by'] ?? 0));
+                }
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking auto-scheduler
+        }
     }
 }

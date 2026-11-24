@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import {
   Search, ChevronDown, User, LogOut, GraduationCap, Shield, Compass,
   Menu, X, Award, ShieldCheck, ArrowRight, ArrowLeft, LayoutDashboard, Globe,
-  BookOpen, Video, Settings
+  BookOpen, Video, Settings, HelpCircle
 } from 'lucide-react';
 import aarohaLogo from '../assets/aaroha_logo.webp';
 import TechSearchBar from './TechSearchBar';
 import ThemeToggle from './ThemeToggle';
-import { ROUTES, HOMEPAGE_ROUTE, getAuthorizedDashboardView, isFacultyRole } from '../routes';
+import { ROUTES, HOMEPAGE_ROUTE, getAuthorizedDashboardView, isFacultyRole, setRouteParam } from '../routes';
 
 export default function Navbar({
   currentUser,
@@ -154,6 +154,26 @@ export default function Navbar({
                 <ArrowLeft className="w-3.5 h-3.5 text-[#0A7CB3] dark:text-sky-400" />
                 <span className="hidden md:inline">Back to Website</span>
                 <span className="inline md:hidden">Website</span>
+              </button>
+            )}
+
+            {/* Dedicated Student Help & Support Shortcut */}
+            {currentUser?.role === 'student' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeView !== 'student') setActiveView('student');
+                  try {
+                    setRouteParam('support', 'open');
+                    sessionStorage.setItem('aaroha_student_support_open', 'true');
+                  } catch (_) {}
+                  window.dispatchEvent(new CustomEvent('aaroha:open-student-support', { detail: { tab: 'my_tickets' } }));
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-[#0A7CB3] dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                title="Academic Helpdesk & Support Tickets"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-[#0A7CB3] dark:text-sky-400" />
+                <span className="hidden sm:inline">Helpdesk</span>
               </button>
             )}
 
