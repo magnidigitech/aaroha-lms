@@ -126,6 +126,10 @@ export default function RoleBasedDashboardView({
         enrolledCoursesCount={Array.isArray(dashboardData?.my_courses) ? dashboardData.my_courses.length : 0}
         nextClass={dashboardData?.today_and_upcoming?.next_live_class || null}
         onOpenTicketModal={onOpenTicketModal}
+        onContinueLearning={onContinueLearning || onOpenCourse}
+        onOpenCourse={onOpenCourse}
+        activeCourseId={dashboardData?.my_courses?.[0]?.course_id || null}
+        activeCourseTitle={dashboardData?.my_courses?.[0]?.course_title || null}
       />
 
       {/* Loading State */}

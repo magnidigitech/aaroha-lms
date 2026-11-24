@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   User, Shield, GraduationCap, Briefcase, Layers, 
   RefreshCw, Settings, ChevronDown, Check, Clock, Globe, Bell,
-  BookOpen, Video, HelpCircle
+  BookOpen, Video, HelpCircle, Play
 } from 'lucide-react';
 
 export const ROLE_LABELS = {
@@ -39,7 +39,11 @@ export default function DashboardHeader({
   onNavigateTab,
   enrolledCoursesCount = 0,
   nextClass = null,
-  onOpenTicketModal = null
+  onOpenTicketModal = null,
+  onOpenCourse = null,
+  onContinueLearning = null,
+  activeCourseId = null,
+  activeCourseTitle = null
 }) {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
@@ -118,6 +122,19 @@ export default function DashboardHeader({
 
         {/* Action Controls & Role Switcher */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          {/* Primary Classroom Action: Continue Learning / Resume Course */}
+          {activeRole === 'student' && activeCourseId && (
+            <button
+              type="button"
+              onClick={() => (onContinueLearning || onOpenCourse) && (onContinueLearning || onOpenCourse)(activeCourseId)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all cursor-pointer group"
+              title={activeCourseTitle ? `Resume active program: ${activeCourseTitle}` : 'Jump directly into your active course classroom'}
+            >
+              <Play size={13} fill="currentColor" className="group-hover:scale-110 transition-transform" />
+              <span>Continue Learning</span>
+            </button>
+          )}
+
           {/* Freed Space: Direct My Courses Shortcut */}
           <button
             type="button"
