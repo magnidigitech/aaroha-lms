@@ -12,6 +12,7 @@ import MediaSourceInput from '../common/MediaSourceInput';
 export default function AdminContentPublishingTab({
   courses = [],
   batches = [],
+  students = [],
   currentUser = {},
   showToast = () => {}
 }) {
@@ -39,6 +40,25 @@ export default function AdminContentPublishingTab({
   // Audience Count Live Estimator
   const [audienceCount, setAudienceCount] = useState(null);
   const [audienceLoading, setAudienceLoading] = useState(false);
+  const [studentsList, setStudentsList] = useState(students || []);
+
+  useEffect(() => {
+    if (students && students.length > 0) {
+      setStudentsList(students);
+    }
+  }, [students]);
+
+  useEffect(() => {
+    if (studentsList.length === 0) {
+      api.adminGetStudents()
+        .then(res => {
+          if (res?.success && Array.isArray(res.students)) {
+            setStudentsList(res.students);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [studentsList.length]);
 
   // Material Form State
   const [materialForm, setMaterialForm] = useState({
@@ -52,6 +72,7 @@ export default function AdminContentPublishingTab({
     destination: 'private_lms',
     audience_type: 'course_enrolled',
     audience_id: '',
+    audience_filter: 'all',
     status: 'published',
     scheduled_release_at: '',
     notify_audience: false,
@@ -118,11 +139,11 @@ export default function AdminContentPublishingTab({
   }, [fetchData]);
 
   // Recalculate audience count dynamically when form changes
-  const checkAudienceCount = useCallback(async (type, id) => {
+  const checkAudienceCount = useCallback(async (type, id, extra = null) => {
     if (!type) return;
     setAudienceLoading(true);
     try {
-      const res = await api.adminGetAudienceCount(type, id);
+      const res = await api.adminGetAudienceCount(type, id, extra);
       if (res?.success) {
         const count = res.recipient_count !== undefined ? res.recipient_count : (res.count ?? 0);
         setAudienceCount(count);
@@ -136,13 +157,37 @@ export default function AdminContentPublishingTab({
     }
   }, []);
 
-  const handleAudienceChange = (type, id) => {
+  const handleAudienceChange = (type) => {
+    let audId = '';
+    let batchId = materialForm.batch_id;
+    let courseId = materialForm.course_id;
+
+    if (type === 'course_enrolled') {
+      audId = courseId || courses[0]?.id || '';
+      courseId = audId;
+      checkAudienceCount('course_enrolled', audId);
+    } else if (type === 'batch_enrolled') {
+      audId = batchId || batches[0]?.id || '';
+      batchId = audId;
+      checkAudienceCount('batch_enrolled', audId);
+    } else if (type === 'all_students') {
+      audId = materialForm.audience_filter || 'all';
+      checkAudienceCount('all_students', null, audId);
+    } else if (type === 'individual') {
+      const firstStudentId = studentsList[0]?.user_id || studentsList[0]?.id || '';
+      audId = materialForm.audience_id && studentsList.some(s => (s.user_id || s.id) == materialForm.audience_id)
+        ? materialForm.audience_id
+        : firstStudentId;
+      if (audId) checkAudienceCount('individual', audId);
+    }
+
     setMaterialForm(prev => ({
       ...prev,
       audience_type: type,
-      audience_id: id || ''
+      audience_id: audId,
+      batch_id: batchId,
+      course_id: courseId
     }));
-    checkAudienceCount(type, id);
   };
 
   // Submit Material
@@ -906,62 +951,133 @@ export default function AdminContentPublishingTab({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer">
+                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
                     <input
                       type="radio"
                       name="audType"
                       checked={materialForm.audience_type === 'course_enrolled'}
-                      onChange={() => handleAudienceChange('course_enrolled', materialForm.course_id)}
+                      onChange={() => handleAudienceChange('course_enrolled')}
                     />
                     <span>Course Enrolments</span>
                   </label>
 
-                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer">
+                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
                     <input
                       type="radio"
                       name="audType"
                       checked={materialForm.audience_type === 'batch_enrolled'}
-                      onChange={() => handleAudienceChange('batch_enrolled', batches[0]?.id)}
+                      onChange={() => handleAudienceChange('batch_enrolled')}
                     />
                     <span>Selected Batch</span>
                   </label>
 
-                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer">
+                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
                     <input
                       type="radio"
                       name="audType"
                       checked={materialForm.audience_type === 'all_students'}
-                      onChange={() => handleAudienceChange('all_students', null)}
+                      onChange={() => handleAudienceChange('all_students')}
                     />
                     <span>All Students (Admin)</span>
                   </label>
 
-                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer">
+                  <label className="flex items-center gap-2 p-2 bg-white rounded border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
                     <input
                       type="radio"
                       name="audType"
                       checked={materialForm.audience_type === 'individual'}
-                      onChange={() => handleAudienceChange('individual', 7)}
+                      onChange={() => handleAudienceChange('individual')}
                     />
                     <span>Individual Learner</span>
                   </label>
                 </div>
 
+                {/* 1. Course Enrolments Dropdown */}
+                {materialForm.audience_type === 'course_enrolled' && (
+                  <div className="pt-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Select Target Course</label>
+                    <select
+                      value={materialForm.course_id}
+                      onChange={e => {
+                        const cid = e.target.value;
+                        setMaterialForm(prev => ({ ...prev, course_id: cid, audience_id: cid }));
+                        if (cid) checkAudienceCount('course_enrolled', cid);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 bg-white focus:outline-hidden focus:border-blue-500"
+                    >
+                      <option value="">Select Specific Course</option>
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>{c.title} ({c.code || c.slug || `#${c.id}`})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* 2. Selected Batch Dropdown */}
                 {materialForm.audience_type === 'batch_enrolled' && (
-                  <select
-                    value={materialForm.batch_id}
-                    onChange={e => {
-                      const bid = e.target.value;
-                      setMaterialForm(prev => ({ ...prev, batch_id: bid, audience_id: bid }));
-                      checkAudienceCount('batch_enrolled', bid);
-                    }}
-                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 bg-white"
-                  >
-                    <option value="">Select Specific Batch</option>
-                    {batches.map(b => (
-                      <option key={b.id} value={b.id}>{b.title} ({b.batch_code})</option>
-                    ))}
-                  </select>
+                  <div className="pt-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Select Target Batch</label>
+                    <select
+                      value={materialForm.batch_id}
+                      onChange={e => {
+                        const bid = e.target.value;
+                        setMaterialForm(prev => ({ ...prev, batch_id: bid, audience_id: bid }));
+                        if (bid) checkAudienceCount('batch_enrolled', bid);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 bg-white focus:outline-hidden focus:border-blue-500"
+                    >
+                      <option value="">Select Specific Batch</option>
+                      {batches.map(b => (
+                        <option key={b.id} value={b.id}>{b.title} ({b.batch_code})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* 3. All Students (Admin) Scope Dropdown */}
+                {materialForm.audience_type === 'all_students' && (
+                  <div className="pt-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Select Student Scope Filter</label>
+                    <select
+                      value={materialForm.audience_filter || 'all'}
+                      onChange={e => {
+                        const filterVal = e.target.value;
+                        setMaterialForm(prev => ({ ...prev, audience_filter: filterVal, audience_id: filterVal }));
+                        checkAudienceCount('all_students', null, filterVal);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 bg-white focus:outline-hidden focus:border-blue-500"
+                    >
+                      <option value="all">All Enrolled Students (Entire Institutional Body)</option>
+                      <option value="active">Active Enrolled Students Only</option>
+                      <option value="completed">Alumni / Completed Program Learners</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* 4. Individual Learner Dropdown */}
+                {materialForm.audience_type === 'individual' && (
+                  <div className="pt-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Select Target Learner / Student</label>
+                    <select
+                      value={materialForm.audience_id}
+                      onChange={e => {
+                        const uid = e.target.value;
+                        setMaterialForm(prev => ({ ...prev, audience_id: uid }));
+                        if (uid) checkAudienceCount('individual', uid);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 bg-white focus:outline-hidden focus:border-blue-500"
+                    >
+                      <option value="">Select Specific Student</option>
+                      {studentsList.map(s => {
+                        const uid = s.user_id || s.id;
+                        return (
+                          <option key={uid} value={uid}>
+                            {s.full_name} ({s.email}) {s.student_id_code ? `• ${s.student_id_code}` : ''} {s.batch_code ? `[Batch: ${s.batch_code}]` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                 )}
               </div>
 

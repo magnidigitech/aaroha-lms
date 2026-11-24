@@ -824,9 +824,9 @@ export const api = {
     method: 'DELETE'
   }),
 
-  adminGetAudienceCount: (audience_type, audience_id) => request('/admin/audience-count', {
+  adminGetAudienceCount: (audience_type, audience_id, audience_filter = null) => request('/admin/audience-count', {
     method: 'POST',
-    body: JSON.stringify({ audience_type, audience_id })
+    body: JSON.stringify({ audience_type, audience_id, audience_filter })
   }),
 
   adminGetPublishingQueues: () => request('/admin/publishing/queues'),

@@ -3758,24 +3758,39 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             if path == "/admin/audience-count":
                 audience_type = data.get("audience_type", "")
                 audience_id = data.get("audience_id")
+                audience_filter = data.get("audience_filter", "all")
                 count = 0
                 scope_label = "Target Audience"
 
                 if audience_type == "all_students":
-                    count = cur.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
-                    scope_label = "All Enrolled Students"
+                    if audience_filter == "active":
+                        count = cur.execute("SELECT COUNT(DISTINCT user_id) FROM enrollments WHERE status = 'active'").fetchone()[0]
+                        scope_label = "Active Enrolled Students"
+                    elif audience_filter == "completed":
+                        count = cur.execute("SELECT COUNT(DISTINCT user_id) FROM enrollments WHERE status = 'completed'").fetchone()[0]
+                        scope_label = "Alumni & Graduated Students"
+                    else:
+                        count = cur.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
+                        scope_label = "All Enrolled Students"
                 elif audience_type == "all_faculty":
                     count = cur.execute("SELECT COUNT(*) FROM users WHERE role IN ('faculty', 'instructor')").fetchone()[0]
                     scope_label = "All Faculty Members"
                 elif audience_type == "course_enrolled" and audience_id:
                     count = cur.execute("SELECT COUNT(DISTINCT user_id) FROM enrollments WHERE course_id = ? AND status = 'active'", (audience_id,)).fetchone()[0]
-                    scope_label = "Course Cohort"
+                    c_row = cur.execute("SELECT title FROM courses WHERE id = ?", (audience_id,)).fetchone()
+                    scope_label = f"Course: {c_row['title']}" if c_row else "Course Cohort"
                 elif audience_type == "batch_enrolled" and audience_id:
                     count = cur.execute("SELECT COUNT(DISTINCT user_id) FROM batch_enrollments WHERE batch_id = ? AND status = 'active'", (audience_id,)).fetchone()[0]
-                    scope_label = "Batch Students"
+                    b_row = cur.execute("SELECT batch_code, title FROM batches WHERE id = ?", (audience_id,)).fetchone()
+                    scope_label = f"Batch: {b_row['batch_code']} ({b_row['title']})" if b_row else "Batch Students"
                 elif audience_type == "individual" and audience_id:
-                    count = cur.execute("SELECT COUNT(*) FROM users WHERE id = ?", (audience_id,)).fetchone()[0]
-                    scope_label = "Individual Learner"
+                    row = cur.execute("SELECT full_name, email FROM users WHERE id = ?", (audience_id,)).fetchone()
+                    if row:
+                        count = 1
+                        scope_label = f"Individual: {row['full_name']} ({row['email']})"
+                    else:
+                        count = 0
+                        scope_label = "Individual not found"
                 else:
                     count = cur.execute("SELECT COUNT(*) FROM users WHERE role = 'student'").fetchone()[0]
                     scope_label = "All Active Learners"

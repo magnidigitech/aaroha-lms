@@ -1354,6 +1354,7 @@ export default function AdminPortalView({
             <AdminContentPublishingTab
               courses={courses}
               batches={batches}
+              students={students}
               currentUser={currentUser}
               showToast={showToast}
             />
