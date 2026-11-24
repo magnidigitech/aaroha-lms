@@ -272,45 +272,38 @@ export default function StudentDashboardView({
 
       {/* Student Quick Action Bar */}
       <div className="bg-white dark:bg-[#0c1527] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3 sm:p-3.5 shadow-2xs">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Quick Launch:</span>
-            {activeTab && (
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hidden sm:inline-block">
-                (Viewing: <span className="text-[#0A7CB3] dark:text-[#38bdf8] font-bold capitalize">{activeTab === 'all' ? 'All Overview' : activeTab}</span>)
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none pb-0.5 xl:pb-0">
-            {/* Quick tab switcher pills that dynamically reflect active state */}
-            {[
-              { id: 'all', label: 'Dashboard Overview', icon: BookOpen },
-              { id: 'notifications', label: 'Broadcasts & Alerts' + (notifications.length > 0 ? ` (${notifications.length})` : ''), icon: Bell },
-              { id: 'courses', label: 'My Courses (' + (Array.isArray(myCourses) ? myCourses.length : 0) + ')', icon: BookOpen },
-              { id: 'schedule', label: 'View Schedule', icon: Calendar },
-              { id: 'performance', label: 'Submit Assignment', icon: FileText },
-              { id: 'certificates', label: 'View Certificates (' + (Array.isArray(certificates) ? certificates.length : 0) + ')', icon: Award },
-              { id: 'placement', label: 'Placement Readiness', icon: Briefcase }
-            ].map(action => {
-              const Icon = action.icon;
-              const isTabActive = activeTab === action.id;
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={() => setActiveTab(action.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all whitespace-nowrap cursor-pointer shrink-0 ${
-                    isTabActive
-                      ? 'bg-[#0A7CB3] text-white font-bold shadow-xs border border-[#0A7CB3] ring-2 ring-[#0A7CB3]/30'
-                      : 'bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold shadow-2xs'
-                  }`}
-                >
-                  <Icon size={13} className={isTabActive ? 'text-white' : 'text-[#0A7CB3] dark:text-sky-400'} />
-                  <span>{action.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1 shrink-0">
+            Quick Launch:
+          </span>
+          {/* Quick tab switcher pills that dynamically reflect active state */}
+          {[
+            { id: 'all', label: 'Overview', icon: BookOpen },
+            { id: 'notifications', label: 'Broadcasts' + (notifications.length > 0 ? ` (${notifications.length})` : ''), icon: Bell },
+            { id: 'courses', label: 'My Courses' + (Array.isArray(myCourses) ? ` (${myCourses.length})` : ''), icon: BookOpen },
+            { id: 'schedule', label: 'Schedule', icon: Calendar },
+            { id: 'performance', label: 'Assignments', icon: FileText },
+            { id: 'certificates', label: 'Certificates' + (Array.isArray(certificates) ? ` (${certificates.length})` : ''), icon: Award },
+            { id: 'placement', label: 'Placement', icon: Briefcase }
+          ].map(action => {
+            const Icon = action.icon;
+            const isTabActive = activeTab === action.id;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => setActiveTab(action.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer ${
+                  isTabActive
+                    ? 'bg-[#0A7CB3] text-white font-bold shadow-xs border border-[#0A7CB3] ring-2 ring-[#0A7CB3]/30'
+                    : 'bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold shadow-2xs'
+                }`}
+              >
+                <Icon size={13} className={isTabActive ? 'text-white' : 'text-[#0A7CB3] dark:text-sky-400'} />
+                <span>{action.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
