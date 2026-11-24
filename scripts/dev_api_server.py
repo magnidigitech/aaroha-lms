@@ -963,6 +963,24 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 """, (student_id,)).fetchall()
                 recent_materials = [dict(m) for m in mat_rows]
 
+                # Real Audience Scoped Announcements & Notifications
+                ann_rows = cur.execute("""
+                    SELECT a.id, a.title, a.content, a.priority, a.target_type, a.target_id,
+                           a.created_at, u.full_name as author_name
+                    FROM announcements a
+                    JOIN users u ON a.author_id = u.id
+                    WHERE (a.status = 'published' OR a.status IS NULL)
+                      AND (
+                          (a.target_type = 'all_students' OR a.target_type IS NULL) OR
+                          (a.target_type = 'course' AND a.target_id IN (SELECT course_id FROM enrollments WHERE user_id = ? AND status = 'active')) OR
+                          (a.target_type = 'batch' AND a.target_id IN (SELECT batch_id FROM batch_enrollments WHERE user_id = ? AND status = 'active')) OR
+                          (a.target_type = 'individual' AND a.target_id = ?)
+                      )
+                    ORDER BY a.created_at DESC
+                    LIMIT 10
+                """, (student_id, student_id, student_id)).fetchall()
+                recent_notifications = [dict(a) for a in ann_rows]
+
                 stu_profile = dict(u_row) if u_row else {}
                 if sp_row:
                     stu_profile.update(dict(sp_row))
@@ -1012,6 +1030,7 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                         "outstanding_fees": outstanding_fees,
                         "certificates": certs_list
                     },
+                    "recent_notifications": recent_notifications,
                     "last_refreshed": now_dt.strftime("%d %b %Y, %I:%M %p")
                 })
 
@@ -3734,23 +3753,59 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
                 aud_id = data.get('audience_id')
                 rcp_count = data.get('recipient_count', 0)
                 notify = 1 if data.get('notify_audience') else 0
-                notif_status = 'queued' if (status == 'published' and notify == 1) else 'none'
+                notif_status = 'sent' if (status == 'published' and notify == 1) else ('queued' if notify == 1 else 'none')
+                notified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if notif_status == 'sent' else None
 
                 cur.execute("""
                     INSERT INTO learning_materials (
                         course_id, batch_id, title, description, material_type, file_url, external_url,
                         is_published, uploaded_by, destination, status, approval_status,
                         audience_type, audience_id, recipient_count, notify_audience, notification_status,
-                        scheduled_release_at
+                        notified_at, scheduled_release_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     data.get('course_id'), data.get('batch_id'), data['title'], data.get('description', ''),
                     data.get('material_type', 'document'), data.get('file_url', ''), data.get('external_url', ''),
                     1 if status == 'published' else 0, user['id'],
-                    dest, status, appr_status, aud_type, aud_id, rcp_count, notify, notif_status, sched_at
+                    dest, status, appr_status, aud_type, aud_id, rcp_count, notify, notif_status,
+                    notified_at, sched_at
                 ))
                 mid = cur.lastrowid
+
+                # Real audience notification dispatch
+                if notif_status == 'sent':
+                    ann_target_type = 'all_students'
+                    ann_target_id = None
+                    if aud_type in ('course_enrolled', 'course'):
+                        ann_target_type = 'course'
+                        ann_target_id = aud_id or data.get('course_id')
+                    elif aud_type in ('batch_enrolled', 'batch'):
+                        ann_target_type = 'batch'
+                        ann_target_id = aud_id or data.get('batch_id')
+                    elif aud_type == 'individual':
+                        ann_target_type = 'individual'
+                        ann_target_id = aud_id
+
+                    course_name = "your enrolled program"
+                    if data.get('course_id'):
+                        c_row = cur.execute("SELECT title FROM courses WHERE id = ?", (data['course_id'],)).fetchone()
+                        if c_row and c_row['title']:
+                            course_name = c_row['title']
+
+                    ann_title = f"New Study Material: {data['title']}"
+                    ann_content = f"New learning resource '{data['title']}' ({data.get('material_type', 'document')}) has been published for {course_name}. Access your student portal to review or download the material."
+                    cur.execute("""
+                        INSERT INTO announcements (
+                            title, content, target_type, target_id, author_id, priority, status,
+                            destination, approval_status, notify_audience, notification_status,
+                            notified_at, recipient_count, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, 'high', 'published', ?, 'approved', 1, 'sent', ?, ?, datetime('now'), datetime('now'))
+                    """, (
+                        ann_title, ann_content, ann_target_type, ann_target_id, user['id'],
+                        dest, notified_at, rcp_count
+                    ))
+
                 conn.commit()
                 return self._send_json({"success": True, "message": "Material uploaded successfully", "material_id": mid})
 
@@ -3805,7 +3860,44 @@ class LMSRequestHandler(BaseHTTPRequestHandler):
             # 15c. Publish / Unpublish Learning Material
             if path.startswith("/admin/materials/") and path.endswith("/publish"):
                 m_id = int(path.split("/")[3])
-                cur.execute("UPDATE learning_materials SET is_published = 1, status = 'published', updated_at = datetime('now') WHERE id = ?", (m_id,))
+                mat = cur.execute("SELECT * FROM learning_materials WHERE id = ?", (m_id,)).fetchone()
+                notified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if mat and mat['notify_audience'] and mat['notification_status'] != 'sent':
+                    cur.execute("UPDATE learning_materials SET is_published = 1, status = 'published', notification_status = 'sent', notified_at = ?, updated_at = datetime('now') WHERE id = ?", (notified_at, m_id))
+                    aud_type = mat['audience_type']
+                    aud_id = mat['audience_id']
+                    ann_target_type = 'all_students'
+                    ann_target_id = None
+                    if aud_type in ('course_enrolled', 'course'):
+                        ann_target_type = 'course'
+                        ann_target_id = aud_id or mat['course_id']
+                    elif aud_type in ('batch_enrolled', 'batch'):
+                        ann_target_type = 'batch'
+                        ann_target_id = aud_id or mat['batch_id']
+                    elif aud_type == 'individual':
+                        ann_target_type = 'individual'
+                        ann_target_id = aud_id
+
+                    course_name = "your enrolled program"
+                    if mat['course_id']:
+                        c_row = cur.execute("SELECT title FROM courses WHERE id = ?", (mat['course_id'],)).fetchone()
+                        if c_row and c_row['title']:
+                            course_name = c_row['title']
+
+                    ann_title = f"New Study Material: {mat['title']}"
+                    ann_content = f"New learning resource '{mat['title']}' ({mat['material_type'] or 'document'}) has been published for {course_name}. Access your student portal to review or download the material."
+                    cur.execute("""
+                        INSERT INTO announcements (
+                            title, content, target_type, target_id, author_id, priority, status,
+                            destination, approval_status, notify_audience, notification_status,
+                            notified_at, recipient_count, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, 'high', 'published', ?, 'approved', 1, 'sent', ?, ?, datetime('now'), datetime('now'))
+                    """, (
+                        ann_title, ann_content, ann_target_type, ann_target_id, user['id'],
+                        mat['destination'] or 'private_lms', notified_at, mat['recipient_count'] or 0
+                    ))
+                else:
+                    cur.execute("UPDATE learning_materials SET is_published = 1, status = 'published', updated_at = datetime('now') WHERE id = ?", (m_id,))
                 conn.commit()
                 return self._send_json({"success": True, "message": "Material published successfully."})
 

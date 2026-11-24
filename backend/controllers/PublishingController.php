@@ -359,19 +359,20 @@ class PublishingController {
 
         // Decoupled notification handling
         $notifyAudience = !empty($data['notify_audience']) ? 1 : 0;
-        $notificationStatus = ($status === 'published' && $notifyAudience === 1) ? 'queued' : 'none';
+        $notificationStatus = ($status === 'published' && $notifyAudience === 1) ? 'sent' : 'none';
+        $notifiedAt = ($notificationStatus === 'sent') ? date('Y-m-d H:i:s') : null;
 
         $stmt = $pdo->prepare("
             INSERT INTO learning_materials (
                 title, description, material_type, file_url, external_url, file_size, file_type,
                 course_id, module_id, lesson_id, batch_id, session_id,
                 destination, status, approval_status, audience_type, audience_id, recipient_count,
-                notify_audience, notification_status, scheduled_release_at, uploaded_by, is_published, created_at, updated_at
+                notify_audience, notification_status, notified_at, scheduled_release_at, uploaded_by, is_published, created_at, updated_at
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
         ");
 
@@ -381,10 +382,24 @@ class PublishingController {
             $title, $description, $materialType, $fileUrl, $externalUrl, $fileSize, $fileType,
             $courseId, $moduleId, $lessonId, $batchId, $sessionId,
             $destination, $status, $approvalStatus, $audienceType, $audienceId, $recipientCount,
-            $notifyAudience, $notificationStatus, $scheduledReleaseAt, $actorId, $isPublished
+            $notifyAudience, $notificationStatus, $notifiedAt, $scheduledReleaseAt, $actorId, $isPublished
         ]);
 
         $materialId = (int)$pdo->lastInsertId();
+
+        if ($notificationStatus === 'sent') {
+            self::dispatchMaterialAnnouncement($pdo, [
+                'id' => $materialId,
+                'title' => $title,
+                'material_type' => $materialType,
+                'destination' => $destination,
+                'course_id' => $courseId,
+                'batch_id' => $batchId,
+                'audience_type' => $audienceType,
+                'audience_id' => $audienceId,
+                'recipient_count' => $recipientCount
+            ], $actorId);
+        }
 
         AuditLogger::log(
             'CREATE_LEARNING_MATERIAL',
@@ -564,16 +579,21 @@ class PublishingController {
             $approvalStatus = 'pending_review';
         }
 
-        $notifStatus = ($newStatus === 'published' && $notifyAudience === 1) ? 'queued' : 'none';
+        $notifStatus = ($newStatus === 'published' && $notifyAudience === 1) ? 'sent' : 'none';
+        $notifiedAt = ($notifStatus === 'sent') ? date('Y-m-d H:i:s') : null;
 
         $upd = $pdo->prepare("
             UPDATE learning_materials
             SET status = ?, approval_status = ?, scheduled_release_at = ?, 
-                is_published = ?, notify_audience = ?, notification_status = ?, updated_at = CURRENT_TIMESTAMP
+                is_published = ?, notify_audience = ?, notification_status = ?, notified_at = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ");
         $isPub = ($newStatus === 'published') ? 1 : 0;
-        $upd->execute([$newStatus, $approvalStatus, $scheduleAt, $isPub, $notifyAudience, $notifStatus, (int)$id]);
+        $upd->execute([$newStatus, $approvalStatus, $scheduleAt, $isPub, $notifyAudience, $notifStatus, $notifiedAt, (int)$id]);
+
+        if ($notifStatus === 'sent') {
+            self::dispatchMaterialAnnouncement($pdo, $existing, (int)($actor['id'] ?? 0));
+        }
 
         AuditLogger::log(
             'PUBLISH_LEARNING_MATERIAL',
@@ -1441,5 +1461,61 @@ class PublishingController {
 
         http_response_code(403);
         return ['success' => false, 'error' => 'Access denied.'];
+    }
+
+    /**
+     * Dispatch Institutional Announcement for published learning materials
+     */
+    private static function dispatchMaterialAnnouncement($pdo, $mat, $actorId) {
+        $audType = $mat['audience_type'] ?? 'course_enrolled';
+        $audId = $mat['audience_id'] ?? null;
+        $courseId = $mat['course_id'] ?? null;
+        $batchId = $mat['batch_id'] ?? null;
+        $title = $mat['title'] ?? 'Learning Material';
+        $matType = $mat['material_type'] ?? 'document';
+        $destination = $mat['destination'] ?? 'private_lms';
+        $rcpCount = (int)($mat['recipient_count'] ?? 0);
+
+        $targetType = 'all_students';
+        $targetId = null;
+        if (in_array($audType, ['course_enrolled', 'course'])) {
+            $targetType = 'course';
+            $targetId = $audId ?: $courseId;
+        } elseif (in_array($audType, ['batch_enrolled', 'batch'])) {
+            $targetType = 'batch';
+            $targetId = $audId ?: $batchId;
+        } elseif ($audType === 'individual') {
+            $targetType = 'individual';
+            $targetId = $audId;
+        }
+
+        $courseName = 'your enrolled program';
+        if ($courseId) {
+            $cStmt = $pdo->prepare("SELECT title FROM courses WHERE id = ? LIMIT 1");
+            $cStmt->execute([(int)$courseId]);
+            $cRow = $cStmt->fetch();
+            if ($cRow && !empty($cRow['title'])) {
+                $courseName = $cRow['title'];
+            }
+        }
+
+        $annTitle = "New Study Material: " . $title;
+        $annContent = "New learning resource '" . $title . "' (" . $matType . ") has been published for " . $courseName . ". Access your student portal to review or download the material.";
+
+        $annStmt = $pdo->prepare("
+            INSERT INTO announcements (
+                title, content, target_type, target_id, author_id, priority, status,
+                destination, approval_status, notify_audience, notification_status,
+                notified_at, recipient_count, created_at, updated_at
+            ) VALUES (
+                ?, ?, ?, ?, ?, 'high', 'published',
+                ?, 'approved', 1, 'sent',
+                CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+        ");
+        $annStmt->execute([
+            $annTitle, $annContent, $targetType, $targetId, (int)$actorId,
+            $destination, $rcpCount
+        ]);
     }
 }

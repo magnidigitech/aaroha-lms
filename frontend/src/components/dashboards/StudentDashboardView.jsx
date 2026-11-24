@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BookOpen, CheckCircle2, Clock, Calendar, Award, 
   Briefcase, Video, FileText, ChevronRight, AlertCircle, AlertTriangle, Lock, ArrowRight,
-  ExternalLink, Download, Search, Filter, HelpCircle, UserCheck, Play, MessageSquare, PlusCircle
+  ExternalLink, Download, Search, Filter, HelpCircle, UserCheck, Play, MessageSquare, PlusCircle, Bell
 } from 'lucide-react';
 import { formatDateTime, formatDate } from '../../adminUtils';
 import api from '../../apiService';
@@ -284,6 +284,7 @@ export default function StudentDashboardView({
           {/* Quick tab switcher pills that dynamically reflect active state */}
           {[
             { id: 'all', label: 'Dashboard Overview', icon: BookOpen },
+            { id: 'notifications', label: 'Broadcasts & Alerts' + (notifications.length > 0 ? ` (${notifications.length})` : ''), icon: Bell },
             { id: 'courses', label: 'My Courses (' + (Array.isArray(myCourses) ? myCourses.length : 0) + ')', icon: BookOpen },
             { id: 'schedule', label: 'View Schedule', icon: Calendar },
             { id: 'performance', label: 'Submit Assignment', icon: FileText },
@@ -376,6 +377,7 @@ export default function StudentDashboardView({
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-1 text-xs font-bold text-slate-500 dark:text-slate-400">
         {[
           { id: 'all', label: 'Dashboard Overview' },
+          { id: 'notifications', label: 'Broadcasts & Alerts' + (notifications.length > 0 ? ` (${notifications.length})` : '') },
           { id: 'courses', label: 'My Enrolled Courses (' + (Array.isArray(myCourses) ? myCourses.length : 0) + ')' },
           { id: 'schedule', label: 'Schedule & Live Classes' },
           { id: 'performance', label: 'Academic Performance' },
@@ -401,6 +403,128 @@ export default function StudentDashboardView({
           );
         })}
       </div>
+
+      {/* SECTION: INSTITUTIONAL BROADCASTS & ANNOUNCEMENTS */}
+      {(activeTab === 'all' || activeTab === 'notifications') && (
+        <div id="broadcast-notifications-section" className="space-y-4 scroll-mt-24">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 shadow-2xs">
+                <Bell size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Broadcast Alerts & Notifications</h2>
+                  {notifications.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300/60">
+                      {notifications.length} New
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Targeted announcements, study material releases, and academic notices.</p>
+              </div>
+            </div>
+            {notifications.length > 3 && activeTab === 'all' && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('notifications')}
+                className="text-xs font-bold text-[#0A7CB3] dark:text-[#38bdf8] hover:underline flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+              >
+                <span>View All Broadcasts ({notifications.length})</span>
+                <ChevronRight size={13} />
+              </button>
+            )}
+          </div>
+
+          {notifications.length === 0 ? (
+            activeTab === 'notifications' ? (
+              <div className="bg-white dark:bg-[#0c1527] rounded-3xl border border-slate-200 dark:border-slate-800 p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                  <Bell size={24} />
+                </div>
+                <div className="text-sm font-bold text-slate-800 dark:text-slate-200">No active broadcast announcements</div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                  You are all caught up! When faculty or administrators publish learning materials or post audience-scoped updates, they will appear here.
+                </p>
+              </div>
+            ) : null
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {(activeTab === 'all' ? notifications.slice(0, 4) : notifications).map((notif, idx) => {
+                const priority = (notif.priority || 'normal').toLowerCase();
+                const isUrgent = priority === 'urgent';
+                const isHigh = priority === 'high';
+                const dateStr = notif.created_at ? formatDateTime(notif.created_at) : 'Recently';
+
+                return (
+                  <div
+                    key={notif.id || idx}
+                    className={`relative rounded-2xl border p-4 transition-all bg-white dark:bg-[#0c1527] flex flex-col justify-between ${
+                      isUrgent
+                        ? 'border-rose-200 dark:border-rose-900/60 shadow-2xs hover:border-rose-400'
+                        : isHigh
+                        ? 'border-amber-200 dark:border-amber-900/60 shadow-2xs hover:border-amber-400'
+                        : 'border-slate-200/90 dark:border-slate-800 shadow-2xs hover:border-[#0A7CB3]'
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                              isUrgent
+                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                                : isHigh
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                : 'bg-blue-100 text-[#0A7CB3] dark:bg-blue-950 dark:text-blue-300'
+                            }`}
+                          >
+                            {isUrgent ? 'Urgent Alert' : isHigh ? 'Important Notice' : 'Broadcast'}
+                          </span>
+                          {notif.target_type && (
+                            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase">
+                              • {notif.target_type.replace('_', ' ')}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <Clock size={11} />
+                          {dateStr}
+                        </span>
+                      </div>
+
+                      <div className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                        {notif.title}
+                      </div>
+
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
+                        {notif.content}
+                      </p>
+                    </div>
+
+                    <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[11px]">
+                      <div className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <UserCheck size={12} className="text-slate-400" />
+                        <span>Issued by: <strong className="text-slate-700 dark:text-slate-200">{notif.author_name || 'Academic Administration'}</strong></span>
+                      </div>
+                      {hasAccessibleCourse && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('courses')}
+                          className="text-[#0A7CB3] dark:text-[#38bdf8] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Go to Courses</span>
+                          <ArrowRight size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* SECTION 1: MY COURSES */}
       {(activeTab === 'all' || activeTab === 'courses') && (
